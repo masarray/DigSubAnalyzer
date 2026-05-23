@@ -1595,7 +1595,7 @@
                                 </StackPanel>
                                 <TextBlock Margin="0,2,0,10"
                                            Style="{StaticResource PanelSubtitleTextStyle}"
-                                           Text="Imported SCL documents and engineering context summary."/>
+                                           Text="Imported IEDs from SCL documents. Select one IED to filter the semantic stream catalog."/>
                             </StackPanel>
 
                             <Border Grid.Row="1"
@@ -1618,7 +1618,8 @@
                             </Border>
 
                             <ListBox Grid.Row="2"
-                                     ItemsSource="{Binding SclDocuments}"
+                                     ItemsSource="{Binding SclIedCards}"
+                                     SelectedItem="{Binding SelectedSclIedCard, Mode=TwoWay}"
                                      Background="Transparent"
                                      BorderThickness="0"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -1655,9 +1656,9 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel>
-                                            <TextBlock Text="{Binding FileName}" Foreground="#F3FAFF" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding EditionText}" Foreground="#91AFC8" FontSize="10.3" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding SummaryText}" Foreground="#91AFC8" FontSize="10.3" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Name}" Foreground="#F3FAFF" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SummaryText}" Foreground="#CFE7FF" FontSize="10.6" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SourceFileName}" Foreground="#91AFC8" FontSize="10.2" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding StatusText}" Foreground="#6AD59F" FontSize="9.8" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </DataTemplate>
@@ -1665,7 +1666,7 @@
                             </ListBox>
 
                             <TextBlock Grid.Row="3"
-                                       Text="SCL engineering context for multi-IED semantic mapping."
+                                       Text="Explorer selection drives the catalog and inspector."
                                        TextWrapping="Wrap"
                                        Foreground="{StaticResource TextMutedBrush}"
                                        FontSize="10"/>
@@ -3328,128 +3329,100 @@
 
                                 <Grid Grid.Row="2">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.1*"/>
+                                        <ColumnDefinition Width="1.18*"/>
                                         <ColumnDefinition Width="14"/>
-                                        <ColumnDefinition Width="0.9*"/>
+                                        <ColumnDefinition Width="0.92*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- IED + stream catalog -->
-                                    <Grid Grid.Column="0">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="0.46*"/>
-                                            <RowDefinition Height="12"/>
-                                            <RowDefinition Height="0.54*"/>
-                                        </Grid.RowDefinitions>
+                                    <!-- Semantic stream catalog: filtered by the left SCL Explorer selection -->
+                                    <Border Grid.Column="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="10"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <DockPanel>
+                                                <StackPanel DockPanel.Dock="Left">
+                                                    <TextBlock Text="SV / GOOSE Semantic Stream Catalog" Style="{StaticResource PanelTitleTextStyle}"/>
+                                                    <TextBlock Margin="0,4,0,0"
+                                                               Text="Filtered by selected IED in the SCL Explorer."
+                                                               Foreground="#8FAAC3"
+                                                               FontSize="11"/>
+                                                </StackPanel>
+                                                <Border HorizontalAlignment="Right"
+                                                        VerticalAlignment="Top"
+                                                        Background="#071A2B"
+                                                        BorderBrush="#1F4E76"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10"
+                                                        Padding="10,5">
+                                                    <TextBlock Text="{Binding SclWorkspaceStatusText}" Foreground="#8FCBFF" FontSize="11" FontWeight="SemiBold"/>
+                                                </Border>
+                                            </DockPanel>
 
-                                        <Border Grid.Row="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="10"/>
-                                                    <RowDefinition Height="*"/>
-                                                </Grid.RowDefinitions>
-                                                <DockPanel>
-                                                    <TextBlock Text="IED Cards" Style="{StaticResource PanelTitleTextStyle}" DockPanel.Dock="Left"/>
-                                                    <TextBlock Text="{Binding SclWorkspaceStatusText}" Foreground="#8FAAC3" FontSize="11" HorizontalAlignment="Right"/>
-                                                </DockPanel>
-
-                                                <ListBox Grid.Row="2"
-                                                         ItemsSource="{Binding SclIedCards}"
-                                                         SelectedItem="{Binding SelectedSclIedCard, Mode=TwoWay}"
-                                                         BorderThickness="0"
-                                                         Background="Transparent"
-                                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                                    <ListBox.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <WrapPanel/>
-                                                        </ItemsPanelTemplate>
-                                                    </ListBox.ItemsPanel>
-                                                    <ListBox.ItemContainerStyle>
-                                                        <Style TargetType="ListBoxItem">
-                                                            <Setter Property="Padding" Value="2"/>
-                                                            <Setter Property="Margin" Value="0,0,10,10"/>
-                                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ListBoxItem">
-                                                                        <Border x:Name="SclIedOuterCard"
-                                                                                Background="#091728"
-                                                                                BorderBrush="#153551"
-                                                                                BorderThickness="1"
-                                                                                CornerRadius="14">
-                                                                            <ContentPresenter/>
-                                                                        </Border>
-                                                                        <ControlTemplate.Triggers>
-                                                                            <Trigger Property="IsSelected" Value="True">
-                                                                                <Setter TargetName="SclIedOuterCard" Property="Background" Value="#10385B"/>
-                                                                                <Setter TargetName="SclIedOuterCard" Property="BorderBrush" Value="#1F8FFF"/>
-                                                                            </Trigger>
-                                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                                <Setter TargetName="SclIedOuterCard" Property="BorderBrush" Value="#3EA0FF"/>
-                                                                                <Setter TargetName="SclIedOuterCard" Property="Background" Value="#0C2438"/>
-                                                                            </Trigger>
-                                                                        </ControlTemplate.Triggers>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                        </Style>
-                                                    </ListBox.ItemContainerStyle>
-                                                    <ListBox.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border Width="250" Padding="12" Background="#0B1B2C" BorderBrush="#244562" BorderThickness="1" CornerRadius="12">
-                                                                <StackPanel>
-                                                                    <TextBlock Text="{Binding Name}" Foreground="#F4FAFF" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                                    <TextBlock Margin="0,4,0,0" Text="{Binding VendorText}" Foreground="#8FAAC3" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                                                                    <TextBlock Margin="0,8,0,0" Text="{Binding SummaryText}" Foreground="#CFE7FF" FontSize="11.5"/>
-                                                                    <TextBlock Margin="0,5,0,0" Text="{Binding SourceFileName}" Foreground="#6F8FAF" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ListBox.ItemTemplate>
-                                                </ListBox>
-                                            </Grid>
-                                        </Border>
-
-                                        <Border Grid.Row="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="10"/>
-                                                    <RowDefinition Height="*"/>
-                                                </Grid.RowDefinitions>
-                                                <TextBlock Text="SV / GOOSE Semantic Stream Catalog" Style="{StaticResource PanelTitleTextStyle}"/>
-                                                <DataGrid Grid.Row="2"
-                                                          Style="{StaticResource DarkDataGridStyle}"
-                                                          ItemsSource="{Binding SclStreamCatalog}"
-                                                          SelectedItem="{Binding SelectedSclStreamCatalog, Mode=TwoWay}"
-                                                          AutoGenerateColumns="False"
-                                                          IsReadOnly="True"
-                                                          HeadersVisibility="Column"
-                                                          CanUserAddRows="False"
-                                                          CanUserDeleteRows="False"
-                                                          CanUserSortColumns="False"
-                                                          GridLinesVisibility="None"
-                                                          RowHeight="34"
-                                                          FontSize="12"
-                                                          EnableRowVirtualization="True"
-                                                          VirtualizingPanel.IsVirtualizing="True"
-                                                          VirtualizingPanel.VirtualizationMode="Recycling"
-                                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                                                    <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="Type" Binding="{Binding Protocol}" Width="74"/>
-                                                        <DataGridTextColumn Header="IED" Binding="{Binding IedName}" Width="130"/>
-                                                        <DataGridTextColumn Header="Stream / Control" Binding="{Binding DisplayName}" Width="190"/>
-                                                        <DataGridTextColumn Header="Transport" Binding="{Binding TransportText}" Width="230"/>
-                                                        <DataGridTextColumn Header="DataSet" Binding="{Binding DataSetReference}" Width="260"/>
-                                                        <DataGridTextColumn Header="Entries" Binding="{Binding EntryCountText}" Width="90"/>
-                                                        <DataGridTextColumn Header="Live" Binding="{Binding LiveStatusText}" Width="120"/>
-                                                    </DataGrid.Columns>
-                                                </DataGrid>
-                                            </Grid>
-                                        </Border>
-                                    </Grid>
+                                            <DataGrid Grid.Row="2"
+                                                      Style="{StaticResource DarkDataGridStyle}"
+                                                      ItemsSource="{Binding SclFilteredStreamCatalog}"
+                                                      SelectedItem="{Binding SelectedSclStreamCatalog, Mode=TwoWay}"
+                                                      AutoGenerateColumns="False"
+                                                      IsReadOnly="True"
+                                                      HeadersVisibility="Column"
+                                                      CanUserAddRows="False"
+                                                      CanUserDeleteRows="False"
+                                                      CanUserSortColumns="False"
+                                                      GridLinesVisibility="None"
+                                                      MinRowHeight="38"
+                                                      FontSize="12"
+                                                      EnableRowVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <DataGrid.Resources>
+                                                    <Style x:Key="SclCatalogCellTextStyle" TargetType="TextBlock">
+                                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                                        <Setter Property="TextTrimming" Value="None"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                                                        <Setter Property="LineHeight" Value="15"/>
+                                                    </Style>
+                                                </DataGrid.Resources>
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Type" Binding="{Binding Protocol}" Width="80"/>
+                                                    <DataGridTemplateColumn Header="Stream / Control" Width="1.55*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclCatalogCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="APPID / VLAN / MAC" Width="1.45*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding TransportText}" Style="{StaticResource SclCatalogCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="DataSet" Width="1.55*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding DataSetReference}" Style="{StaticResource SclCatalogCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTextColumn Header="Entries" Binding="{Binding EntryCountText}" Width="90"/>
+                                                    <DataGridTemplateColumn Header="Live" Width="0.95*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding LiveStatusText}" Style="{StaticResource SclCatalogCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Grid>
+                                    </Border>
 
                                     <!-- Selected SCL object detail -->
                                     <Border Grid.Column="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="16">
@@ -3509,15 +3482,31 @@
                                                               CanUserDeleteRows="False"
                                                               CanUserSortColumns="False"
                                                               GridLinesVisibility="None"
-                                                              RowHeight="32"
+                                                              MinRowHeight="34"
                                                               FontSize="11.5"
-                                                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                        <DataGrid.Resources>
+                                                            <Style x:Key="SclDetailCellTextStyle" TargetType="TextBlock">
+                                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                <Setter Property="TextTrimming" Value="None"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                                                                <Setter Property="LineHeight" Value="15"/>
+                                                            </Style>
+                                                        </DataGrid.Resources>
                                                         <DataGrid.Columns>
-                                                            <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="42"/>
-                                                            <DataGridTextColumn Header="Signal" Binding="{Binding DisplayName}" Width="*"/>
-                                                            <DataGridTextColumn Header="FC" Binding="{Binding Fc}" Width="52"/>
-                                                            <DataGridTextColumn Header="CDC" Binding="{Binding Cdc}" Width="64"/>
-                                                            <DataGridTextColumn Header="Type" Binding="{Binding BType}" Width="90"/>
+                                                            <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="40"/>
+                                                            <DataGridTemplateColumn Header="Signal" Width="2.35*">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}"/>
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+                                                            <DataGridTextColumn Header="FC" Binding="{Binding Fc}" Width="0.55*"/>
+                                                            <DataGridTextColumn Header="CDC" Binding="{Binding Cdc}" Width="0.75*"/>
+                                                            <DataGridTextColumn Header="Type" Binding="{Binding BType}" Width="1.05*"/>
                                                         </DataGrid.Columns>
                                                     </DataGrid>
                                                 </Grid>

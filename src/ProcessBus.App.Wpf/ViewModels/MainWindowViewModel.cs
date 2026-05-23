@@ -742,6 +742,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<SclDocumentCardRow> SclDocuments => _sclDocuments;
     public ObservableCollection<SclIedCardRow> SclIedCards => _sclIedCards;
     public ObservableCollection<SclStreamCatalogRow> SclStreamCatalog => _sclStreamCatalog;
+    public IReadOnlyList<SclStreamCatalogRow> SclFilteredStreamCatalog => SelectedSclIedCard is null
+        ? _sclStreamCatalog.ToList()
+        : _sclStreamCatalog
+            .Where(x => string.Equals(x.IedName, SelectedSclIedCard.Name, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.SourceFileName, SelectedSclIedCard.SourceFileName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
     public SclIedCardRow? SelectedSclIedCard
     {
@@ -754,12 +760,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedSclIedCard = value;
             if (value is not null)
             {
-                var stream = _sclStreamCatalog.FirstOrDefault(x => string.Equals(x.IedName, value.Name, StringComparison.OrdinalIgnoreCase));
+                var stream = _sclStreamCatalog.FirstOrDefault(x => string.Equals(x.IedName, value.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.SourceFileName, value.SourceFileName, StringComparison.OrdinalIgnoreCase));
                 if (stream is not null)
                     _selectedSclStreamCatalog = stream;
             }
 
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SclFilteredStreamCatalog));
             OnPropertyChanged(nameof(SelectedSclStreamCatalog));
             RaiseSclSelectionProperties();
         }
@@ -776,13 +784,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedSclStreamCatalog = value;
             if (value is not null)
             {
-                var ied = _sclIedCards.FirstOrDefault(x => string.Equals(x.Name, value.IedName, StringComparison.OrdinalIgnoreCase));
+                var ied = _sclIedCards.FirstOrDefault(x => string.Equals(x.Name, value.IedName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.SourceFileName, value.SourceFileName, StringComparison.OrdinalIgnoreCase));
                 if (ied is not null)
                     _selectedSclIedCard = ied;
             }
 
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedSclIedCard));
+            OnPropertyChanged(nameof(SclFilteredStreamCatalog));
             RaiseSclSelectionProperties();
         }
     }
@@ -2054,6 +2064,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclDocuments));
         OnPropertyChanged(nameof(SclIedCards));
         OnPropertyChanged(nameof(SclStreamCatalog));
+        OnPropertyChanged(nameof(SclFilteredStreamCatalog));
         OnPropertyChanged(nameof(SelectedSclIedCard));
         OnPropertyChanged(nameof(SelectedSclStreamCatalog));
         OnPropertyChanged(nameof(SclSemanticStatusText));
