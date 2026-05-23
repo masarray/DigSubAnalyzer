@@ -113,8 +113,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly ObservableCollection<SclDocumentCardRow> _sclDocuments = new();
     private readonly ObservableCollection<SclIedCardRow> _sclIedCards = new();
     private readonly ObservableCollection<SclStreamCatalogRow> _sclStreamCatalog = new();
+    private readonly ObservableCollection<SclBindingMatrixRow> _sclBindingMatrix = new();
     private SclIedCardRow? _selectedSclIedCard;
     private SclStreamCatalogRow? _selectedSclStreamCatalog;
+    private SclBindingMatrixRow? _selectedSclBindingMatrixRow;
+    private string _lastSclBindingSignature = string.Empty;
     private string _goosePublisherFilterText = string.Empty;
     private string _selectedGooseIdFilter = "All";
     private readonly ICollectionView _gooseHistoryView;
@@ -749,6 +752,49 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 && string.Equals(x.SourceFileName, SelectedSclIedCard.SourceFileName, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+    public ObservableCollection<SclBindingMatrixRow> SclBindingMatrix => _sclBindingMatrix;
+    public IReadOnlyList<SclBindingMatrixRow> SclFilteredBindingMatrix => SelectedSclIedCard is null
+        ? _sclBindingMatrix.ToList()
+        : _sclBindingMatrix
+            .Where(x => (string.Equals(x.IedName, SelectedSclIedCard.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.SourceFileName, SelectedSclIedCard.SourceFileName, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(x.StatusText, "UNEXPECTED", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    public SclBindingMatrixRow? SelectedSclBindingMatrixRow
+    {
+        get => _selectedSclBindingMatrixRow;
+        set
+        {
+            if (ReferenceEquals(_selectedSclBindingMatrixRow, value))
+                return;
+
+            _selectedSclBindingMatrixRow = value;
+            if (value?.ExpectedStream is not null)
+                _selectedSclStreamCatalog = value.ExpectedStream;
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedSclStreamCatalog));
+            RaiseSclSelectionProperties();
+        }
+    }
+
+    public string SclBindingSummaryText
+    {
+        get
+        {
+            if (!HasSclProject)
+                return "Load SCL to build binding matrix";
+
+            var scope = SclFilteredBindingMatrix;
+            var matched = scope.Count(x => x.IsMatched);
+            var missing = scope.Count(x => string.Equals(x.StatusText, "MISSING", StringComparison.OrdinalIgnoreCase));
+            var unexpected = scope.Count(x => string.Equals(x.StatusText, "UNEXPECTED", StringComparison.OrdinalIgnoreCase));
+            var weak = scope.Count(x => string.Equals(x.StatusText, "WEAK", StringComparison.OrdinalIgnoreCase));
+            return $"Binding: {matched} matched · {missing} missing · {unexpected} unexpected · {weak} weak";
+        }
+    }
+
     public SclIedCardRow? SelectedSclIedCard
     {
         get => _selectedSclIedCard;
@@ -766,9 +812,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     _selectedSclStreamCatalog = stream;
             }
 
+            var binding = value is null
+                ? _sclBindingMatrix.FirstOrDefault()
+                : _sclBindingMatrix.FirstOrDefault(x => string.Equals(x.IedName, value.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.SourceFileName, value.SourceFileName, StringComparison.OrdinalIgnoreCase));
+            if (binding is not null)
+                _selectedSclBindingMatrixRow = binding;
+
             OnPropertyChanged();
             OnPropertyChanged(nameof(SclFilteredStreamCatalog));
+            OnPropertyChanged(nameof(SclFilteredBindingMatrix));
             OnPropertyChanged(nameof(SelectedSclStreamCatalog));
+            OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
+            OnPropertyChanged(nameof(SclBindingSummaryText));
             RaiseSclSelectionProperties();
         }
     }
@@ -790,9 +846,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     _selectedSclIedCard = ied;
             }
 
+            var binding = value is null
+                ? null
+                : _sclBindingMatrix.FirstOrDefault(x => ReferenceEquals(x.ExpectedStream, value)
+                    || string.Equals(x.ExpectedKey, value.ExpectedKey, StringComparison.OrdinalIgnoreCase));
+            if (binding is not null)
+                _selectedSclBindingMatrixRow = binding;
+
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedSclIedCard));
             OnPropertyChanged(nameof(SclFilteredStreamCatalog));
+            OnPropertyChanged(nameof(SclFilteredBindingMatrix));
+            OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
+            OnPropertyChanged(nameof(SclBindingSummaryText));
             RaiseSclSelectionProperties();
         }
     }
@@ -809,23 +875,33 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ? $"Semantic catalog ready · {_sclProject.EditionText}"
         : "No engineering context loaded";
 
-    public string SclSelectedDetailTitle => SelectedSclStreamCatalog is not null
-        ? $"{SelectedSclStreamCatalog.Protocol} stream · {SelectedSclStreamCatalog.DisplayName}"
-        : SelectedSclIedCard is not null
-            ? $"IED · {SelectedSclIedCard.Name}"
-            : "No SCL object selected";
+    public string SclSelectedDetailTitle => SelectedSclBindingMatrixRow is { ExpectedStream: null } binding
+        ? $"{binding.StatusText} {binding.Protocol} · {binding.ObservedName}"
+        : SelectedSclStreamCatalog is not null
+            ? $"{SelectedSclStreamCatalog.Protocol} stream · {SelectedSclStreamCatalog.DisplayName}"
+            : SelectedSclIedCard is not null
+                ? $"IED · {SelectedSclIedCard.Name}"
+                : "No SCL object selected";
 
-    public string SclSelectedDetailSubtitle => SelectedSclStreamCatalog is not null
-        ? $"{SelectedSclStreamCatalog.ControlBlockReference} · {SelectedSclStreamCatalog.TransportText}"
-        : SelectedSclIedCard is not null
-            ? $"{SelectedSclIedCard.SourceFileName} · {SelectedSclIedCard.SummaryText}"
-            : "Select an imported IED or mapped stream.";
+    public string SclSelectedDetailSubtitle => SelectedSclBindingMatrixRow is { ExpectedStream: null } binding
+        ? binding.EvidenceText
+        : SelectedSclStreamCatalog is not null
+            ? $"{SelectedSclStreamCatalog.ControlBlockReference} · {SelectedSclStreamCatalog.TransportText}"
+            : SelectedSclIedCard is not null
+                ? $"{SelectedSclIedCard.SourceFileName} · {SelectedSclIedCard.SummaryText}"
+                : "Select an imported IED or mapped stream.";
 
-    public IReadOnlyList<SclDataSetEntryModel> SclSelectedEntries => SelectedSclStreamCatalog?.Entries ?? Array.Empty<SclDataSetEntryModel>();
+    public IReadOnlyList<SclDataSetEntryModel> SclSelectedEntries => SelectedSclBindingMatrixRow is { ExpectedStream: null }
+        ? Array.Empty<SclDataSetEntryModel>()
+        : SelectedSclStreamCatalog?.Entries ?? Array.Empty<SclDataSetEntryModel>();
 
     public string SclSelectedTransportText => SelectedSclStreamCatalog?.TransportText ?? "No stream selected";
-    public string SclSelectedDatasetText => SelectedSclStreamCatalog?.DataSetReference ?? "No DataSet selected";
-    public string SclSelectedBindingText => SelectedSclStreamCatalog?.LiveStatusText ?? "Binding pending";
+    public string SclSelectedDatasetText => SelectedSclBindingMatrixRow is { ExpectedStream: null } binding
+        ? $"Observed {binding.Protocol} · APPID {binding.AppIdText} · VLAN {binding.VlanText}"
+        : SelectedSclStreamCatalog?.DataSetReference ?? "No DataSet selected";
+    public string SclSelectedBindingText => SelectedSclBindingMatrixRow?.StatusSummaryText
+        ?? SelectedSclStreamCatalog?.LiveStatusText
+        ?? "Binding pending";
 
     public bool RelaxDestinationCheck
     {
@@ -1410,6 +1486,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _state.ApplySnapshot(snapshot, mergeEvents: IsDiagnosticsTabActive);
             UpdateStreamStaleState();
             RebuildDiagnosticTargets();
+            RebuildSclBindingMatrix();
             if (IsDebugTabActive)
                 UpdateDebugDisplaySnapshot();
 
@@ -1930,8 +2007,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _sclDocuments.Clear();
         _sclIedCards.Clear();
         _sclStreamCatalog.Clear();
+        _sclBindingMatrix.Clear();
         _selectedSclIedCard = null;
         _selectedSclStreamCatalog = null;
+        _selectedSclBindingMatrixRow = null;
+        _lastSclBindingSignature = string.Empty;
         _sclLoadStatusText = "No SCL loaded";
         RaiseSclProperties();
     }
@@ -2026,6 +2106,192 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _selectedSclIedCard = _sclIedCards.FirstOrDefault();
         _selectedSclStreamCatalog = _sclStreamCatalog.FirstOrDefault(x => _selectedSclIedCard is null || string.Equals(x.IedName, _selectedSclIedCard.Name, StringComparison.OrdinalIgnoreCase))
             ?? _sclStreamCatalog.FirstOrDefault();
+        RebuildSclBindingMatrix(force: true);
+    }
+
+    private void RebuildSclBindingMatrix(bool force = false)
+    {
+        var previousKey = _selectedSclBindingMatrixRow?.BindingKey;
+        var rows = BuildSclBindingRows();
+        var signature = string.Join("|", rows.Select(x => x.SignatureText));
+        if (!force && string.Equals(signature, _lastSclBindingSignature, StringComparison.Ordinal))
+            return;
+
+        _lastSclBindingSignature = signature;
+        _sclBindingMatrix.Clear();
+        foreach (var row in rows)
+            _sclBindingMatrix.Add(row);
+
+        _selectedSclBindingMatrixRow = !string.IsNullOrWhiteSpace(previousKey)
+            ? _sclBindingMatrix.FirstOrDefault(x => string.Equals(x.BindingKey, previousKey, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        _selectedSclBindingMatrixRow ??= _sclBindingMatrix.FirstOrDefault(x => !x.IsMatched);
+        _selectedSclBindingMatrixRow ??= _sclBindingMatrix.FirstOrDefault(x => x.ExpectedStream is not null && (_selectedSclIedCard is null || string.Equals(x.IedName, _selectedSclIedCard.Name, StringComparison.OrdinalIgnoreCase)));
+        _selectedSclBindingMatrixRow ??= _sclBindingMatrix.FirstOrDefault();
+
+        if (_selectedSclBindingMatrixRow?.ExpectedStream is not null)
+            _selectedSclStreamCatalog = _selectedSclBindingMatrixRow.ExpectedStream;
+
+        OnPropertyChanged(nameof(SclBindingMatrix));
+        OnPropertyChanged(nameof(SclFilteredBindingMatrix));
+        OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
+        OnPropertyChanged(nameof(SclBindingSummaryText));
+        RaiseSclSelectionProperties();
+    }
+
+    private IReadOnlyList<SclBindingMatrixRow> BuildSclBindingRows()
+    {
+        var rows = new List<SclBindingMatrixRow>();
+        if (!HasSclProject)
+            return rows;
+
+        var expectedRows = _sclStreamCatalog.ToList();
+        var matchedLiveSvKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var matchedLiveGooseKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var expected in expectedRows)
+        {
+            if (string.Equals(expected.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
+            {
+                var best = Streams
+                    .Select(live => new { Live = live, Score = ScoreSvBinding(expected, live), Evidence = DescribeSvBindingEvidence(expected, live) })
+                    .OrderByDescending(x => x.Score)
+                    .FirstOrDefault();
+
+                if (best is not null && best.Score >= 35)
+                {
+                    matchedLiveSvKeys.Add(best.Live.StreamId);
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, best.Live.SvId, best.Live.AppId, best.Live.VlanText, ClassifyBindingScore(best.Score), best.Score, best.Evidence, best.Live.StreamId));
+                }
+                else
+                {
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, "MISSING", 0, "Expected SV stream from SCL has no live candidate on selected adapter.", string.Empty));
+                }
+            }
+            else if (string.Equals(expected.Protocol, "GOOSE", StringComparison.OrdinalIgnoreCase))
+            {
+                var best = _gooseMessages
+                    .Select(live => new { Live = live, Score = ScoreGooseBinding(expected, live), Evidence = DescribeGooseBindingEvidence(expected, live) })
+                    .OrderByDescending(x => x.Score)
+                    .FirstOrDefault();
+
+                if (best is not null && best.Score >= 35)
+                {
+                    matchedLiveGooseKeys.Add(best.Live.MessageId);
+                    var observedName = string.IsNullOrWhiteSpace(best.Live.GoId) || best.Live.GoId == "N/A" ? best.Live.GoCbRef : best.Live.GoId;
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, observedName, best.Live.AppId, best.Live.VlanId, ClassifyBindingScore(best.Score), best.Score, best.Evidence, best.Live.MessageId));
+                }
+                else
+                {
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, "MISSING", 0, "Expected GOOSE publisher from SCL has no live candidate on selected adapter.", string.Empty));
+                }
+            }
+        }
+
+        foreach (var live in Streams.OrderBy(x => x.FirstSeenOrder))
+        {
+            if (matchedLiveSvKeys.Contains(live.StreamId))
+                continue;
+
+            var bestScore = expectedRows
+                .Where(x => string.Equals(x.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
+                .Select(expected => ScoreSvBinding(expected, live))
+                .DefaultIfEmpty(0)
+                .Max();
+
+            if (bestScore < 35)
+                rows.Add(SclBindingMatrixRow.FromUnexpected("SV", live.SvId, live.AppId, live.VlanText, "Live SV stream is not described by imported SCL context.", live.StreamId));
+        }
+
+        foreach (var live in _gooseMessages.OrderBy(x => string.IsNullOrWhiteSpace(x.GoId) ? x.GoCbRef : x.GoId, StringComparer.OrdinalIgnoreCase))
+        {
+            if (matchedLiveGooseKeys.Contains(live.MessageId))
+                continue;
+
+            var bestScore = expectedRows
+                .Where(x => string.Equals(x.Protocol, "GOOSE", StringComparison.OrdinalIgnoreCase))
+                .Select(expected => ScoreGooseBinding(expected, live))
+                .DefaultIfEmpty(0)
+                .Max();
+
+            if (bestScore < 35)
+            {
+                var observedName = string.IsNullOrWhiteSpace(live.GoId) || live.GoId == "N/A" ? live.GoCbRef : live.GoId;
+                rows.Add(SclBindingMatrixRow.FromUnexpected("GOOSE", observedName, live.AppId, live.VlanId, "Live GOOSE publisher is not described by imported SCL context.", live.MessageId));
+            }
+        }
+
+        return rows
+            .OrderBy(x => x.SortRank)
+            .ThenBy(x => x.Protocol, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.IedName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.ExpectedName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string ClassifyBindingScore(int score)
+        => score >= 65 ? "MATCHED" : "WEAK";
+
+    private static int ScoreSvBinding(SclStreamCatalogRow expected, SvStreamItem live)
+    {
+        var score = 0;
+        if (TextMatches(expected.DisplayName, live.SvId) || TextMatches(expected.DisplayName, live.StreamName)) score += 45;
+        if (TextMatches(expected.AppId, live.AppId) || AppIdMatches(expected.AppId, live.AppId)) score += 35;
+        if (TextMatches(expected.DestinationMac, live.DestinationMac)) score += 20;
+        if (TextMatches(expected.VlanId, live.VlanText)) score += 10;
+        return score;
+    }
+
+    private static int ScoreGooseBinding(SclStreamCatalogRow expected, GooseMessageItem live)
+    {
+        var score = 0;
+        if (TextMatches(expected.DisplayName, live.GoId) || TextMatches(expected.ControlBlockReference, live.GoCbRef)) score += 45;
+        if (TextMatches(expected.AppId, live.AppId) || AppIdMatches(expected.AppId, live.AppId)) score += 35;
+        if (TextMatches(expected.DataSetReference, live.DataSet)) score += 25;
+        if (TextMatches(expected.DestinationMac, live.DestinationMac)) score += 15;
+        if (TextMatches(expected.VlanId, live.VlanId)) score += 10;
+        return score;
+    }
+
+    private static string DescribeSvBindingEvidence(SclStreamCatalogRow expected, SvStreamItem live)
+    {
+        var parts = new List<string>();
+        if (TextMatches(expected.DisplayName, live.SvId) || TextMatches(expected.DisplayName, live.StreamName)) parts.Add("svID");
+        if (TextMatches(expected.AppId, live.AppId) || AppIdMatches(expected.AppId, live.AppId)) parts.Add("APPID");
+        if (TextMatches(expected.DestinationMac, live.DestinationMac)) parts.Add("Dst MAC");
+        if (TextMatches(expected.VlanId, live.VlanText)) parts.Add("VLAN");
+        return parts.Count == 0 ? "Candidate selected by weak similarity." : $"Matched by {string.Join(" + ", parts)}.";
+    }
+
+    private static string DescribeGooseBindingEvidence(SclStreamCatalogRow expected, GooseMessageItem live)
+    {
+        var parts = new List<string>();
+        if (TextMatches(expected.DisplayName, live.GoId)) parts.Add("goID");
+        if (TextMatches(expected.ControlBlockReference, live.GoCbRef)) parts.Add("GoCBRef");
+        if (TextMatches(expected.AppId, live.AppId) || AppIdMatches(expected.AppId, live.AppId)) parts.Add("APPID");
+        if (TextMatches(expected.DataSetReference, live.DataSet)) parts.Add("DataSet");
+        if (TextMatches(expected.DestinationMac, live.DestinationMac)) parts.Add("Dst MAC");
+        if (TextMatches(expected.VlanId, live.VlanId)) parts.Add("VLAN");
+        return parts.Count == 0 ? "Candidate selected by weak similarity." : $"Matched by {string.Join(" + ", parts)}.";
+    }
+
+    private static bool AppIdMatches(string expected, string observed)
+    {
+        var a = NormalizeAppId(expected);
+        var b = NormalizeAppId(observed);
+        return !string.IsNullOrWhiteSpace(a) && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeAppId(string value)
+    {
+        var text = NormalizeMatchText(value).Replace("APPID", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            text = text[2..];
+        text = new string(text.Where(Uri.IsHexDigit).ToArray()).TrimStart('0');
+        return string.IsNullOrWhiteSpace(text) ? "0" : text;
     }
 
     private string ComputeSvLiveStatus(SclSvStreamModel stream)
@@ -2048,6 +2314,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclSelectedTransportText));
         OnPropertyChanged(nameof(SclSelectedDatasetText));
         OnPropertyChanged(nameof(SclSelectedBindingText));
+        OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
     }
 
     private void RaiseSclProperties()
@@ -2065,6 +2332,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclIedCards));
         OnPropertyChanged(nameof(SclStreamCatalog));
         OnPropertyChanged(nameof(SclFilteredStreamCatalog));
+        OnPropertyChanged(nameof(SclBindingMatrix));
+        OnPropertyChanged(nameof(SclFilteredBindingMatrix));
+        OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
+        OnPropertyChanged(nameof(SclBindingSummaryText));
         OnPropertyChanged(nameof(SelectedSclIedCard));
         OnPropertyChanged(nameof(SelectedSclStreamCatalog));
         OnPropertyChanged(nameof(SclSemanticStatusText));
@@ -2803,11 +3074,16 @@ public sealed class SclStreamCatalogRow
     public string DisplayName { get; init; } = string.Empty;
     public string ControlBlockReference { get; init; } = string.Empty;
     public string DataSetReference { get; init; } = string.Empty;
+    public string AppId { get; init; } = string.Empty;
+    public string DestinationMac { get; init; } = string.Empty;
+    public string VlanId { get; init; } = string.Empty;
+    public string VlanPriority { get; init; } = string.Empty;
     public string TransportText { get; init; } = string.Empty;
     public string LiveStatusText { get; init; } = string.Empty;
     public IReadOnlyList<SclDataSetEntryModel> Entries { get; init; } = Array.Empty<SclDataSetEntryModel>();
     public string EntryCountText => $"{Entries.Count} entry(s)";
     public string SummaryText => $"{IedName} · {TransportText}";
+    public string ExpectedKey => $"{Protocol}|{SourceFileName}|{IedName}|{ControlBlockReference}|{DisplayName}";
 
     public static SclStreamCatalogRow FromSv(string sourceFileName, SclSvStreamModel stream, string liveStatus)
         => new()
@@ -2818,6 +3094,10 @@ public sealed class SclStreamCatalogRow
             DisplayName = string.IsNullOrWhiteSpace(stream.SvId) ? stream.ControlName : stream.SvId,
             ControlBlockReference = stream.ControlBlockReference,
             DataSetReference = stream.DataSetReference,
+            AppId = stream.AppId,
+            DestinationMac = stream.DestinationMac,
+            VlanId = stream.VlanId,
+            VlanPriority = stream.VlanPriority,
             TransportText = stream.TransportText,
             LiveStatusText = liveStatus,
             Entries = stream.Entries
@@ -2832,9 +3112,93 @@ public sealed class SclStreamCatalogRow
             DisplayName = string.IsNullOrWhiteSpace(stream.GoId) ? stream.ControlName : stream.GoId,
             ControlBlockReference = stream.ControlBlockReference,
             DataSetReference = stream.DataSetReference,
+            AppId = stream.AppId,
+            DestinationMac = stream.DestinationMac,
+            VlanId = stream.VlanId,
+            VlanPriority = stream.VlanPriority,
             TransportText = stream.TransportText,
             LiveStatusText = liveStatus,
             Entries = stream.Entries
+        };
+}
+
+public sealed class SclBindingMatrixRow
+{
+    public string BindingKey { get; init; } = string.Empty;
+    public string Protocol { get; init; } = string.Empty;
+    public string IedName { get; init; } = string.Empty;
+    public string SourceFileName { get; init; } = string.Empty;
+    public string ExpectedName { get; init; } = string.Empty;
+    public string ObservedName { get; init; } = string.Empty;
+    public string AppIdText { get; init; } = string.Empty;
+    public string VlanText { get; init; } = string.Empty;
+    public string StatusText { get; init; } = string.Empty;
+    public int Score { get; init; }
+    public string EvidenceText { get; init; } = string.Empty;
+    public string LiveKey { get; init; } = string.Empty;
+    public string ExpectedKey { get; init; } = string.Empty;
+    public SclStreamCatalogRow? ExpectedStream { get; init; }
+
+    public bool IsMatched => string.Equals(StatusText, "MATCHED", StringComparison.OrdinalIgnoreCase);
+    public int SortRank => StatusText switch
+    {
+        "MISMATCH" => 0,
+        "MISSING" => 1,
+        "UNEXPECTED" => 2,
+        "WEAK" => 3,
+        "MATCHED" => 4,
+        _ => 5
+    };
+
+    public string StatusBrush => StatusText switch
+    {
+        "MATCHED" => "#70D7A7",
+        "WEAK" => "#F6D781",
+        "MISSING" => "#F0B533",
+        "UNEXPECTED" => "#FF8A6A",
+        "MISMATCH" => "#FF6B6B",
+        _ => "#8FA8BF"
+    };
+
+    public string StatusSummaryText => $"{StatusText} · confidence {Score}% · {EvidenceText}";
+    public string SignatureText => $"{BindingKey}:{StatusText}:{ObservedName}:{Score}:{EvidenceText}";
+
+    public static SclBindingMatrixRow FromExpected(SclStreamCatalogRow expected, string observedName, string observedAppId, string observedVlan, string status, int score, string evidence, string liveKey)
+        => new()
+        {
+            BindingKey = $"EXPECTED|{expected.ExpectedKey}",
+            Protocol = expected.Protocol,
+            IedName = expected.IedName,
+            SourceFileName = expected.SourceFileName,
+            ExpectedName = expected.DisplayName,
+            ObservedName = string.IsNullOrWhiteSpace(observedName) ? "Not observed" : observedName,
+            AppIdText = string.IsNullOrWhiteSpace(observedAppId) ? expected.AppId : $"SCL {expected.AppId} / Live {observedAppId}",
+            VlanText = string.IsNullOrWhiteSpace(observedVlan) ? expected.VlanId : $"SCL {expected.VlanId} / Live {observedVlan}",
+            StatusText = status,
+            Score = score,
+            EvidenceText = evidence,
+            LiveKey = liveKey,
+            ExpectedKey = expected.ExpectedKey,
+            ExpectedStream = expected
+        };
+
+    public static SclBindingMatrixRow FromUnexpected(string protocol, string observedName, string appId, string vlan, string evidence, string liveKey)
+        => new()
+        {
+            BindingKey = $"UNEXPECTED|{protocol}|{liveKey}",
+            Protocol = protocol,
+            IedName = "Live traffic",
+            SourceFileName = "Observed network",
+            ExpectedName = "No SCL expected stream",
+            ObservedName = string.IsNullOrWhiteSpace(observedName) ? "Unnamed live stream" : observedName,
+            AppIdText = appId,
+            VlanText = vlan,
+            StatusText = "UNEXPECTED",
+            Score = 0,
+            EvidenceText = evidence,
+            LiveKey = liveKey,
+            ExpectedKey = string.Empty,
+            ExpectedStream = null
         };
 }
 

@@ -215,3 +215,16 @@ Required behavior:
 - Advanced may expose raw SCL details, but semantic mapping belongs in the SCL workspace.
 
 Done when an engineer can import several vendor files and understand which IEDs, GOOSE controls, SV controls, DataSets, and signal orders are available before expected-vs-observed validation begins.
+
+## SCL Live Binding Matrix Rule
+
+SCL import is not complete until expected streams are compared with live traffic.
+
+Required behavior:
+
+- The SCL workspace must show an expected-vs-observed binding matrix.
+- Binding status must be explicit: `MATCHED`, `WEAK`, `MISSING`, `UNEXPECTED`, later `MISMATCH` and `CONFLICT`.
+- Do not rely on one brittle key. Use scoring from APPID, destination MAC, VLAN, svID/goID, control block reference, DataSet, confRev, and IED/source hints.
+- Missing expected streams and unexpected live streams are both important commissioning evidence.
+- Binding matrix selection should drive the semantic inspector so the engineer can move from finding to evidence quickly.
+- Never silently auto-correct semantic mapping. Show evidence and confidence.

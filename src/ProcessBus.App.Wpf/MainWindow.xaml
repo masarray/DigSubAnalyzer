@@ -3340,7 +3340,11 @@
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="10"/>
-                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="1.05*"/>
+                                                <RowDefinition Height="12"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="10"/>
+                                                <RowDefinition Height="0.95*"/>
                                             </Grid.RowDefinitions>
                                             <DockPanel>
                                                 <StackPanel DockPanel.Dock="Left">
@@ -3416,6 +3420,85 @@
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
                                                                 <TextBlock Text="{Binding LiveStatusText}" Style="{StaticResource SclCatalogCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+
+                                            <DockPanel Grid.Row="4">
+                                                <StackPanel DockPanel.Dock="Left">
+                                                    <TextBlock Text="Live Binding Matrix" Style="{StaticResource PanelTitleTextStyle}"/>
+                                                    <TextBlock Margin="0,4,0,0"
+                                                               Text="Expected SCL stream vs observed network traffic."
+                                                               Foreground="#8FAAC3"
+                                                               FontSize="11"/>
+                                                </StackPanel>
+                                                <Border HorizontalAlignment="Right"
+                                                        VerticalAlignment="Top"
+                                                        Background="#071A2B"
+                                                        BorderBrush="#1F4E76"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10"
+                                                        Padding="10,5">
+                                                    <TextBlock Text="{Binding SclBindingSummaryText}" Foreground="#F6D781" FontSize="11" FontWeight="SemiBold"/>
+                                                </Border>
+                                            </DockPanel>
+
+                                            <DataGrid Grid.Row="6"
+                                                      Style="{StaticResource DarkDataGridStyle}"
+                                                      ItemsSource="{Binding SclFilteredBindingMatrix}"
+                                                      SelectedItem="{Binding SelectedSclBindingMatrixRow, Mode=TwoWay}"
+                                                      AutoGenerateColumns="False"
+                                                      IsReadOnly="True"
+                                                      HeadersVisibility="Column"
+                                                      CanUserAddRows="False"
+                                                      CanUserDeleteRows="False"
+                                                      CanUserSortColumns="False"
+                                                      GridLinesVisibility="None"
+                                                      MinRowHeight="36"
+                                                      FontSize="11.5"
+                                                      EnableRowVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <DataGrid.Resources>
+                                                    <Style x:Key="SclBindingCellTextStyle" TargetType="TextBlock">
+                                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                                        <Setter Property="TextTrimming" Value="None"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                                                        <Setter Property="LineHeight" Value="15"/>
+                                                    </Style>
+                                                </DataGrid.Resources>
+                                                <DataGrid.Columns>
+                                                    <DataGridTemplateColumn Header="Status" Width="105">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTextColumn Header="Type" Binding="{Binding Protocol}" Width="68"/>
+                                                    <DataGridTemplateColumn Header="Expected" Width="1.35*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding ExpectedName}" Style="{StaticResource SclBindingCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Observed" Width="1.25*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding ObservedName}" Style="{StaticResource SclBindingCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Evidence" Width="1.8*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding EvidenceText}" Style="{StaticResource SclBindingCellTextStyle}"/>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>

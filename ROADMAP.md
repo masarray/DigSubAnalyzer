@@ -304,3 +304,25 @@ Next hardening steps:
 3. Use SCL entry order to rename GOOSE DataSet values in the GOOSE inspector.
 4. Use SCL entry order to build per-stream SV channel mapping and reduce phase-order ambiguity.
 5. Only then implement Expected-vs-Observed PASS/WARNING/MISMATCH/MISSING validation.
+
+## Stage 4B — SCL Live Binding Matrix
+
+Status: implemented as first product pass.
+
+Goal: turn SCL from a passive semantic catalog into a live commissioning context that compares expected engineering streams against observed network traffic.
+
+Included:
+
+- Binding matrix in the SCL workspace.
+- Expected SCL SV/GOOSE stream rows with status: `MATCHED`, `WEAK`, `MISSING`.
+- Unexpected live SV/GOOSE rows when traffic is observed but no imported SCL stream can explain it.
+- Lightweight scoring using APPID, destination MAC, VLAN, svID/goID, control block, and DataSet reference.
+- Selecting a binding row updates the semantic detail for the expected stream where applicable.
+
+Next hardening steps:
+
+1. Add conflict status when one live stream matches multiple SCL candidates.
+2. Add detailed per-field comparison columns: APPID, VLAN, MAC, confRev, DataSet.
+3. Use SCL DataSet order to rename GOOSE inspector values.
+4. Use SCL DataSet order to drive per-stream SV channel mapping.
+5. Add report/export for binding evidence.
