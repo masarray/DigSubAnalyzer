@@ -1,0 +1,19 @@
+namespace ProcessBus.Core.Models;
+
+public enum PhasorFamily
+{
+    Voltage,
+    Current
+}
+
+public sealed class PhasorDisplayItem
+{
+    public required string Name { get; init; }
+    public required PhasorFamily Family { get; init; }
+    public double? Magnitude { get; init; }
+    public double? AngleDegrees { get; init; }
+    public string Unit { get; init; } = string.Empty;
+    public bool HasValue => Magnitude.HasValue && AngleDegrees.HasValue;
+    public string MagnitudeDisplayText => Magnitude.HasValue ? $"{Magnitude:0.###}" : "N/A";
+    public string AngleDisplayText => AngleDegrees.HasValue ? $"{AngleDegrees:0.###} deg" : "N/A";
+}

@@ -1,0 +1,59 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Core shell -->
+    <SolidColorBrush x:Key="WindowChromeBrush" Color="#07111D"/>
+    <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#07111D"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#0C1B2B"/>
+    <SolidColorBrush x:Key="PanelAltBrush" Color="#102236"/>
+    <SolidColorBrush x:Key="PanelDeepBrush" Color="#071625"/>
+    <SolidColorBrush x:Key="PanelSubtleBrush" Color="#081827"/>
+    <SolidColorBrush x:Key="PanelRaisedBrush" Color="#0E2032"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="DividerBrush" Color="#18324C"/>
+    <SolidColorBrush x:Key="PanelBorderBrush" Color="#19324C"/>
+    <SolidColorBrush x:Key="PanelBorderStrongBrush" Color="#244564"/>
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#EAF3FF"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A7B8CB"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#71869D"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#EAF3FF"/>
+
+    <!-- Accent -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#2B9CFF"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#0E2B46"/>
+    <SolidColorBrush x:Key="AccentStrongBrush" Color="#1D8FFF"/>
+
+    <!-- State -->
+    <SolidColorBrush x:Key="GoodBrush" Color="#37D67A"/>
+    <SolidColorBrush x:Key="GoodSoftBrush" Color="#0C3A28"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#F0B533"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#FF3B4F"/>
+    <SolidColorBrush x:Key="TableHeaderBrush" Color="#18324C"/>
+
+    <!-- Phase -->
+    <SolidColorBrush x:Key="PhaseRBrush" Color="#E3263A"/>
+    <SolidColorBrush x:Key="PhaseSBrush" Color="#F5B400"/>
+    <SolidColorBrush x:Key="PhaseTBrush" Color="#1E7BD6"/>
+    <SolidColorBrush x:Key="UaBrush" Color="#E3263A"/>
+    <SolidColorBrush x:Key="UbBrush" Color="#F5B400"/>
+    <SolidColorBrush x:Key="UcBrush" Color="#1E7BD6"/>
+    <SolidColorBrush x:Key="IaBrush" Color="#E3263A"/>
+    <SolidColorBrush x:Key="IbBrush" Color="#F5B400"/>
+    <SolidColorBrush x:Key="IcBrush" Color="#1E7BD6"/>
+    <SolidColorBrush x:Key="InBrush" Color="#B8861B"/>
+
+    <!-- Diagnostics -->
+    <SolidColorBrush x:Key="DiagBgBrush" Color="#0B1A2A"/>
+    <SolidColorBrush x:Key="DiagCardBrush" Color="#0F2A40"/>
+    <SolidColorBrush x:Key="DiagTextPrimary" Color="#E6F2FF"/>
+    <SolidColorBrush x:Key="DiagTextSecondary" Color="#9FB9D1"/>
+    <SolidColorBrush x:Key="DiagAccentGreen" Color="#3DDC97"/>
+    <SolidColorBrush x:Key="DiagAccentOrange" Color="#FF9F43"/>
+    <SolidColorBrush x:Key="DiagAccentRed" Color="#FF5C5C"/>
+    <SolidColorBrush x:Key="HealthGoodBrush" Color="#12402A"/>
+    <SolidColorBrush x:Key="HealthWarningBrush" Color="#4A2D14"/>
+
+</ResourceDictionary>

@@ -1,0 +1,67 @@
+################################################################################
+# Source-only repository hygiene
+################################################################################
+
+# IDE / editor state
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.swp
+*.tmp
+
+# Build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+artifacts/
+installer/
+publish/
+
+# .NET local state
+.dotnet/
+.dotnet-cli/
+.dotnet-home/
+.dotnet-home-build/
+*.nupkg
+*.snupkg
+
+# Native / Visual C++ generated files
+*.ipch
+*.iobj
+*.ipdb
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.lastbuildstate
+*.recipe
+Browse.VC.db*
+Solution.VC.db*
+UpgradeLog*.htm
+
+# Runtime binaries and generated app outputs
+*.dll
+*.exe
+*.deps.json
+*.runtimeconfig.json
+*.cache
+*.log
+
+# Local capture/runtime state
+*.last_interface.txt
+*.pcap
+*.pcapng
+*.etl
+
+# Local generated media / reports
+*.pdf
+*.gif
+
+# Codex/browser local state
+.codex/

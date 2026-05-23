@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon>IEC61850.ico</ApplicationIcon>
+    <BuildInstaller Condition="'$(BuildInstaller)' == ''">false</BuildInstaller>
+    <InstallerRuntimeIdentifier Condition="'$(InstallerRuntimeIdentifier)' == ''">win-x64</InstallerRuntimeIdentifier>
+    <InstallerPublishDir>$(MSBuildThisFileDirectory)..\..\artifacts\publish\ProcessBusSvAnalyzer</InstallerPublishDir>
+    <InstallerOutputDir>$(MSBuildThisFileDirectory)..\..\artifacts\installer</InstallerOutputDir>
+    <InstallerScript>$(MSBuildThisFileDirectory)..\..\installer\ProcessBusSvAnalyzer.iss</InstallerScript>
+    <InstallerAppVersion Condition="'$(InstallerAppVersion)' == ''">0.1.0</InstallerAppVersion>
+    <InnoSetupCompiler Condition="'$(InnoSetupCompiler)' == '' and Exists('C:\Program Files (x86)\Inno Setup 6\ISCC.exe')">C:\Program Files (x86)\Inno Setup 6\ISCC.exe</InnoSetupCompiler>
+    <InnoSetupCompiler Condition="'$(InnoSetupCompiler)' == '' and Exists('C:\Program Files\Inno Setup 6\ISCC.exe')">C:\Program Files\Inno Setup 6\ISCC.exe</InnoSetupCompiler>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="IEC61850.PNG" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="IEC61850.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ProcessBus.Core\ProcessBus.Core.csproj" />
+    <ProjectReference Include="..\ProcessBus.Iec61850.Raw\ProcessBus.Iec61850.Raw.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="IEC61850.PNG" />
+    <Resource Include="Views\Assets\Icons\IEC61850.PNG" />
+    <Resource Include="Views\Assets\Profile\ari-profile.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Update="Themes\Colors.xaml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Generator></Generator>
+    </Page>
+    <Page Update="Themes\Controls.xaml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Generator></Generator>
+    </Page>
+    <Page Update="Themes\Effects.xaml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Generator></Generator>
+    </Page>
+  </ItemGroup>
+
+  <Target Name="PublishInstallerPayload"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release' and '$(BuildInstaller)' == 'true'">
+    <Message Importance="high" Text="Publishing self-contained installer payload to $(InstallerPublishDir)" />
+    <MakeDir Directories="$(InstallerPublishDir)" />
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectFullPath)&quot; -c $(Configuration) -r $(InstallerRuntimeIdentifier) --self-contained true --no-build -o &quot;$(InstallerPublishDir)&quot; /p:BuildInstaller=false /p:PublishSingleFile=false /p:DebugType=None /p:DebugSymbols=false" />
+  </Target>
+
+  <Target Name="BuildInnoSetupInstaller"
+          AfterTargets="PublishInstallerPayload"
+          Condition="'$(Configuration)' == 'Release' and '$(BuildInstaller)' == 'true' and '$(InnoSetupCompiler)' != ''">
+    <Message Importance="high" Text="Building Inno Setup installer into $(InstallerOutputDir)" />
+    <MakeDir Directories="$(InstallerOutputDir)" />
+    <Exec Command="set PROCESSBUS_REPO_ROOT=$(MSBuildThisFileDirectory)..\..&amp;&amp; set PROCESSBUS_PUBLISH_DIR=$(InstallerPublishDir)&amp;&amp; set PROCESSBUS_INSTALLER_DIR=$(InstallerOutputDir)&amp;&amp; &quot;$(InnoSetupCompiler)&quot; /DAppVersion=$(InstallerAppVersion) &quot;$(InstallerScript)&quot;" />
+  </Target>
+
+  <Target Name="WarnWhenInnoSetupMissing"
+          AfterTargets="PublishInstallerPayload"
+          Condition="'$(Configuration)' == 'Release' and '$(BuildInstaller)' == 'true' and '$(InnoSetupCompiler)' == ''">
+    <Warning Text="Inno Setup 6 compiler (ISCC.exe) was not found. Publish folder is ready at $(InstallerPublishDir), but installer EXE was not created." />
+  </Target>
+</Project>

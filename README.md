@@ -1,0 +1,85 @@
+# Mas Ari Digital Substation Instrument
+
+Raw-passive IEC 61850 Process Bus analyzer for FAT/SAT troubleshooting, commissioning visibility, and R&D validation.
+
+## Current Product Direction
+
+This repository is now positioned as a **receive-only raw passive analyzer**, not a libiec61850 subscriber visualizer.
+
+The product analyzer runtime decodes SV/GOOSE from raw Ethernet frames through the internal raw engine:
+
+```text
+ProcessBus.App.Wpf
+ProcessBus.Core
+ProcessBus.Iec61850.Raw
+```
+
+The WPF product app must not reference, load, or call `libiec61850`.
+
+## R&D Submission Positioning
+
+Safe external wording:
+
+> Raw Passive IEC 61850 Process Bus Visibility Tool with software-timestamp based arrival timing anomaly screening.
+
+Do not claim metrology-grade microsecond jitter measurement unless the result is externally validated using hardware timestamping, a TAP, or a trusted protocol analyzer.
+
+## What Works Now
+
+- WPF analyzer shell with process-bus workspace layout.
+- Raw passive capture path using Npcap adapter selection.
+- Internal SV APDU decoding and stream discovery.
+- Passive GOOSE discovery/event surface.
+- SV stream explorer, APPID/svID/source metadata, stream state, diagnostics, event log.
+- Phasor, metering, and reconstructed scope from decoded RMS/phasor plus `smpCnt` timing.
+- Arrival timing anomaly detection including `>=300 us` jitter excursion evidence.
+- R&D evidence copy panel with capture-path caution and timing-confidence wording.
+
+## Deliberate Limitations
+
+- Timing is software timestamp based. It is valid for screening and troubleshooting, not certification-grade timing proof.
+- The waveform panel is reconstructed from decoded electrical values and timing; it is not a hardware-sampled oscilloscope trace.
+- Generic SCL-driven channel semantic mapping is not complete yet.
+- Advanced reporting, replay, COMTRADE, FFT/THD, and control workflows are out of current scope.
+
+## Main Solution Shape
+
+```text
+ProcessBusSuite.sln
+src/
+  ProcessBus.App.Wpf/          WPF analyzer product shell
+  ProcessBus.Core/             shared models, shell state, adapter catalog
+  ProcessBus.Iec61850.Raw/     raw Ethernet SV/GOOSE decoder and live data source
+```
+
+Legacy `libiec61850` subscriber code and bench publisher code must stay outside the R&D product package. If retained locally, keep it under a separate tools/legacy area and do not include it in the product solution submitted to R&D.
+
+## Build Notes
+
+- Target: .NET 8 Windows / WPF.
+- Recommended IDE: Visual Studio 2026 or later with .NET desktop workload.
+- Npcap is required on the target machine for raw Ethernet capture.
+- For timing evaluation, prefer a physical Ethernet NIC/TAP. Avoid loopback, Wi-Fi Direct, virtual adapters, or unverified USB Ethernet paths.
+- Installer build is disabled by default. Enable explicitly only when the installer script exists:
+
+```powershell
+dotnet build .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Release /p:BuildInstaller=true
+```
+
+## R&D Evidence Policy
+
+When demonstrating to R&D, always show:
+
+1. selected adapter raw device name,
+2. stream status and APPID/svID/source MAC,
+3. sequence continuity and missing-sample count,
+4. current/average/max arrival jitter,
+5. timing-confidence classification,
+6. copied R&D evidence text.
+
+Use `docs/RD_SUBMISSION_STRATEGY.md` and `docs/RD_VALIDATION_TEST_PLAN.md` as the working checklist before submission.
+
+
+## PTP Timing Layer
+
+Phase 1 adds passive PTP visibility to the raw analyzer: EtherType 0x88F7 capture, PTPv2 common header decoding, Announce Grandmaster extraction, Sync/Announce/Follow_Up rate tracking, and timing-confidence wording that distinguishes SV arrival variation from measurement-grade jitter. See `docs/PTP_TIMING_LAYER_PHASE1.md`.
