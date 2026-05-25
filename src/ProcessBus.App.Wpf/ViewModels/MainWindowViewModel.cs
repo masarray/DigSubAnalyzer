@@ -3542,6 +3542,22 @@ public sealed class SclBindingMatrixRow
     };
 
     public string StatusSummaryText => $"{StatusText} · confidence {Score}% · {EvidenceText}";
+    public string StatusBackgroundBrush => StatusText switch
+    {
+        "MATCHED" => "#17382C",
+        "WEAK" => "#3A3218",
+        "MISSING" => "#3D2D12",
+        "UNEXPECTED" => "#3D231B",
+        "MISMATCH" => "#3D1E25",
+        "CONFLICT" => "#33254D",
+        _ => "#142235"
+    };
+
+    public string ScoreText => Score > 0 ? $"{Score}% confidence" : "No score";
+    public string ExpectedMetaText => string.Join(" - ", new[] { IedName, AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    public string ObservedMetaText => string.IsNullOrWhiteSpace(LiveKey) ? "Not seen on selected adapter" : string.Join(" - ", new[] { AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    public string EvidencePrimaryText => SplitEvidence(EvidenceText).Primary;
+    public string EvidenceSecondaryText => SplitEvidence(EvidenceText).Secondary;
     public string SignatureText => $"{BindingKey}:{StatusText}:{ObservedName}:{Score}:{EvidenceText}";
 
     public static SclBindingMatrixRow FromExpected(
@@ -3598,6 +3614,23 @@ public sealed class SclBindingMatrixRow
 
     private static string BuildDefaultExpectedDetail(SclStreamCatalogRow expected)
         => $"Expected {expected.Protocol}: {expected.DisplayName}\nControl: {expected.ControlBlockReference}\nDataSet: {expected.DataSetReference}\nAPPID: {expected.AppId}\nVLAN: {expected.VlanId}\nconfRev: {expected.ExpectedConfRevText}";
+
+    private static (string Primary, string Secondary) SplitEvidence(string evidence)
+    {
+        if (string.IsNullOrWhiteSpace(evidence))
+            return ("No evidence captured yet", string.Empty);
+
+        var parts = evidence
+            .Split(new[] { "; " }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Trim())
+            .Where(part => part.Length > 0)
+            .ToArray();
+
+        if (parts.Length == 0)
+            return (evidence, string.Empty);
+
+        return (parts[0], string.Join(Environment.NewLine, parts.Skip(1)));
+    }
 }
 
 internal sealed record BindingCandidate(
