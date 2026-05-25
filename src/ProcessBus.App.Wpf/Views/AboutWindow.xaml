@@ -48,27 +48,6 @@
             <Setter Property="LineHeight" Value="22"/>
         </Style>
 
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="{StaticResource Accent}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,8,8,0"/>
-        </Style>
-
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,8,8,0"/>
-        </Style>
-
         <Style x:Key="ValueChipBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="#0B1220"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
@@ -342,24 +321,10 @@ In real substation projects, the most expensive issues are often not caused by o
 
                     <Border Style="{StaticResource CardStyle}">
                         <StackPanel>
-                            <TextBlock Text="License and Access" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock Text="Open Source License" Style="{StaticResource SectionTitleStyle}"/>
                             <TextBlock Style="{StaticResource BodyTextStyle}">
-Free Edition is available with a maximum runtime of 30 minutes per session.
-
-For full version access, update support, project-specific features, training, or maintenance discussion, please contact:
+Process Bus Insight source code is licensed under GPL-3.0-or-later. The analyzer remains receive-only and raw-passive: it does not link to libiec61850 or any external IEC 61850 subscriber stack in the WPF product runtime.
                             </TextBlock>
-
-                            <Border Margin="0,14,0,0"
-                                    Background="#0B1220"
-                                    BorderBrush="{StaticResource BorderSoft}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="14">
-                                <TextBlock Text="admin@arisulistiono.com"
-                                           Foreground="{StaticResource TextMain}"
-                                           FontSize="16"
-                                           FontWeight="SemiBold"/>
-                            </Border>
 
                             <Border Style="{StaticResource ValueChipBorderStyle}">
                                 <Grid>
@@ -373,14 +338,14 @@ For full version access, update support, project-specific features, training, or
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="License State" Style="{StaticResource LabelMiniStyle}" />
-                                    <TextBlock x:Name="LicenseStateTextBlock" Grid.Row="0" Grid.Column="1" Text="-" Style="{StaticResource ValueMiniStyle}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Source" Style="{StaticResource LabelMiniStyle}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="GPL-3.0-or-later" Style="{StaticResource ValueMiniStyle}" />
 
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Text="Trial Counter" Style="{StaticResource LabelMiniStyle}" />
-                                    <TextBlock x:Name="TrialCounterTextBlock" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" Text="-" Style="{StaticResource ValueMiniStyle}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Text="Runtime" Style="{StaticResource LabelMiniStyle}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" Text=".NET 8 WPF, Windows desktop" Style="{StaticResource ValueMiniStyle}" />
 
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,8,0,0" Text="Trial Start" Style="{StaticResource LabelMiniStyle}" />
-                                    <TextBlock x:Name="TrialStartTextBlock" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" Text="-" Style="{StaticResource ValueMiniStyle}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,8,0,0" Text="Capture" Style="{StaticResource LabelMiniStyle}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" Text="Npcap runtime prerequisite, not vendored" Style="{StaticResource ValueMiniStyle}" />
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -428,9 +393,9 @@ Developed from practical field experience in substation automation, industrial c
 
                     <Border Style="{StaticResource CardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Professional Support" TextWrapping="Wrap" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock Text="Engineering Support" TextWrapping="Wrap" Style="{StaticResource SectionTitleStyle}"/>
                             <TextBlock Style="{StaticResource BodyTextStyle}" FontSize="12" TextWrapping="Wrap">
-For full version access, update support, project-specific features, training, or maintenance discussion, please contact:
+For project-specific validation, FAT/SAT workflow discussion, training, or maintenance planning, please contact:
                             </TextBlock>
 
                             <Border Margin="0,14,0,0"
@@ -444,11 +409,6 @@ For full version access, update support, project-specific features, training, or
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap"/>
                             </Border>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                <Button Content="Copy Email" Width="90" Style="{StaticResource PrimaryButtonStyle}"/>
-                                <Button Content="Send Email" Width="90" Style="{StaticResource SecondaryButtonStyle}"/>
-                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>

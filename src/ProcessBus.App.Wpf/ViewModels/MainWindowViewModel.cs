@@ -104,7 +104,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private DateTime _gooseInteractionUntilUtc = DateTime.MinValue;
     private bool _isGooseInteractionActive;
     private bool _isSelectionOverlayVisible;
-    private int _selectionOverlayGeneration;
     private bool _isShuttingDown;
     private bool _includeGooseRetransmission;
     private readonly List<SclProjectModel> _sclProjects = new();
@@ -231,7 +230,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public IReadOnlyList<GooseDatasetValueDisplayItem> SelectedGooseDatasetValues =>
-        BuildGooseDatasetValues(SelectedGooseMessage?.DataValues);
+        BuildGooseDatasetValues(SelectedGooseMessage);
+
+    public string SelectedGooseSemanticText
+    {
+        get
+        {
+            if (SelectedGooseMessage is null)
+                return "Select a GOOSE publisher to inspect semantic DataSet values.";
+
+            var match = ResolveSclGooseStream(SelectedGooseMessage);
+            if (match is null)
+                return HasSclProject
+                    ? "Semantic source: generic typed decode; no matching SCL GOOSE DataSet found."
+                    : "Semantic source: generic typed decode; load SCL to resolve signal names.";
+
+            return $"Semantic source: SCL DataSet order · {match.ControlBlockReference} · {match.DataSetReference}";
+        }
+    }
 
     public string DiagnosticScopeTitle => SelectedDiagnosticTarget is null
         ? "All Traffic Overview"
@@ -449,19 +465,83 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!HasSclProject)
             return "SCL semantic map: not loaded. Load SCD/CID/ICD to resolve SV dataset order and signal names.";
 
-        var match = _sclProject.SvStreams
-            .OrderByDescending(s => MatchScore(s.SvId, details.SvId))
-            .ThenByDescending(s => MatchScore(s.AppId, details.AppId))
-            .ThenByDescending(s => MatchScore(s.DestinationMac, details.DestinationMac))
-            .FirstOrDefault(s =>
-                TextMatches(s.SvId, details.SvId) ||
-                TextMatches(s.AppId, details.AppId) ||
-                TextMatches(s.DestinationMac, details.DestinationMac));
+        var match = ResolveSclSvStream(details);
 
         if (match is null)
             return $"SCL semantic map: no matching SV stream for svID={details.SvId}, APPID={details.AppId}, dst={details.DestinationMac}.";
 
-        return BuildSclStreamText("SCL SV semantic map", match.ControlBlockReference, match.DataSetReference, match.TransportText, match.Entries);
+        return BuildSclSvChannelMapText(match, details);
+    }
+
+    private SclSvStreamModel? ResolveSclSvStream(StreamDetailsModel details)
+    {
+        if (!HasSclProject)
+            return null;
+
+        return _sclProject.SvStreams
+            .Select(stream => new
+            {
+                Stream = stream,
+                Score =
+                    (TextMatches(stream.SvId, details.SvId) ? 45 : 0) +
+                    (AppIdMatches(stream.AppId, details.AppId) ? 30 : 0) +
+                    (TextMatches(stream.DestinationMac, details.DestinationMac) ? 20 : 0) +
+                    (TextMatches(stream.VlanId, details.VlanText) ? 10 : 0) +
+                    (stream.ConfRev > 0 && string.Equals(stream.ConfRev.ToString(), details.ConfRevText, StringComparison.OrdinalIgnoreCase) ? 15 : 0)
+            })
+            .Where(candidate => candidate.Score >= 35)
+            .OrderByDescending(candidate => candidate.Score)
+            .Select(candidate => candidate.Stream)
+            .FirstOrDefault();
+    }
+
+    private static string BuildSclSvChannelMapText(SclSvStreamModel stream, StreamDetailsModel details)
+    {
+        var lines = new List<string>
+        {
+            "SCL SV semantic channel map: MATCHED",
+            $"Control block   {stream.ControlBlockReference}",
+            $"DataSet         {stream.DataSetReference}",
+            $"Transport       {stream.TransportText}",
+            $"confRev         {stream.ConfRev}",
+            $"Mapping source  SCL DataSet entry order",
+            $"Display source  {details.MappedChannelNamesText}",
+            "Note            Phasor/waveform rendering still uses raw candidate scaling until semantic SV scaling is validated."
+        };
+
+        foreach (var entry in stream.Entries.Take(16))
+        {
+            var payloadIndex = entry.Index - 1;
+            var role = InferSvSignalRole(entry);
+            lines.Add($"element[{payloadIndex:00}] -> {entry.DisplayName} · {entry.TypeText} · {role}");
+        }
+
+        if (stream.Entries.Count > 16)
+            lines.Add($"... {stream.Entries.Count - 16} more SCL DataSet entries");
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string InferSvSignalRole(SclDataSetEntryModel entry)
+    {
+        var text = $"{entry.SignalReference}.{entry.DoName}.{entry.DaName}".ToLowerInvariant();
+        if (entry.IsQuality)
+            return "quality";
+        if (entry.IsTimestamp)
+            return "timestamp";
+        if (text.Contains("phsa") || text.Contains(".ia") || text.Contains(" ia") || text.Contains("instia"))
+            return "candidate Ia";
+        if (text.Contains("phsb") || text.Contains(".ib") || text.Contains(" ib") || text.Contains("instib"))
+            return "candidate Ib";
+        if (text.Contains("phsc") || text.Contains(".ic") || text.Contains(" ic") || text.Contains("instic"))
+            return "candidate Ic";
+        if (text.Contains("phsn") || text.Contains(".in") || text.Contains(" in") || text.Contains("neutral"))
+            return "candidate In";
+        if (text.Contains("phv") || text.Contains("vol") || text.Contains("voltage") || text.Contains("instu") || text.Contains(".u") || text.Contains(" u"))
+            return "candidate voltage";
+        if (text.Contains("amp") || text.Contains("current") || text.Contains("insta"))
+            return "candidate current";
+        return "semantic signal";
     }
 
     private string BuildSclGooseSemanticText(GooseMessageItem goose)
@@ -469,20 +549,36 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!HasSclProject)
             return "SCL semantic map: not loaded. Typed allData is decoded generically; load SCD/CID/ICD to resolve GOOSE DataSet signal names, FC, CDC, and types.";
 
-        var match = _sclProject.GooseStreams
-            .OrderByDescending(g => MatchScore(g.GoId, goose.GoId))
-            .ThenByDescending(g => MatchScore(g.AppId, goose.AppId))
-            .ThenByDescending(g => MatchScore(g.DataSetReference, goose.DataSet))
-            .FirstOrDefault(g =>
-                TextMatches(g.GoId, goose.GoId) ||
-                TextMatches(g.AppId, goose.AppId) ||
-                TextMatches(g.DataSetReference, goose.DataSet) ||
-                TextMatches(g.ControlBlockReference, goose.GoCbRef));
+        var match = ResolveSclGooseStream(goose);
 
         if (match is null)
             return $"SCL semantic map: no matching GOOSE stream for goID={goose.GoId}, APPID={goose.AppId}, DataSet={goose.DataSet}.";
 
         return BuildSclStreamText("SCL GOOSE semantic map", match.ControlBlockReference, match.DataSetReference, match.TransportText, match.Entries);
+    }
+
+    private SclGooseStreamModel? ResolveSclGooseStream(GooseMessageItem goose)
+    {
+        if (!HasSclProject)
+            return null;
+
+        return _sclProject.GooseStreams
+            .Select(stream => new
+            {
+                Stream = stream,
+                Score =
+                    (TextMatches(stream.ControlBlockReference, goose.GoCbRef) ? 45 : 0) +
+                    (TextMatches(stream.GoId, goose.GoId) ? 35 : 0) +
+                    (AppIdMatches(stream.AppId, goose.AppId) ? 30 : 0) +
+                    (TextMatches(stream.DataSetReference, goose.DataSet) ? 25 : 0) +
+                    (TextMatches(stream.DestinationMac, goose.DestinationMac) ? 15 : 0) +
+                    (TextMatches(stream.VlanId, goose.VlanId) ? 10 : 0) +
+                    (stream.ConfRev > 0 && goose.ConfRev > 0 && stream.ConfRev == goose.ConfRev ? 15 : 0)
+            })
+            .Where(candidate => candidate.Score >= 35)
+            .OrderByDescending(candidate => candidate.Score)
+            .Select(candidate => candidate.Stream)
+            .FirstOrDefault();
     }
 
     private static string BuildSclStreamText(string title, string controlReference, string dataSetReference, string transportText, IReadOnlyList<SclDataSetEntryModel> entries)
@@ -615,6 +711,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedGooseMessage = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedGooseDatasetValues));
+            OnPropertyChanged(nameof(SelectedGooseSemanticText));
             RaiseDiagnosticScopeProperties();
             RaiseAdvancedProperties();
         }
@@ -635,6 +732,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedGooseMessage));
             OnPropertyChanged(nameof(SelectedGooseDatasetValues));
+            OnPropertyChanged(nameof(SelectedGooseSemanticText));
             RaiseAdvancedProperties();
         }
     }
@@ -791,7 +889,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var missing = scope.Count(x => string.Equals(x.StatusText, "MISSING", StringComparison.OrdinalIgnoreCase));
             var unexpected = scope.Count(x => string.Equals(x.StatusText, "UNEXPECTED", StringComparison.OrdinalIgnoreCase));
             var weak = scope.Count(x => string.Equals(x.StatusText, "WEAK", StringComparison.OrdinalIgnoreCase));
-            return $"Binding: {matched} matched · {missing} missing · {unexpected} unexpected · {weak} weak";
+            var mismatch = scope.Count(x => string.Equals(x.StatusText, "MISMATCH", StringComparison.OrdinalIgnoreCase));
+            var conflict = scope.Count(x => string.Equals(x.StatusText, "CONFLICT", StringComparison.OrdinalIgnoreCase));
+            return $"Binding: {matched} matched · {mismatch} mismatch · {conflict} conflict · {missing} missing · {unexpected} unexpected · {weak} weak";
         }
     }
 
@@ -902,6 +1002,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string SclSelectedBindingText => SelectedSclBindingMatrixRow?.StatusSummaryText
         ?? SelectedSclStreamCatalog?.LiveStatusText
         ?? "Binding pending";
+    public string SclSelectedExpectedText => SelectedSclBindingMatrixRow?.ExpectedDetailText
+        ?? SelectedSclStreamCatalog?.TransportText
+        ?? "No expected stream selected";
+    public string SclSelectedObservedText => SelectedSclBindingMatrixRow?.ObservedDetailText
+        ?? "No observed stream selected";
 
     public bool RelaxDestinationCheck
     {
@@ -1444,6 +1549,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _gooseSnapshot = gooseSnapshot;
             _gooseMessages = _gooseSnapshot.Messages;
+            if (_selectedGooseMessage is not null)
+            {
+                _selectedGooseMessage = _gooseMessages.FirstOrDefault(x => string.Equals(x.MessageId, _selectedGooseMessage.MessageId, StringComparison.OrdinalIgnoreCase))
+                    ?? _selectedGooseMessage;
+            }
 
             foreach (var msg in _gooseSnapshot.Messages)
             {
@@ -1851,6 +1961,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GoosePublisherCountText));
         OnPropertyChanged(nameof(GooseIdFilterOptions));
         OnPropertyChanged(nameof(GooseFilterSummaryText));
+        OnPropertyChanged(nameof(SelectedGooseDatasetValues));
+        OnPropertyChanged(nameof(SelectedGooseSemanticText));
         _gooseHistoryView.Refresh();
     }
 
@@ -2147,6 +2259,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return rows;
 
         var expectedRows = _sclStreamCatalog.ToList();
+        var expectedConflictKeys = BuildExpectedConflictKeys(expectedRows);
         var matchedLiveSvKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var matchedLiveGooseKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -2155,36 +2268,47 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (string.Equals(expected.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
             {
                 var best = Streams
-                    .Select(live => new { Live = live, Score = ScoreSvBinding(expected, live), Evidence = DescribeSvBindingEvidence(expected, live) })
+                    .Select(live => BuildSvBindingCandidate(expected, live))
                     .OrderByDescending(x => x.Score)
+                    .ThenByDescending(x => x.MatchCount)
                     .FirstOrDefault();
 
                 if (best is not null && best.Score >= 35)
                 {
-                    matchedLiveSvKeys.Add(best.Live.StreamId);
-                    rows.Add(SclBindingMatrixRow.FromExpected(expected, best.Live.SvId, best.Live.AppId, best.Live.VlanText, ClassifyBindingScore(best.Score), best.Score, best.Evidence, best.Live.StreamId));
+                    var status = ClassifyBindingCandidate(best, expectedConflictKeys.Contains(expected.ExpectedKey), matchedLiveSvKeys.Contains(best.LiveKey));
+                    matchedLiveSvKeys.Add(best.LiveKey);
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, best.ObservedName, best.ObservedAppId, best.ObservedVlan, status, best.Score, best.EvidenceText, best.LiveKey, best.ExpectedDetailText, best.ObservedDetailText));
                 }
                 else
                 {
-                    rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, "MISSING", 0, "Expected SV stream from SCL has no live candidate on selected adapter.", string.Empty));
+                    var status = expectedConflictKeys.Contains(expected.ExpectedKey) ? "CONFLICT" : "MISSING";
+                    var evidence = status == "CONFLICT"
+                        ? "Expected SV stream conflicts with another imported SCL expectation before live matching."
+                        : "Expected SV stream from SCL has no live candidate on selected adapter.";
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, status, 0, evidence, string.Empty));
                 }
             }
             else if (string.Equals(expected.Protocol, "GOOSE", StringComparison.OrdinalIgnoreCase))
             {
                 var best = _gooseMessages
-                    .Select(live => new { Live = live, Score = ScoreGooseBinding(expected, live), Evidence = DescribeGooseBindingEvidence(expected, live) })
+                    .Select(live => BuildGooseBindingCandidate(expected, live))
                     .OrderByDescending(x => x.Score)
+                    .ThenByDescending(x => x.MatchCount)
                     .FirstOrDefault();
 
                 if (best is not null && best.Score >= 35)
                 {
-                    matchedLiveGooseKeys.Add(best.Live.MessageId);
-                    var observedName = string.IsNullOrWhiteSpace(best.Live.GoId) || best.Live.GoId == "N/A" ? best.Live.GoCbRef : best.Live.GoId;
-                    rows.Add(SclBindingMatrixRow.FromExpected(expected, observedName, best.Live.AppId, best.Live.VlanId, ClassifyBindingScore(best.Score), best.Score, best.Evidence, best.Live.MessageId));
+                    var status = ClassifyBindingCandidate(best, expectedConflictKeys.Contains(expected.ExpectedKey), matchedLiveGooseKeys.Contains(best.LiveKey));
+                    matchedLiveGooseKeys.Add(best.LiveKey);
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, best.ObservedName, best.ObservedAppId, best.ObservedVlan, status, best.Score, best.EvidenceText, best.LiveKey, best.ExpectedDetailText, best.ObservedDetailText));
                 }
                 else
                 {
-                    rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, "MISSING", 0, "Expected GOOSE publisher from SCL has no live candidate on selected adapter.", string.Empty));
+                    var status = expectedConflictKeys.Contains(expected.ExpectedKey) ? "CONFLICT" : "MISSING";
+                    var evidence = status == "CONFLICT"
+                        ? "Expected GOOSE publisher conflicts with another imported SCL expectation before live matching."
+                        : "Expected GOOSE publisher from SCL has no live candidate on selected adapter.";
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, status, 0, evidence, string.Empty));
                 }
             }
         }
@@ -2230,8 +2354,228 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             .ToList();
     }
 
-    private static string ClassifyBindingScore(int score)
-        => score >= 65 ? "MATCHED" : "WEAK";
+    private static HashSet<string> BuildExpectedConflictKeys(IReadOnlyList<SclStreamCatalogRow> expectedRows)
+    {
+        var conflictKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in expectedRows
+            .Where(x => !string.IsNullOrWhiteSpace(NormalizeAppId(x.AppId)))
+            .GroupBy(x => $"{x.Protocol}|APPID|{NormalizeAppId(x.AppId)}", StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1))
+        {
+            foreach (var row in group)
+                conflictKeys.Add(row.ExpectedKey);
+        }
+
+        foreach (var group in expectedRows
+            .GroupBy(x => $"{x.Protocol}|CTRL|{NormalizeMatchText(x.IedName)}|{NormalizeMatchText(x.ControlBlockReference)}", StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1 && g.Select(x => NormalizeMatchText(x.DataSetReference)).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1))
+        {
+            foreach (var row in group)
+                conflictKeys.Add(row.ExpectedKey);
+        }
+
+        return conflictKeys;
+    }
+
+    private static string ClassifyBindingCandidate(BindingCandidate candidate, bool expectedConflict, bool liveAlreadyMatched)
+    {
+        if (expectedConflict || liveAlreadyMatched || candidate.Ambiguous)
+            return "CONFLICT";
+
+        if (candidate.MismatchCount > 0)
+            return "MISMATCH";
+
+        return candidate.Score >= 65 ? "MATCHED" : "WEAK";
+    }
+
+    private static BindingCandidate BuildSvBindingCandidate(SclStreamCatalogRow expected, SvStreamItem live)
+    {
+        var comparisons = new List<BindingFieldComparison>
+        {
+            CompareField("svID", expected.DisplayName, live.SvId, required: true, aliases: new[] { live.StreamName }),
+            CompareField("APPID", expected.AppId, live.AppId, required: true, useAppId: true),
+            CompareField("Dst MAC", expected.DestinationMac, live.DestinationMac, required: true, useMac: true),
+            CompareField("VLAN", expected.VlanId, live.VlanText, required: true, useVlan: true)
+        };
+
+        return BuildBindingCandidate(
+            live,
+            live.StreamId,
+            string.IsNullOrWhiteSpace(live.SvId) ? live.StreamName : live.SvId,
+            live.AppId,
+            live.VlanText,
+            expected,
+            comparisons,
+            BuildExpectedDetail(expected),
+            string.Join(Environment.NewLine, new[]
+            {
+                $"Observed SV: {live.SvId}",
+                $"APPID: {live.AppId}",
+                $"Destination MAC: {live.DestinationMac}",
+                $"VLAN: {live.VlanText}"
+            }));
+    }
+
+    private static BindingCandidate BuildGooseBindingCandidate(SclStreamCatalogRow expected, GooseMessageItem live)
+    {
+        var observedName = string.IsNullOrWhiteSpace(live.GoId) || live.GoId == "N/A" ? live.GoCbRef : live.GoId;
+        var comparisons = new List<BindingFieldComparison>
+        {
+            CompareField("goID", expected.DisplayName, live.GoId, required: false),
+            CompareField("GoCBRef", expected.ControlBlockReference, live.GoCbRef, required: true),
+            CompareField("DataSet", expected.DataSetReference, live.DataSet, required: true),
+            CompareField("APPID", expected.AppId, live.AppId, required: true, useAppId: true),
+            CompareField("Dst MAC", expected.DestinationMac, live.DestinationMac, required: true, useMac: true),
+            CompareField("VLAN", expected.VlanId, live.VlanId, required: true, useVlan: true),
+            CompareField("Priority", expected.VlanPriority, live.VlanPriority, required: true, useVlan: true),
+            CompareField("confRev", expected.ExpectedConfRevText, live.ConfRev.ToString(), required: true)
+        };
+
+        return BuildBindingCandidate(
+            live,
+            live.MessageId,
+            observedName,
+            live.AppId,
+            live.VlanId,
+            expected,
+            comparisons,
+            BuildExpectedDetail(expected),
+            string.Join(Environment.NewLine, new[]
+            {
+                $"Observed GOOSE: {observedName}",
+                $"GoCBRef: {live.GoCbRef}",
+                $"DataSet: {live.DataSet}",
+                $"APPID: {live.AppId}",
+                $"Destination MAC: {live.DestinationMac}",
+                $"VLAN: {live.VlanId} / Priority {live.VlanPriority}",
+                $"confRev: {live.ConfRev}"
+            }));
+    }
+
+    private static BindingCandidate BuildBindingCandidate<TLive>(
+        TLive live,
+        string liveKey,
+        string observedName,
+        string observedAppId,
+        string observedVlan,
+        SclStreamCatalogRow expected,
+        IReadOnlyList<BindingFieldComparison> comparisons,
+        string expectedDetail,
+        string observedDetail)
+        where TLive : notnull
+    {
+        var score = ScoreComparisons(comparisons);
+        var matches = comparisons.Where(x => x.IsMatch).Select(x => x.Name).ToArray();
+        var mismatches = comparisons.Where(x => x.IsMismatch).Select(x => $"{x.Name} expected {x.ExpectedValue}, observed {x.ObservedValue}").ToArray();
+        var missingObserved = comparisons.Where(x => x.Required && x.HasExpected && !x.HasObserved).Select(x => x.Name).ToArray();
+
+        var evidenceParts = new List<string>();
+        if (matches.Length > 0)
+            evidenceParts.Add($"Matched {string.Join(" + ", matches)}");
+        if (mismatches.Length > 0)
+            evidenceParts.Add($"Mismatch: {string.Join("; ", mismatches)}");
+        if (missingObserved.Length > 0)
+            evidenceParts.Add($"Missing observed field(s): {string.Join(", ", missingObserved)}");
+        if (evidenceParts.Count == 0)
+            evidenceParts.Add("Candidate selected by weak similarity.");
+
+        return new BindingCandidate(
+            live,
+            liveKey,
+            observedName,
+            observedAppId,
+            observedVlan,
+            score,
+            matches.Length,
+            mismatches.Length,
+            false,
+            $"{string.Join(". ", evidenceParts)}.",
+            expectedDetail,
+            observedDetail);
+    }
+
+    private static int ScoreComparisons(IReadOnlyList<BindingFieldComparison> comparisons)
+    {
+        var score = 0;
+        foreach (var comparison in comparisons.Where(x => x.IsMatch))
+        {
+            score += comparison.Name switch
+            {
+                "svID" or "goID" or "GoCBRef" => 45,
+                "APPID" => 35,
+                "DataSet" => 25,
+                "Dst MAC" => 20,
+                "VLAN" => 10,
+                "Priority" => 5,
+                "confRev" => 20,
+                _ => 5
+            };
+        }
+
+        return Math.Min(score, 100);
+    }
+
+    private static BindingFieldComparison CompareField(
+        string name,
+        string expected,
+        string observed,
+        bool required,
+        bool useAppId = false,
+        bool useMac = false,
+        bool useVlan = false,
+        IReadOnlyList<string>? aliases = null)
+    {
+        var normalizedExpected = NormalizeComparable(expected, useAppId, useMac, useVlan);
+        var normalizedObserved = NormalizeComparable(observed, useAppId, useMac, useVlan);
+        var aliasMatch = aliases?.Any(alias => string.Equals(normalizedExpected, NormalizeComparable(alias, useAppId, useMac, useVlan), StringComparison.OrdinalIgnoreCase)) == true;
+        var hasExpected = !string.IsNullOrWhiteSpace(normalizedExpected) && normalizedExpected != "N/A";
+        var hasObserved = !string.IsNullOrWhiteSpace(normalizedObserved) && normalizedObserved != "N/A";
+        var isMatch = hasExpected && hasObserved && (string.Equals(normalizedExpected, normalizedObserved, StringComparison.OrdinalIgnoreCase) || aliasMatch);
+        var isMismatch = required && hasExpected && hasObserved && !isMatch;
+
+        return new BindingFieldComparison(name, ValueOrNa(expected), ValueOrNa(observed), required, hasExpected, hasObserved, isMatch, isMismatch);
+    }
+
+    private static string NormalizeComparable(string value, bool appId, bool mac, bool vlan)
+    {
+        if (appId)
+            return NormalizeAppId(value);
+        if (mac)
+            return NormalizeMatchText(value).Replace("-", ":", StringComparison.Ordinal).ToUpperInvariant();
+        if (vlan)
+            return NormalizeVlanValue(value);
+        return NormalizeMatchText(value);
+    }
+
+    private static string NormalizeVlanValue(string value)
+    {
+        var text = NormalizeMatchText(value);
+        if (string.IsNullOrWhiteSpace(text) || text == "N/A")
+            return string.Empty;
+
+        var slashIndex = text.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex >= 0)
+            text = text[..slashIndex];
+
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        return string.IsNullOrWhiteSpace(digits) ? text : digits.TrimStart('0');
+    }
+
+    private static string BuildExpectedDetail(SclStreamCatalogRow expected)
+        => string.Join(Environment.NewLine, new[]
+        {
+            $"Expected {expected.Protocol}: {expected.DisplayName}",
+            $"Control: {expected.ControlBlockReference}",
+            $"DataSet: {expected.DataSetReference}",
+            $"APPID: {ValueOrNa(expected.AppId)}",
+            $"Destination MAC: {ValueOrNa(expected.DestinationMac)}",
+            $"VLAN: {ValueOrNa(expected.VlanId)} / Priority {ValueOrNa(expected.VlanPriority)}",
+            $"confRev: {expected.ExpectedConfRevText}"
+        });
+
+    private static string ValueOrNa(string value)
+        => string.IsNullOrWhiteSpace(value) ? "N/A" : value;
 
     private static int ScoreSvBinding(SclStreamCatalogRow expected, SvStreamItem live)
     {
@@ -2314,6 +2658,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclSelectedTransportText));
         OnPropertyChanged(nameof(SclSelectedDatasetText));
         OnPropertyChanged(nameof(SclSelectedBindingText));
+        OnPropertyChanged(nameof(SclSelectedExpectedText));
+        OnPropertyChanged(nameof(SclSelectedObservedText));
         OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
     }
 
@@ -2341,6 +2687,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclSemanticStatusText));
         OnPropertyChanged(nameof(SclWorkspaceSummaryText));
         OnPropertyChanged(nameof(SclWorkspaceStatusText));
+        OnPropertyChanged(nameof(SelectedGooseDatasetValues));
+        OnPropertyChanged(nameof(SelectedGooseSemanticText));
         RaiseSclSelectionProperties();
         OnPropertyChanged(nameof(WorkspaceFooterLeftText));
         OnPropertyChanged(nameof(WorkspaceFooterRightText));
@@ -2580,6 +2928,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedGooseMessage));
         OnPropertyChanged(nameof(SelectedGooseTrafficRow));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
+        OnPropertyChanged(nameof(SelectedGooseSemanticText));
     }
 
     private void UpdateRefreshCadence()
@@ -2671,23 +3020,46 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             text.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static IReadOnlyList<GooseDatasetValueDisplayItem> BuildGooseDatasetValues(IReadOnlyList<GooseDatasetValueItem>? values)
+    private IReadOnlyList<GooseDatasetValueDisplayItem> BuildGooseDatasetValues(GooseMessageItem? goose)
     {
+        var values = goose?.DataValues;
         if (values is null || values.Count == 0)
             return Array.Empty<GooseDatasetValueDisplayItem>();
 
+        var semanticEntries = goose is null
+            ? Array.Empty<SclDataSetEntryModel>()
+            : ResolveSclGooseStream(goose)?.Entries ?? Array.Empty<SclDataSetEntryModel>();
+        var semanticByIndex = semanticEntries.ToDictionary(entry => entry.Index);
+
         return values
-            .Select(value => new GooseDatasetValueDisplayItem
+            .Select(value =>
             {
-                Index = value.Index,
-                NameText = string.IsNullOrWhiteSpace(value.Name) ? $"Entry {value.Index}" : value.Name,
-                TypeText = value.Type,
-                ValueText = value.Value,
-                RawHexText = value.RawHex,
-                IsChanged = value.IsChanged,
-                PreviousValueText = value.PreviousValue
+                semanticByIndex.TryGetValue(value.Index, out var semantic);
+                return new GooseDatasetValueDisplayItem
+                {
+                    Index = value.Index,
+                    NameText = semantic?.DisplayName ?? (string.IsNullOrWhiteSpace(value.Name) ? $"Entry {value.Index}" : value.Name),
+                    TypeText = BuildSemanticGooseTypeText(value, semantic),
+                    SemanticText = semantic is null ? "Generic typed decode" : "SCL DataSet entry",
+                    ValueText = value.Value,
+                    RawHexText = value.RawHex,
+                    IsChanged = value.IsChanged,
+                    PreviousValueText = value.PreviousValue
+                };
             })
             .ToArray();
+    }
+
+    private static string BuildSemanticGooseTypeText(GooseDatasetValueItem value, SclDataSetEntryModel? semantic)
+    {
+        if (semantic is null)
+            return value.Type;
+
+        var parts = new[] { semantic.Fc, semantic.Cdc, semantic.BType }
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .ToArray();
+        var semanticType = parts.Length == 0 ? "SCL type unresolved" : string.Join(" / ", parts);
+        return $"{semanticType} · MMS {value.Type}";
     }
 
     private void BufferGooseHistoryRow(GooseMessageItem msg, string eventType)
@@ -2778,6 +3150,7 @@ public sealed class GooseDatasetValueDisplayItem
     public int Index { get; init; }
     public string NameText { get; init; } = string.Empty;
     public string TypeText { get; init; } = "Unknown";
+    public string SemanticText { get; init; } = "Generic typed decode";
     public string ValueText { get; init; } = "-";
     public string RawHexText { get; init; } = string.Empty;
     public bool IsChanged { get; init; }
@@ -3078,12 +3451,14 @@ public sealed class SclStreamCatalogRow
     public string DestinationMac { get; init; } = string.Empty;
     public string VlanId { get; init; } = string.Empty;
     public string VlanPriority { get; init; } = string.Empty;
+    public int ConfRev { get; init; }
     public string TransportText { get; init; } = string.Empty;
     public string LiveStatusText { get; init; } = string.Empty;
     public IReadOnlyList<SclDataSetEntryModel> Entries { get; init; } = Array.Empty<SclDataSetEntryModel>();
     public string EntryCountText => $"{Entries.Count} entry(s)";
     public string SummaryText => $"{IedName} · {TransportText}";
     public string ExpectedKey => $"{Protocol}|{SourceFileName}|{IedName}|{ControlBlockReference}|{DisplayName}";
+    public string ExpectedConfRevText => ConfRev > 0 ? ConfRev.ToString() : "N/A";
 
     public static SclStreamCatalogRow FromSv(string sourceFileName, SclSvStreamModel stream, string liveStatus)
         => new()
@@ -3098,6 +3473,7 @@ public sealed class SclStreamCatalogRow
             DestinationMac = stream.DestinationMac,
             VlanId = stream.VlanId,
             VlanPriority = stream.VlanPriority,
+            ConfRev = stream.ConfRev,
             TransportText = stream.TransportText,
             LiveStatusText = liveStatus,
             Entries = stream.Entries
@@ -3116,6 +3492,7 @@ public sealed class SclStreamCatalogRow
             DestinationMac = stream.DestinationMac,
             VlanId = stream.VlanId,
             VlanPriority = stream.VlanPriority,
+            ConfRev = stream.ConfRev,
             TransportText = stream.TransportText,
             LiveStatusText = liveStatus,
             Entries = stream.Entries
@@ -3135,6 +3512,8 @@ public sealed class SclBindingMatrixRow
     public string StatusText { get; init; } = string.Empty;
     public int Score { get; init; }
     public string EvidenceText { get; init; } = string.Empty;
+    public string ExpectedDetailText { get; init; } = string.Empty;
+    public string ObservedDetailText { get; init; } = string.Empty;
     public string LiveKey { get; init; } = string.Empty;
     public string ExpectedKey { get; init; } = string.Empty;
     public SclStreamCatalogRow? ExpectedStream { get; init; }
@@ -3142,11 +3521,12 @@ public sealed class SclBindingMatrixRow
     public bool IsMatched => string.Equals(StatusText, "MATCHED", StringComparison.OrdinalIgnoreCase);
     public int SortRank => StatusText switch
     {
-        "MISMATCH" => 0,
-        "MISSING" => 1,
-        "UNEXPECTED" => 2,
-        "WEAK" => 3,
-        "MATCHED" => 4,
+        "CONFLICT" => 0,
+        "MISMATCH" => 1,
+        "MISSING" => 2,
+        "UNEXPECTED" => 3,
+        "WEAK" => 4,
+        "MATCHED" => 5,
         _ => 5
     };
 
@@ -3157,13 +3537,24 @@ public sealed class SclBindingMatrixRow
         "MISSING" => "#F0B533",
         "UNEXPECTED" => "#FF8A6A",
         "MISMATCH" => "#FF6B6B",
+        "CONFLICT" => "#DDA0FF",
         _ => "#8FA8BF"
     };
 
     public string StatusSummaryText => $"{StatusText} · confidence {Score}% · {EvidenceText}";
     public string SignatureText => $"{BindingKey}:{StatusText}:{ObservedName}:{Score}:{EvidenceText}";
 
-    public static SclBindingMatrixRow FromExpected(SclStreamCatalogRow expected, string observedName, string observedAppId, string observedVlan, string status, int score, string evidence, string liveKey)
+    public static SclBindingMatrixRow FromExpected(
+        SclStreamCatalogRow expected,
+        string observedName,
+        string observedAppId,
+        string observedVlan,
+        string status,
+        int score,
+        string evidence,
+        string liveKey,
+        string? expectedDetail = null,
+        string? observedDetail = null)
         => new()
         {
             BindingKey = $"EXPECTED|{expected.ExpectedKey}",
@@ -3177,6 +3568,8 @@ public sealed class SclBindingMatrixRow
             StatusText = status,
             Score = score,
             EvidenceText = evidence,
+            ExpectedDetailText = expectedDetail ?? BuildDefaultExpectedDetail(expected),
+            ObservedDetailText = observedDetail ?? (string.IsNullOrWhiteSpace(liveKey) ? "Observed: not seen on selected adapter." : $"Observed: {observedName}"),
             LiveKey = liveKey,
             ExpectedKey = expected.ExpectedKey,
             ExpectedStream = expected
@@ -3196,11 +3589,40 @@ public sealed class SclBindingMatrixRow
             StatusText = "UNEXPECTED",
             Score = 0,
             EvidenceText = evidence,
+            ExpectedDetailText = "Expected: no matching stream in imported SCL context.",
+            ObservedDetailText = $"Observed {protocol}: {observedName}\nAPPID: {appId}\nVLAN: {vlan}",
             LiveKey = liveKey,
             ExpectedKey = string.Empty,
             ExpectedStream = null
         };
+
+    private static string BuildDefaultExpectedDetail(SclStreamCatalogRow expected)
+        => $"Expected {expected.Protocol}: {expected.DisplayName}\nControl: {expected.ControlBlockReference}\nDataSet: {expected.DataSetReference}\nAPPID: {expected.AppId}\nVLAN: {expected.VlanId}\nconfRev: {expected.ExpectedConfRevText}";
 }
+
+internal sealed record BindingCandidate(
+    object Live,
+    string LiveKey,
+    string ObservedName,
+    string ObservedAppId,
+    string ObservedVlan,
+    int Score,
+    int MatchCount,
+    int MismatchCount,
+    bool Ambiguous,
+    string EvidenceText,
+    string ExpectedDetailText,
+    string ObservedDetailText);
+
+internal sealed record BindingFieldComparison(
+    string Name,
+    string ExpectedValue,
+    string ObservedValue,
+    bool Required,
+    bool HasExpected,
+    bool HasObserved,
+    bool IsMatch,
+    bool IsMismatch);
 
 public sealed class RelayCommand : ICommand
 {
@@ -3234,4 +3656,3 @@ public sealed class AsyncRelayCommand : ICommand
         }
     }
 }
-

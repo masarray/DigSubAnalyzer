@@ -21,6 +21,8 @@ The analyzer must not treat SCL as a simple expected-vs-observed checklist. The 
 - Type resolver for common `doName` / `daName` paths including nested DO/DA structures.
 - Advanced workspace Load SCL / Clear SCL actions.
 - Per-target Advanced engineering view appends SCL semantic match result when available.
+- GOOSE inspector maps allData indexes to matched SCL DataSet entries.
+- SV Advanced engineering view shows SCL payload element-to-signal mapping for the matched stream.
 
 ## Design rule
 
@@ -28,9 +30,6 @@ Do not silently auto-correct live SV phase order based on guesses. Use SCL mappi
 
 ## Next steps
 
-- Add a dedicated SCL Mapping workspace or side panel with expected SV/GOOSE lists.
-- Improve stream binding scoring: APPID + destination MAC + VLAN + control block + svID/goID + confRev.
-- Apply SCL DataSet entry names to GOOSE typed values in the inspector.
-- Apply SCL DataSet entry names to SV channel mapping and phase-order audit.
-- Add expected-vs-observed statuses: Matched, Missing, Unexpected, Mismatch.
+- Promote the SV semantic element map into the phasor/waveform channel mapper after scaling and quality pairing are validated.
+- Add a conflict resolver for duplicated APPID/MAC/confRev/DataSet definitions.
 - Add report/evidence export based on the semantic binding results.

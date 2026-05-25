@@ -482,7 +482,7 @@
                                             Visibility="Collapsed"
                                             Click="LockedFeature_Click">
                                         <Button.ToolTip>
-                                            <ToolTip Style="{StaticResource GlassToolTipStyle}" Content="Record / replay session — full version"/>
+                                            <ToolTip Style="{StaticResource GlassToolTipStyle}" Content="Record / replay session — planned engineering workflow"/>
                                         </Button.ToolTip>
                                         <Grid Width="16" Height="16">
                                             <Ellipse Width="9"
@@ -3048,6 +3048,11 @@
                                                                    FontSize="11"
                                                                    FontWeight="SemiBold"/>
                                                     </DockPanel>
+                                                    <TextBlock Text="{Binding SelectedGooseSemanticText}"
+                                                               Foreground="#8FAAC3"
+                                                               FontSize="11"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,0,0,10"/>
 
                                                     <DataGrid Style="{StaticResource DarkDataGridStyle}"
                                                               ItemsSource="{Binding SelectedGooseDatasetValues}"
@@ -3077,11 +3082,13 @@
                                                                     </Style>
                                                                 </DataGridTextColumn.ElementStyle>
                                                             </DataGridTextColumn>
-                                                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="88">
+                                                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="132">
                                                                 <DataGridTextColumn.ElementStyle>
                                                                     <Style TargetType="TextBlock">
                                                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                                                         <Setter Property="Foreground" Value="#8FAAC3"/>
+                                                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                        <Setter Property="ToolTip" Value="{Binding SemanticText}"/>
                                                                     </Style>
                                                                 </DataGridTextColumn.ElementStyle>
                                                             </DataGridTextColumn>
@@ -3532,14 +3539,14 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
                                                     <StackPanel>
-                                                        <TextBlock Text="DataSet" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedDatasetText}" Foreground="#EAF6FF" FontSize="12" TextWrapping="Wrap"/>
+                                                        <TextBlock Text="Expected" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedExpectedText}" Foreground="#EAF6FF" FontSize="12" TextWrapping="Wrap"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
                                                     <StackPanel>
-                                                        <TextBlock Text="Live Binding" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedBindingText}" Foreground="#F6D781" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                        <TextBlock Text="Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedObservedText}" Foreground="#F6D781" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>

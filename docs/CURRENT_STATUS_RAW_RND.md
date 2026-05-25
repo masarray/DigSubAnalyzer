@@ -13,13 +13,19 @@ The application has moved from the early libiec61850 subscriber prototype into a
 - UI wording avoids the old subscriber/callback framing.
 - Installer generation is disabled by default to avoid release-build failure when installer script is absent.
 - Application shutdown disposes the raw capture source.
+- SCL binding matrix now classifies MATCHED, WEAK, MISSING, UNEXPECTED, MISMATCH, and CONFLICT.
+- SCL binding rows expose expected-vs-observed evidence for R&D review instead of only a similarity summary.
+- GOOSE inspector maps decoded allData values to SCL DataSet entries when a matching SCL GOOSE stream is available.
+- Semantic GOOSE rows show signal reference and FC/CDC/bType beside the raw MMS value type.
+- SV Advanced engineering evidence shows SCL payload element-to-signal mapping for the matched SCL SV stream.
+- Repository is prepared for GPL-3.0-or-later source distribution with license metadata and third-party notices.
 
 ## Remaining Limits
 
 - Software timestamp timing is screening-level only.
 - Hardware timestamp or external analyzer validation is required for measurement-grade jitter proof.
 - Scope waveform is reconstructed from decoded RMS/phasor and timing, not a hardware-sampled trace.
-- Channel mapping is still profile-based and not a complete SCL semantic mapper.
+- Phasor/waveform rendering still uses the raw candidate mapping profile until SCL-based SV scaling and quality pairing are validated.
 
 ## Recommended Demo Setup
 
@@ -27,4 +33,4 @@ Use a physical Ethernet path and a known SV/GOOSE source. Avoid virtual adapters
 
 ## Next Engineering Patch
 
-Add CSV evidence export for jitter/sequence diagnostics and prepare a controlled synthetic jitter injection test in a separate bench tool.
+Promote SCL-based SV semantic mapping into the rendering channel mapper after PCAP/live validation, then add CSV/JSON evidence export for the binding matrix.

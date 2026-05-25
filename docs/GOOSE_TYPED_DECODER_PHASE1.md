@@ -19,10 +19,12 @@ This update moves the GOOSE page from raw `allData` byte visibility to an IEDSco
 - GOOSE detail panel now uses actual source/destination MAC and VLAN values from the Ethernet frame.
 - Dataset value table now presents `Name / Type / Value` similar to a GOOSE inspector.
 - State-change rows can show changed value summaries such as `Boolean 2: false -> true` when consecutive dataset values differ.
+- When a matching SCL GOOSE stream is available, the inspector maps `allData` index to the SCL DataSet entry order.
+- SCL-backed rows now show engineering signal reference plus FC / CDC / bType alongside the raw MMS value type.
+- The inspector shows whether the DataSet values are coming from SCL semantic mapping or generic typed decode.
 
 ## Still planned
 
-- SCL dataset mapping so generic names like `Boolean 2` become signal names such as `XCBR1.Pos.stVal`.
 - Semantic labels for common enumerations, breaker position, trip, alarm, and interlock signals.
 - Dataset quality interpretation.
-- Expected-vs-observed validation against SCD/CID/ICD files.
+- Stronger handling for nested/structured GOOSE values and quality bit interpretation.
