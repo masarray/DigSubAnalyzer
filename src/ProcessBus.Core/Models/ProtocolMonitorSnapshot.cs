@@ -16,5 +16,5 @@ public sealed class ProtocolMonitorSnapshot
     public string PtpStatusText { get; init; } = "PTP not observed";
     public string TimingConfidenceText { get; init; } = "Timing confidence pending";
 
-    public string SummaryText => $"SV {SvFrames} · GOOSE {GooseFrames} · PTP {PtpFrames}";
+    public string SummaryText => $"SV {SvFrames} - GOOSE {GooseFrames} - PTP {PtpFrames}";
 }

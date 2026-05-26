@@ -814,8 +814,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool IsDiagnosticsTabActive => _currentWorkspaceTabIndex == 1;
     private bool IsGooseTabActive => _currentWorkspaceTabIndex == 2;
     private bool IsTimingTabActive => _currentWorkspaceTabIndex == 3;
-    private bool IsSclTabActive => _currentWorkspaceTabIndex == 4;
-    private bool IsDebugTabActive => _currentWorkspaceTabIndex == 5;
+    private bool IsValidationTabActive => _currentWorkspaceTabIndex == 4;
+    private bool IsSclTabActive => _currentWorkspaceTabIndex == 5;
+    private bool IsDebugTabActive => _currentWorkspaceTabIndex == 6;
 
     public IReadOnlyList<string> WaveformShowOptions { get; } = ["Voltage", "Current", "Both"];
     public IReadOnlyList<string> WaveformLayoutOptions { get; } = ["Overlay", "Stacked"];
@@ -917,6 +918,146 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return $"Binding: {matched} matched  -  {mismatch} mismatch  -  {conflict} conflict  -  {ambiguous} ambiguous  -  {missing} missing  -  {unexpected} unexpected  -  {weak} weak";
         }
     }
+
+    public string ValidationOverallStatusText => GetValidationOverallStatus();
+    public string ValidationOverallBrush => ValidationOverallStatusText switch
+    {
+        "PASS" => "#70D7A7",
+        "WARNING" => "#F6D781",
+        "FAIL" => "#FF6B6B",
+        _ => "#8FA8BF"
+    };
+    public string ValidationOverallBackgroundBrush => ValidationOverallStatusText switch
+    {
+        "PASS" => "#17382C",
+        "WARNING" => "#3A3218",
+        "FAIL" => "#3D1E25",
+        _ => "#142235"
+    };
+    public string ValidationSummaryText
+    {
+        get
+        {
+            if (!HasSclProject)
+                return $"Engineering context missing. Live traffic can be observed, but expected-vs-observed validation is UNKNOWN until SCL is loaded. {_state.ProtocolMonitor.SummaryText}.";
+
+            var expected = _sclBindingMatrix.Count(x => x.ExpectedStream is not null);
+            var observed = _sclBindingMatrix.Count(x => !string.IsNullOrWhiteSpace(x.LiveKey));
+            return $"{_sclDocuments.Count} SCL document(s), {expected} expected stream(s), {observed} observed binding target(s). Timing remains packet-arrival screening unless validated hardware timestamps are present.";
+        }
+    }
+    public string ValidationSvSummaryText => BuildValidationProtocolSummary("SV");
+    public string ValidationGooseSummaryText => BuildValidationProtocolSummary("GOOSE");
+    public string ValidationPtpSummaryText => Diagnostics.PtpObserved
+        ? $"PTP observed - {Diagnostics.PtpTransportText} - {PtpDomainText}"
+        : (_state.ProtocolMonitor.PtpFrames > 0 ? "PTP stale - previously observed on capture path" : "PTP not observed");
+    public string ValidationTimingConfidenceText => $"{TimingConfidenceText} - {TimestampSourceText}";
+    public IReadOnlyList<ValidationFindingRow> ValidationFindings => BuildValidationFindings();
+
+    private string GetValidationOverallStatus()
+    {
+        if (!HasSclProject)
+            return "UNKNOWN";
+
+        if (_sclBindingMatrix.Count == 0)
+            return "UNKNOWN";
+
+        if (_sclBindingMatrix.Any(x => StatusIs(x, "CONFLICT", "MISMATCH", "MISSING")))
+            return "FAIL";
+
+        if (_sclBindingMatrix.Any(x => StatusIs(x, "AMBIGUOUS", "WEAK", "UNEXPECTED")))
+            return "WARNING";
+
+        return _sclBindingMatrix.Any(x => x.ExpectedStream is not null && x.IsMatched)
+            ? "PASS"
+            : "UNKNOWN";
+    }
+
+    private string BuildValidationProtocolSummary(string protocol)
+    {
+        var rows = _sclBindingMatrix
+            .Where(x => string.Equals(x.Protocol, protocol, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var expected = rows.Count(x => x.ExpectedStream is not null);
+        var matched = rows.Count(x => StatusIs(x, "MATCHED"));
+        var missing = rows.Count(x => StatusIs(x, "MISSING"));
+        var mismatch = rows.Count(x => StatusIs(x, "MISMATCH"));
+        var conflict = rows.Count(x => StatusIs(x, "CONFLICT", "AMBIGUOUS"));
+        var unexpected = rows.Count(x => StatusIs(x, "UNEXPECTED"));
+        var weak = rows.Count(x => StatusIs(x, "WEAK"));
+
+        if (!HasSclProject)
+            return $"{protocol}: SCL not loaded - validation UNKNOWN";
+
+        return $"{protocol}: expected {expected} - matched {matched} - missing {missing} - mismatch {mismatch} - conflict/ambiguous {conflict} - unexpected {unexpected} - weak {weak}";
+    }
+
+    private IReadOnlyList<ValidationFindingRow> BuildValidationFindings()
+    {
+        var findings = new List<ValidationFindingRow>();
+
+        if (!HasSclProject)
+        {
+            findings.Add(ValidationFindingRow.Create(
+                "Engineering context",
+                "SCL document",
+                "No SCL loaded",
+                "UNKNOWN",
+                "Expected-vs-observed validation requires SCD/CID/ICD/IID engineering context."));
+        }
+        else
+        {
+            findings.AddRange(_sclBindingMatrix
+                .OrderBy(x => x.SortRank)
+                .ThenBy(x => x.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.ExpectedName, StringComparer.OrdinalIgnoreCase)
+                .Select(row => ValidationFindingRow.Create(
+                    $"{row.Protocol} - {(row.ExpectedStream is null ? row.ObservedName : row.ExpectedName)}",
+                    row.ExpectedStream is null ? row.ExpectedDetailText : $"{row.ExpectedName}\n{row.ExpectedMetaText}",
+                    string.IsNullOrWhiteSpace(row.LiveKey) ? "Not observed" : $"{row.ObservedName}\n{row.ObservedMetaText}",
+                    MapValidationStatus(row.StatusText),
+                    row.StatusSummaryText)));
+
+            if (_sclBindingMatrix.Count == 0)
+            {
+                findings.Add(ValidationFindingRow.Create(
+                    "SCL binding matrix",
+                    "Expected SV/GOOSE streams",
+                    "No rows built",
+                    "UNKNOWN",
+                    "Imported SCL context did not produce expected stream rows yet."));
+            }
+        }
+
+        findings.Add(ValidationFindingRow.Create(
+            "PTP timing context",
+            "Passive timing context",
+            ValidationPtpSummaryText,
+            Diagnostics.PtpObserved ? "INFO" : "UNKNOWN",
+            "PTP affects timing confidence only; it does not enter SV buffers, sequence logic, or waveform rendering."));
+
+        findings.Add(ValidationFindingRow.Create(
+            "Capture timestamp source",
+            "Hardware timestamp validation",
+            TimestampSourceText,
+            "INFO",
+            "Arrival timing evidence is screening-level until validated with hardware timestamping or trusted timing equipment/TAP."));
+
+        return findings;
+    }
+
+    private static string MapValidationStatus(string bindingStatus)
+        => bindingStatus switch
+        {
+            "MATCHED" => "PASS",
+            "MISSING" or "MISMATCH" or "CONFLICT" => "FAIL",
+            "WEAK" or "UNEXPECTED" or "AMBIGUOUS" => "WARNING",
+            _ => "UNKNOWN"
+        };
+
+    private static bool StatusIs(SclBindingMatrixRow row, params string[] statuses)
+        => statuses.Any(status => string.Equals(row.StatusText, status, StringComparison.OrdinalIgnoreCase));
 
     public SclIedCardRow? SelectedSclIedCard
     {
@@ -1365,8 +1506,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
         2 => $"GOOSE  -  {_gooseMessages.Count} publisher(s)  -  {_gooseHistory.Count} event(s)",
         3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
-        4 => $"SCL  -  {_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)",
-        5 => "Advanced  -  raw decode, estimator, and performance",
+        4 => $"Validation  -  {ValidationOverallStatusText}  -  expected-vs-observed evidence",
+        5 => $"SCL  -  {_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)",
+        6 => "Advanced  -  raw decode, estimator, and performance",
         _ => "Process Bus Insight"
     };
 
@@ -1376,8 +1518,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         1 => TimingConfidenceBadgeText,
         2 => GooseFilterSummaryText,
         3 => TimingConfidenceBadgeText,
-        4 => SclWorkspaceStatusText,
-        5 => UiRefreshDurationText,
+        4 => ValidationTimingConfidenceText,
+        5 => SclWorkspaceStatusText,
+        6 => UiRefreshDurationText,
         _ => StreamStatusText
     };
 
@@ -1943,6 +2086,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _lastDiagnosticsRaiseUtc = now;
             RaiseTimingProperties();
         }
+        if (IsValidationTabActive && (force || (now - _lastDiagnosticsRaiseUtc).TotalMilliseconds >= PassiveUiRefreshMs))
+        {
+            _lastDiagnosticsRaiseUtc = now;
+            RaiseValidationProperties();
+        }
         if (IsDebugTabActive && (force || (now - _lastDebugRaiseUtc).TotalMilliseconds >= PassiveUiRefreshMs))
         {
             _lastDebugRaiseUtc = now;
@@ -2055,6 +2203,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(LatencyText));
         OnPropertyChanged(nameof(PacketLossText));
         OnPropertyChanged(nameof(SequenceStatusText));
+    }
+
+    private void RaiseValidationProperties()
+    {
+        OnPropertyChanged(nameof(ValidationOverallStatusText));
+        OnPropertyChanged(nameof(ValidationOverallBrush));
+        OnPropertyChanged(nameof(ValidationOverallBackgroundBrush));
+        OnPropertyChanged(nameof(ValidationSummaryText));
+        OnPropertyChanged(nameof(ValidationSvSummaryText));
+        OnPropertyChanged(nameof(ValidationGooseSummaryText));
+        OnPropertyChanged(nameof(ValidationPtpSummaryText));
+        OnPropertyChanged(nameof(ValidationTimingConfidenceText));
+        OnPropertyChanged(nameof(ValidationFindings));
     }
 
     private void RaiseDebugProperties()
@@ -2312,6 +2473,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclFilteredBindingMatrix));
         OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
         OnPropertyChanged(nameof(SclBindingSummaryText));
+        RaiseValidationProperties();
         RaiseSclSelectionProperties();
     }
 
@@ -3832,6 +3994,41 @@ public sealed class SclStreamCatalogRow
             TransportText = stream.TransportText,
             LiveStatusText = liveStatus,
             Entries = stream.Entries
+        };
+}
+
+public sealed class ValidationFindingRow
+{
+    public string ObjectText { get; init; } = string.Empty;
+    public string ExpectedText { get; init; } = string.Empty;
+    public string ObservedText { get; init; } = string.Empty;
+    public string StatusText { get; init; } = string.Empty;
+    public string EvidenceText { get; init; } = string.Empty;
+    public string StatusBrush => StatusText switch
+    {
+        "PASS" => "#70D7A7",
+        "WARNING" => "#F6D781",
+        "FAIL" => "#FF6B6B",
+        "INFO" => "#8FCBFF",
+        _ => "#8FA8BF"
+    };
+    public string StatusBackgroundBrush => StatusText switch
+    {
+        "PASS" => "#17382C",
+        "WARNING" => "#3A3218",
+        "FAIL" => "#3D1E25",
+        "INFO" => "#112E46",
+        _ => "#142235"
+    };
+
+    public static ValidationFindingRow Create(string objectText, string expectedText, string observedText, string statusText, string evidenceText)
+        => new()
+        {
+            ObjectText = objectText,
+            ExpectedText = expectedText,
+            ObservedText = observedText,
+            StatusText = statusText,
+            EvidenceText = evidenceText
         };
 }
 

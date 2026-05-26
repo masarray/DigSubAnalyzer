@@ -192,7 +192,7 @@
                                 <RadioButton x:Name="SclWorkspaceButton"
                                              GroupName="WorkspaceTabs"
                                  Style="{StaticResource AnalyzerTabButtonStyle}"
-                                 Tag="4"
+                                 Tag="5"
                                  Click="WorkspaceTabButton_Click">
                                     <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
                                         <Viewbox Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center">
@@ -207,7 +207,22 @@
                                 <RadioButton x:Name="FramesWorkspaceButton"
                                              GroupName="WorkspaceTabs"
                                  Style="{StaticResource AnalyzerTabButtonStyle}"
-                                 Tag="5"
+                                 Tag="4"
+                                 Click="WorkspaceTabButton_Click">
+                                    <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
+                                        <Viewbox Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <Path Style="{StaticResource NavVectorIconStyle}" Data="{StaticResource IconDiagnosticsGeometry}"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Validation"
+                                       FontWeight="SemiBold"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    </StackPanel>
+                                </RadioButton>
+
+                                <RadioButton x:Name="AdvancedWorkspaceButton"
+                                             GroupName="WorkspaceTabs"
+                                 Style="{StaticResource AnalyzerTabButtonStyle}"
+                                 Tag="6"
                                  Click="WorkspaceTabButton_Click">
                                     <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
                                         <Viewbox Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center">
@@ -661,7 +676,7 @@
                                     <Style TargetType="StackPanel">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding CurrentWorkspaceTabIndex}" Value="5">
+                                            <DataTrigger Binding="{Binding CurrentWorkspaceTabIndex}" Value="6">
                                                 <Setter Property="Visibility" Value="Visible"/>
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -1583,7 +1598,7 @@
                                 <Style TargetType="Grid">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedIndex, ElementName=WorkspaceTabs}" Value="4">
+                                        <DataTrigger Binding="{Binding SelectedIndex, ElementName=WorkspaceTabs}" Value="5">
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -1687,6 +1702,93 @@
                         </Grid>
 
                         <!-- =========================================================
+             VALIDATION LEFT SUMMARY
+             ========================================================= -->
+                        <Grid>
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedIndex, ElementName=WorkspaceTabs}" Value="4">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets"
+                                               FontSize="13"
+                                               Margin="0,1,8,0"
+                                               Foreground="{StaticResource AccentStrongBrush}"
+                                               Text="&#xE9D9;"/>
+                                    <TextBlock Style="{StaticResource PanelTitleTextStyle}"
+                                               Text="Validation Summary"/>
+                                </StackPanel>
+
+                                <TextBlock Margin="0,2,0,10"
+                                           Style="{StaticResource PanelSubtitleTextStyle}"
+                                           Text="Decision layer from SCL binding and live traffic"/>
+                            </StackPanel>
+
+                            <Border Grid.Row="1"
+                                    Margin="0,0,0,10"
+                                    Padding="12"
+                                    Background="{Binding ValidationOverallBackgroundBrush}"
+                                    BorderBrush="{Binding ValidationOverallBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ValidationOverallStatusText}"
+                                               Foreground="{Binding ValidationOverallBrush}"
+                                               FontSize="22"
+                                               FontWeight="Bold"/>
+                                    <TextBlock Margin="0,6,0,0"
+                                               Text="{Binding ValidationSummaryText}"
+                                               TextWrapping="Wrap"
+                                               Foreground="#D6E8F8"
+                                               FontSize="11.5"/>
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Grid.Row="2">
+                                <Border Style="{StaticResource DenseMetricCardStyle}" Padding="10" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="SV" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                        <TextBlock Margin="0,5,0,0" Text="{Binding ValidationSvSummaryText}" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource DenseMetricCardStyle}" Padding="10" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="GOOSE" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                        <TextBlock Margin="0,5,0,0" Text="{Binding ValidationGooseSummaryText}" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                    <StackPanel>
+                                        <TextBlock Text="PTP / Timing" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                        <TextBlock Margin="0,5,0,0" Text="{Binding ValidationPtpSummaryText}" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}"/>
+                                        <TextBlock Margin="0,5,0,0" Text="{Binding ValidationTimingConfidenceText}" TextWrapping="Wrap" Foreground="#F6D781" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="3"
+                                       Text="Report generation should consume these rows after evidence is stable."
+                                       TextWrapping="Wrap"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       FontSize="10"/>
+                        </Grid>
+
+                        <!-- =========================================================
              FRAME VIEWER LEFT EXPLORER
              ========================================================= -->
                         <Grid>
@@ -1694,7 +1796,7 @@
                                 <Style TargetType="Grid">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedIndex, ElementName=WorkspaceTabs}" Value="5">
+                                        <DataTrigger Binding="{Binding SelectedIndex, ElementName=WorkspaceTabs}" Value="6">
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -3323,6 +3425,183 @@
                                         </DataGrid>
                                     </Grid>
                                 </Border>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,8,0" Foreground="#EAF6FF" Text="&#xE9D9;"/>
+                                    <TextBlock Text="Validation" Foreground="#EAF6FF" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Grid Margin="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0"
+                                                MinWidth="138"
+                                                Padding="14,10"
+                                                Background="{Binding ValidationOverallBackgroundBrush}"
+                                                BorderBrush="{Binding ValidationOverallBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10">
+                                            <StackPanel>
+                                                <TextBlock Text="Overall" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                <TextBlock Margin="0,3,0,0" Text="{Binding ValidationOverallStatusText}" Foreground="{Binding ValidationOverallBrush}" FontSize="26" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                            <TextBlock Text="Validation Dashboard" Style="{StaticResource PanelTitleTextStyle}"/>
+                                            <TextBlock Margin="0,4,0,0"
+                                                       Text="{Binding ValidationSummaryText}"
+                                                       Style="{StaticResource PanelSubtitleTextStyle}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="3" VerticalAlignment="Center" MinWidth="220">
+                                            <TextBlock Text="{Binding ValidationPtpSummaryText}" Foreground="#D6E8F8" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Margin="0,5,0,0" Text="{Binding ValidationTimingConfidenceText}" Foreground="#F6D781" FontSize="11" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="12"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="12"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="12"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                            <StackPanel>
+                                                <TextBlock Text="SV Expected vs Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                <TextBlock Margin="0,6,0,0" Text="{Binding ValidationSvSummaryText}" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                            <StackPanel>
+                                                <TextBlock Text="GOOSE Expected vs Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                <TextBlock Margin="0,6,0,0" Text="{Binding ValidationGooseSummaryText}" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="4" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                            <StackPanel>
+                                                <TextBlock Text="Evidence Readiness" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                <TextBlock Margin="0,6,0,0" Text="Every validation row carries expected, observed, status, and evidence text." Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <Border Grid.Row="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="10"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <DockPanel>
+                                                <StackPanel DockPanel.Dock="Left">
+                                                    <TextBlock Text="Validation Findings" Style="{StaticResource PanelTitleTextStyle}"/>
+                                                    <TextBlock Margin="0,4,0,0"
+                                                               Text="Decision rows generated from SCL binding status, PTP context, and capture timestamp confidence."
+                                                               Foreground="#8FAAC3"
+                                                               FontSize="11"/>
+                                                </StackPanel>
+                                            </DockPanel>
+
+                                            <DataGrid Grid.Row="2"
+                                                      Style="{StaticResource DarkDataGridStyle}"
+                                                      ItemsSource="{Binding ValidationFindings}"
+                                                      AutoGenerateColumns="False"
+                                                      IsReadOnly="True"
+                                                      HeadersVisibility="Column"
+                                                      CanUserAddRows="False"
+                                                      CanUserDeleteRows="False"
+                                                      CanUserSortColumns="False"
+                                                      GridLinesVisibility="None"
+                                                      RowHeight="74"
+                                                      MinRowHeight="74"
+                                                      FontSize="11.5"
+                                                      EnableRowVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <DataGrid.Resources>
+                                                    <Style x:Key="ValidationCellTextStyle" TargetType="TextBlock">
+                                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                                        <Setter Property="TextTrimming" Value="None"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                                                        <Setter Property="LineHeight" Value="15"/>
+                                                    </Style>
+                                                </DataGrid.Resources>
+                                                <DataGrid.Columns>
+                                                    <DataGridTemplateColumn Header="Status" Width="112">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="{Binding StatusBackgroundBrush}" BorderBrush="{Binding StatusBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Object" Width="1.1*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding ObjectText}" Foreground="#F4FAFF" FontWeight="SemiBold" Style="{StaticResource ValidationCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Expected" Width="1.45*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding ExpectedText}" Foreground="#D6E8F8" Style="{StaticResource ValidationCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Observed" Width="1.45*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding ObservedText}" Foreground="#F6D781" FontWeight="SemiBold" Style="{StaticResource ValidationCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Evidence" Width="2.2*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding EvidenceText}" Foreground="#EAF6FF" Style="{StaticResource ValidationCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
                             </Grid>
                         </TabItem>
 
