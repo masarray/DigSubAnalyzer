@@ -6,6 +6,7 @@
         xmlns:controls="clr-namespace:ProcessBus.App.Wpf.Controls"
         xmlns:vm="clr-namespace:ProcessBus.App.Wpf.ViewModels"
         xmlns:conv="clr-namespace:ProcessBus.App.Wpf.Converters"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance vm:MainWindowViewModel, IsDesignTimeCreatable=True}"
         Title="Process Bus Insight - IEC 61850 Analyzer"
@@ -26,6 +27,54 @@
     <Window.Resources>
         <conv:GooseEventBgConverter x:Key="EventBgConverter"/>
         <conv:GooseEventFgConverter x:Key="EventFgConverter"/>
+        <Style x:Key="EngineeringDataGridRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridRow">
+                        <Border x:Name="RowBorder"
+                                Background="{TemplateBinding Background}"
+                                Padding="0,3">
+                            <SelectiveScrollingGrid>
+                                <DataGridCellsPresenter VerticalAlignment="Stretch"/>
+                            </SelectiveScrollingGrid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RowBorder" Property="Background" Value="#102236"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="RowBorder" Property="Background" Value="#1A3A5A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="EngineeringDataGridCellStyle" TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter VerticalAlignment="Top"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="{StaticResource ShellBackgroundBrush}">
@@ -851,7 +900,7 @@
 
                                 <TextBlock Margin="0,2,0,0"
                            Style="{StaticResource PanelSubtitleTextStyle}"
-                           Text="Sampled Value streams detected on network"/>
+                           Text="Stable first-seen order"/>
 
                                 <Border Margin="0,7,0,9"
                         Padding="10"
@@ -928,16 +977,16 @@
                                         </WrapPanel>
 
                                         <StackPanel Grid.Row="3" Margin="0,6,0,0">
-                                            <TextBlock Text="{Binding SvMappingSourceText}"
+                                            <TextBlock Text="{Binding SvMappingSourceCompactText}"
                                                        FontSize="10.5"
                                                        FontWeight="SemiBold"
                                                        Foreground="#F6D781"
-                                                       TextWrapping="Wrap"/>
+                                                       TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Margin="0,2,0,0"
-                                                       Text="{Binding SvSemanticChannelSummaryText}"
+                                                       Text="{Binding SvSemanticChannelCompactText}"
                                                        FontSize="10"
                                                        Foreground="#8FAAC3"
-                                                       TextWrapping="Wrap"/>
+                                                       TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
 
                                         <DockPanel Grid.Row="4"
@@ -1098,7 +1147,7 @@
                                                            Foreground="#7FA8CC"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Text>
-                                                        <MultiBinding StringFormat="APPID {0}  •  {1:HH:mm:ss.fff}">
+                                                        <MultiBinding StringFormat="APPID {0}  -  {1:HH:mm:ss.fff}">
                                                             <Binding Path="AppId"/>
                                                             <Binding Path="LastSeenUtc"/>
                                                         </MultiBinding>
@@ -1752,7 +1801,7 @@
                                                FontSize="22"
                                                FontWeight="Bold"/>
                                     <TextBlock Margin="0,6,0,0"
-                                               Text="{Binding ValidationSummaryText}"
+                                               Text="{Binding ValidationSummaryCompactText}"
                                                TextWrapping="Wrap"
                                                Foreground="#D6E8F8"
                                                FontSize="11.5"/>
@@ -1776,13 +1825,13 @@
                                     <StackPanel>
                                         <TextBlock Text="PTP / Timing" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                         <TextBlock Margin="0,5,0,0" Text="{Binding ValidationPtpSummaryText}" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}"/>
-                                        <TextBlock Margin="0,5,0,0" Text="{Binding ValidationTimingConfidenceText}" TextWrapping="Wrap" Foreground="#F6D781" FontSize="11"/>
+                                        <TextBlock Margin="0,5,0,0" Text="{Binding ValidationTimingCompactText}" TextWrapping="Wrap" Foreground="#F6D781" FontSize="11"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
 
                             <TextBlock Grid.Row="3"
-                                       Text="Report generation should consume these rows after evidence is stable."
+                                       Text="Detailed evidence remains in the main grid and SCL inspector."
                                        TextWrapping="Wrap"
                                        Foreground="{StaticResource TextMutedBrush}"
                                        FontSize="10"/>
@@ -2441,6 +2490,44 @@
                                                                     </StackPanel>
                                                                 </Grid>
                                                             </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+
+                                                <Grid Margin="0,8,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="8"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <Border Grid.Row="0" Grid.Column="0" Padding="9,7" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="P" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
+                                                            <TextBlock Margin="0,3,0,0" Text="{Binding TotalActivePowerText}" FontSize="15" FontWeight="Bold" Foreground="#F4FAFF"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Grid.Row="0" Grid.Column="2" Padding="9,7" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Q" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
+                                                            <TextBlock Margin="0,3,0,0" Text="{Binding TotalReactivePowerText}" FontSize="15" FontWeight="Bold" Foreground="#F4FAFF"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Grid.Row="2" Grid.Column="0" Padding="9,7" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="S" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
+                                                            <TextBlock Margin="0,3,0,0" Text="{Binding TotalApparentPowerText}" FontSize="15" FontWeight="Bold" Foreground="#F4FAFF"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Grid.Row="2" Grid.Column="2" Padding="9,7" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="PF" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
+                                                            <TextBlock Margin="0,3,0,0" Text="{Binding PowerFactorText}" FontSize="15" FontWeight="Bold" Foreground="#F4FAFF"/>
                                                         </StackPanel>
                                                     </Border>
                                                 </Grid>
@@ -3467,14 +3554,14 @@
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                             <TextBlock Text="Validation Dashboard" Style="{StaticResource PanelTitleTextStyle}"/>
                                             <TextBlock Margin="0,4,0,0"
-                                                       Text="{Binding ValidationSummaryText}"
+                                                       Text="{Binding ValidationSummaryCompactText}"
                                                        Style="{StaticResource PanelSubtitleTextStyle}"
                                                        TextWrapping="Wrap"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="3" VerticalAlignment="Center" MinWidth="220">
                                             <TextBlock Text="{Binding ValidationPtpSummaryText}" Foreground="#D6E8F8" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                            <TextBlock Margin="0,5,0,0" Text="{Binding ValidationTimingConfidenceText}" Foreground="#F6D781" FontSize="11" TextWrapping="Wrap"/>
+                                            <TextBlock Margin="0,5,0,0" Text="{Binding ValidationTimingCompactText}" Foreground="#F6D781" FontSize="11" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -3482,7 +3569,7 @@
                                 <Grid Grid.Row="2">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="12"/>
+                                        <RowDefinition Height="10"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
@@ -3495,22 +3582,22 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                        <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
                                             <StackPanel>
                                                 <TextBlock Text="SV Expected vs Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,6,0,0" Text="{Binding ValidationSvSummaryText}" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Margin="0,5,0,0" Text="{Binding ValidationSvSummaryText}" Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                        <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
                                             <StackPanel>
                                                 <TextBlock Text="GOOSE Expected vs Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,6,0,0" Text="{Binding ValidationGooseSummaryText}" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Margin="0,5,0,0" Text="{Binding ValidationGooseSummaryText}" Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="4" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                        <Border Grid.Column="4" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
                                             <StackPanel>
                                                 <TextBlock Text="Evidence Readiness" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,6,0,0" Text="Every validation row carries expected, observed, status, and evidence text." Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Margin="0,5,0,0" Text="Expected, observed, status, evidence." Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -3542,11 +3629,13 @@
                                                       CanUserDeleteRows="False"
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
-                                                      RowHeight="74"
-                                                      MinRowHeight="74"
+                                                      RowHeight="{x:Static sys:Double.NaN}"
+                                                      MinRowHeight="96"
+                                                      RowStyle="{StaticResource EngineeringDataGridRowStyle}"
+                                                      CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="11.5"
-                                                      EnableRowVirtualization="True"
-                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      EnableRowVirtualization="False"
+                                                      VirtualizingPanel.IsVirtualizing="False"
                                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -3554,9 +3643,9 @@
                                                     <Style x:Key="ValidationCellTextStyle" TargetType="TextBlock">
                                                         <Setter Property="TextWrapping" Value="Wrap"/>
                                                         <Setter Property="TextTrimming" Value="None"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Top"/>
                                                         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-                                                        <Setter Property="LineHeight" Value="15"/>
+                                                        <Setter Property="LineHeight" Value="16"/>
                                                     </Style>
                                                 </DataGrid.Resources>
                                                 <DataGrid.Columns>
@@ -3573,6 +3662,13 @@
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
                                                                 <TextBlock Text="{Binding ObjectText}" Foreground="#F4FAFF" FontWeight="SemiBold" Style="{StaticResource ValidationCellTextStyle}"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="IED / Scope" Width="0.85*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding IedName}" Foreground="#9FD8FF" FontWeight="SemiBold" Style="{StaticResource ValidationCellTextStyle}"/>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>
@@ -3657,12 +3753,12 @@
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="8"/>
+                                                <RowDefinition Height="0.95*"/>
                                                 <RowDefinition Height="10"/>
-                                                <RowDefinition Height="0.82*"/>
-                                                <RowDefinition Height="12"/>
                                                 <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="10"/>
-                                                <RowDefinition Height="1.18*"/>
+                                                <RowDefinition Height="8"/>
+                                                <RowDefinition Height="1.05*"/>
                                             </Grid.RowDefinitions>
                                             <DockPanel>
                                                 <StackPanel DockPanel.Dock="Left">
@@ -3694,11 +3790,13 @@
                                                       CanUserDeleteRows="False"
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
-                                                      RowHeight="58"
-                                                      MinRowHeight="58"
+                                                      RowHeight="{x:Static sys:Double.NaN}"
+                                                      MinRowHeight="72"
+                                                      RowStyle="{StaticResource EngineeringDataGridRowStyle}"
+                                                      CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="12"
-                                                      EnableRowVirtualization="True"
-                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      EnableRowVirtualization="False"
+                                                      VirtualizingPanel.IsVirtualizing="False"
                                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -3706,15 +3804,16 @@
                                                     <Style x:Key="SclCatalogCellTextStyle" TargetType="TextBlock">
                                                         <Setter Property="TextWrapping" Value="Wrap"/>
                                                         <Setter Property="TextTrimming" Value="None"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Top"/>
                                                         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-                                                        <Setter Property="LineHeight" Value="15"/>
+                                                        <Setter Property="LineHeight" Value="16"/>
                                                     </Style>
                                                     <Style x:Key="SclCatalogMetaTextStyle" TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#8FAAC3"/>
                                                         <Setter Property="FontSize" Value="10.5"/>
                                                         <Setter Property="TextWrapping" Value="Wrap"/>
-                                                        <Setter Property="LineHeight" Value="14"/>
+                                                        <Setter Property="TextTrimming" Value="None"/>
+                                                        <Setter Property="LineHeight" Value="15"/>
                                                     </Style>
                                                 </DataGrid.Resources>
                                                 <DataGrid.Columns>
@@ -3800,11 +3899,13 @@
                                                       CanUserDeleteRows="False"
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
-                                                      RowHeight="68"
-                                                      MinRowHeight="68"
+                                                      RowHeight="{x:Static sys:Double.NaN}"
+                                                      MinRowHeight="108"
+                                                      RowStyle="{StaticResource EngineeringDataGridRowStyle}"
+                                                      CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="11.5"
-                                                      EnableRowVirtualization="True"
-                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      EnableRowVirtualization="False"
+                                                      VirtualizingPanel.IsVirtualizing="False"
                                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -3812,15 +3913,16 @@
                                                     <Style x:Key="SclBindingCellTextStyle" TargetType="TextBlock">
                                                         <Setter Property="TextWrapping" Value="Wrap"/>
                                                         <Setter Property="TextTrimming" Value="None"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Top"/>
                                                         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-                                                        <Setter Property="LineHeight" Value="15"/>
+                                                        <Setter Property="LineHeight" Value="16"/>
                                                     </Style>
                                                     <Style x:Key="SclBindingMetaTextStyle" TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#8FAAC3"/>
                                                         <Setter Property="FontSize" Value="10.5"/>
                                                         <Setter Property="TextWrapping" Value="Wrap"/>
-                                                        <Setter Property="LineHeight" Value="14"/>
+                                                        <Setter Property="TextTrimming" Value="None"/>
+                                                        <Setter Property="LineHeight" Value="15"/>
                                                     </Style>
                                                 </DataGrid.Resources>
                                                 <DataGrid.Columns>
@@ -3831,7 +3933,7 @@
                                                                     <Border Background="{Binding StatusBackgroundBrush}" BorderBrush="{Binding StatusBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" HorizontalAlignment="Left">
                                                                         <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold"/>
                                                                     </Border>
-                                                                    <TextBlock Margin="2,5,0,0" Text="{Binding ScoreText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
+                                                                    <TextBlock Margin="2,4,0,0" Text="{Binding ScoreText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
@@ -3848,7 +3950,7 @@
                                                             <DataTemplate>
                                                                 <StackPanel VerticalAlignment="Center">
                                                                     <TextBlock Text="{Binding ExpectedName}" Foreground="#F4FAFF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
-                                                                    <TextBlock Margin="0,4,0,0" Text="{Binding ExpectedMetaText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
+                                                                    <TextBlock Margin="0,3,0,0" Text="{Binding ExpectedMetaText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
@@ -3858,7 +3960,7 @@
                                                             <DataTemplate>
                                                                 <StackPanel VerticalAlignment="Center">
                                                                     <TextBlock Text="{Binding ObservedName}" Foreground="#F6D781" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
-                                                                    <TextBlock Margin="0,4,0,0" Text="{Binding ObservedMetaText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
+                                                                    <TextBlock Margin="0,3,0,0" Text="{Binding ObservedMetaText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
@@ -3868,7 +3970,7 @@
                                                             <DataTemplate>
                                                                 <StackPanel VerticalAlignment="Center">
                                                                     <TextBlock Text="{Binding EvidencePrimaryText}" Foreground="#EAF6FF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
-                                                                    <TextBlock Margin="0,4,0,0" Text="{Binding EvidenceSecondaryText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
+                                                                    <TextBlock Margin="0,3,0,0" Text="{Binding EvidenceSecondaryText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
@@ -3936,7 +4038,10 @@
                                                               CanUserDeleteRows="False"
                                                               CanUserSortColumns="False"
                                                               GridLinesVisibility="None"
-                                                              MinRowHeight="34"
+                                                              RowHeight="{x:Static sys:Double.NaN}"
+                                                              MinRowHeight="42"
+                                                              RowStyle="{StaticResource EngineeringDataGridRowStyle}"
+                                                              CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                               FontSize="11.5"
                                                               ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -3986,6 +4091,9 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Column="0" Style="{StaticResource DenseGroupBorderStyle}">
+                                    <ScrollViewer Style="{StaticResource ModernScrollViewerStyle}"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
                                     <StackPanel>
                                         <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedTargetTitle}"/>
                                         <TextBlock Margin="0,2,0,8" Style="{StaticResource PanelSubtitleTextStyle}" Text="{Binding AdvancedTargetSubtitle}"/>
@@ -4021,7 +4129,6 @@
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedDecodedTitle}"/>
                                                 <ScrollViewer Margin="0,6,0,0"
-                                                          MaxHeight="92"
                                                           Style="{StaticResource ModernScrollViewerStyle}">
                                                     <TextBlock TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding AdvancedRawValuesText}"/>
                                                 </ScrollViewer>
@@ -4037,7 +4144,6 @@
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedEngineeringTitle}"/>
                                                 <ScrollViewer Margin="0,6,0,0"
-                                                          MaxHeight="112"
                                                           Style="{StaticResource ModernScrollViewerStyle}">
                                                     <StackPanel>
                                                         <TextBlock TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding AdvancedEngineeringText}"/>
@@ -4046,6 +4152,7 @@
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
+                                    </ScrollViewer>
                                 </Border>
 
                                 <Border Grid.Column="2" Style="{StaticResource DenseGroupBorderStyle}">

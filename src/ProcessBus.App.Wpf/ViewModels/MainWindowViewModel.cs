@@ -946,6 +946,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return $"{_sclDocuments.Count} SCL document(s), {expected} expected stream(s), {observed} observed binding target(s). Timing remains packet-arrival screening unless validated hardware timestamps are present.";
         }
     }
+    public string ValidationSummaryCompactText
+    {
+        get
+        {
+            if (!HasSclProject)
+                return "Load SCL to validate expected vs observed traffic.";
+
+            var expected = _sclBindingMatrix.Count(x => x.ExpectedStream is not null);
+            var observed = _sclBindingMatrix.Count(x => !string.IsNullOrWhiteSpace(x.LiveKey));
+            return $"{_sclDocuments.Count} SCL - {_sclIedCards.Count} IED - {expected} expected - {observed} observed";
+        }
+    }
+    public string ValidationTimingCompactText => Diagnostics.PtpObserved
+        ? $"{Diagnostics.PtpTransportText} - {TimingConfidenceBadgeText}"
+        : $"PTP not observed - {TimingConfidenceBadgeText}";
     public string ValidationSvSummaryText => BuildValidationProtocolSummary("SV");
     public string ValidationGooseSummaryText => BuildValidationProtocolSummary("GOOSE");
     public string ValidationPtpSummaryText => Diagnostics.PtpObserved
@@ -1001,6 +1016,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             findings.Add(ValidationFindingRow.Create(
                 "Engineering context",
+                "Project",
                 "SCL document",
                 "No SCL loaded",
                 "UNKNOWN",
@@ -1014,6 +1030,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 .ThenBy(x => x.ExpectedName, StringComparer.OrdinalIgnoreCase)
                 .Select(row => ValidationFindingRow.Create(
                     $"{row.Protocol} - {(row.ExpectedStream is null ? row.ObservedName : row.ExpectedName)}",
+                    string.IsNullOrWhiteSpace(row.IedName) ? "Live traffic" : row.IedName,
                     row.ExpectedStream is null ? row.ExpectedDetailText : $"{row.ExpectedName}\n{row.ExpectedMetaText}",
                     string.IsNullOrWhiteSpace(row.LiveKey) ? "Not observed" : $"{row.ObservedName}\n{row.ObservedMetaText}",
                     MapValidationStatus(row.StatusText),
@@ -1023,6 +1040,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             {
                 findings.Add(ValidationFindingRow.Create(
                     "SCL binding matrix",
+                    "Project",
                     "Expected SV/GOOSE streams",
                     "No rows built",
                     "UNKNOWN",
@@ -1032,6 +1050,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         findings.Add(ValidationFindingRow.Create(
             "PTP timing context",
+            "Timing",
             "Passive timing context",
             ValidationPtpSummaryText,
             Diagnostics.PtpObserved ? "INFO" : "UNKNOWN",
@@ -1039,6 +1058,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         findings.Add(ValidationFindingRow.Create(
             "Capture timestamp source",
+            "Capture path",
             "Hardware timestamp validation",
             TimestampSourceText,
             "INFO",
@@ -1185,8 +1205,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public StreamDetailsModel? SelectedStreamDetails => _state.SelectedStreamDetails;
     public string SvMappingSourceText => BuildSvMappingSourceText(SelectedStreamDetails);
+    public string SvMappingSourceCompactText => BuildSvMappingSourceCompactText(SelectedStreamDetails);
     public string SvSemanticChannelSummaryText => BuildSvSemanticChannelSummaryText(SelectedStreamDetails);
+    public string SvSemanticChannelCompactText => BuildSvSemanticChannelCompactText(SelectedStreamDetails);
     public AnalogValuesSnapshot AnalogValues => _state.AnalogValues;
+    public string TotalActivePowerText => FormatPower(ComputeThreePhasePower().P, "W");
+    public string TotalReactivePowerText => FormatPower(ComputeThreePhasePower().Q, "var");
+    public string TotalApparentPowerText => FormatPower(ComputeThreePhasePower().S, "VA");
+    public string PowerFactorText
+    {
+        get
+        {
+            var power = ComputeThreePhasePower();
+            if (power.S <= 0)
+                return "N/A";
+
+            return $"{Math.Clamp(power.P / power.S, -1.0, 1.0):0.000}";
+        }
+    }
     public WaveformSnapshot Waveform => _displayedWaveform;
     public SvDiagnosticsSnapshot Diagnostics => _state.Diagnostics;
     public string DataSourceName => _state.DataSourceName;
@@ -1225,6 +1261,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return $"Mapping source: {source} ({candidate.Score}% binding). {candidate.Stream.ControlBlockReference}";
     }
 
+    private string BuildSvMappingSourceCompactText(StreamDetailsModel? details)
+    {
+        if (details is null)
+            return "Mapping: no SV selected";
+
+        if (!HasSclProject)
+            return "Mapping: inferred raw profile";
+
+        var candidate = ResolveSclSvMapping(details);
+        if (candidate is null)
+            return "Mapping: no SCL binding";
+
+        return candidate.IsConfirmed
+            ? $"Mapping: SCL confirmed ({candidate.Score}%)"
+            : $"Mapping: SCL candidate ({candidate.Score}%)";
+    }
+
     private string BuildSvSemanticChannelSummaryText(StreamDetailsModel? details)
     {
         if (details is null)
@@ -1245,6 +1298,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return string.IsNullOrWhiteSpace(summary)
             ? "SCL DataSet loaded, signal roles unresolved; inspect Advanced for full entry order."
             : summary;
+    }
+
+    private string BuildSvSemanticChannelCompactText(StreamDetailsModel? details)
+    {
+        if (details is null)
+            return "Select an SV stream";
+
+        var candidate = ResolveSclSvMapping(details);
+        if (candidate is null)
+            return details.MappedChannelNamesText;
+
+        var entries = candidate.Stream.Entries
+            .Where(x => !string.IsNullOrWhiteSpace(x.DisplayName))
+            .Take(4)
+            .Select(x => x.DisplayName)
+            .ToArray();
+        var suffix = candidate.Stream.Entries.Count > entries.Length
+            ? $" + {candidate.Stream.Entries.Count - entries.Length} more"
+            : string.Empty;
+
+        return entries.Length == 0
+            ? candidate.Stream.DataSetReference
+            : $"{string.Join(", ", entries)}{suffix}";
     }
 
     public string WaveformShowMode
@@ -2102,8 +2178,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         OnPropertyChanged(nameof(SelectedStreamDetails));
         OnPropertyChanged(nameof(SvMappingSourceText));
+        OnPropertyChanged(nameof(SvMappingSourceCompactText));
         OnPropertyChanged(nameof(SvSemanticChannelSummaryText));
+        OnPropertyChanged(nameof(SvSemanticChannelCompactText));
         OnPropertyChanged(nameof(AnalogValues));
+        OnPropertyChanged(nameof(TotalActivePowerText));
+        OnPropertyChanged(nameof(TotalReactivePowerText));
+        OnPropertyChanged(nameof(TotalApparentPowerText));
+        OnPropertyChanged(nameof(PowerFactorText));
         OnPropertyChanged(nameof(Waveform));
         OnPropertyChanged(nameof(WaveformStatusText));
         OnPropertyChanged(nameof(WaveformHeaderModeText));
@@ -2211,6 +2293,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(ValidationOverallBrush));
         OnPropertyChanged(nameof(ValidationOverallBackgroundBrush));
         OnPropertyChanged(nameof(ValidationSummaryText));
+        OnPropertyChanged(nameof(ValidationSummaryCompactText));
+        OnPropertyChanged(nameof(ValidationTimingCompactText));
         OnPropertyChanged(nameof(ValidationSvSummaryText));
         OnPropertyChanged(nameof(ValidationGooseSummaryText));
         OnPropertyChanged(nameof(ValidationPtpSummaryText));
@@ -3390,6 +3474,48 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ];
     }
 
+    private (double P, double Q, double S) ComputeThreePhasePower()
+    {
+        var phases = new[]
+        {
+            (U: AnalogValues.Ua, I: AnalogValues.Ia),
+            (U: AnalogValues.Ub, I: AnalogValues.Ib),
+            (U: AnalogValues.Uc, I: AnalogValues.Ic)
+        };
+
+        var p = 0.0;
+        var q = 0.0;
+        var s = 0.0;
+
+        foreach (var phase in phases)
+        {
+            if (!phase.U.RmsValue.HasValue || !phase.I.RmsValue.HasValue)
+                continue;
+
+            var apparent = Math.Abs(phase.U.RmsValue.Value * phase.I.RmsValue.Value);
+            s += apparent;
+
+            if (!phase.U.AngleDegrees.HasValue || !phase.I.AngleDegrees.HasValue)
+                continue;
+
+            var angle = (phase.U.AngleDegrees.Value - phase.I.AngleDegrees.Value) * Math.PI / 180.0;
+            p += apparent * Math.Cos(angle);
+            q += apparent * Math.Sin(angle);
+        }
+
+        return (p, q, s);
+    }
+
+    private static string FormatPower(double value, string unit)
+    {
+        var abs = Math.Abs(value);
+        if (abs >= 1_000_000.0)
+            return $"{value / 1_000_000.0:0.00} M{unit}";
+        if (abs >= 1_000.0)
+            return $"{value / 1_000.0:0.00} k{unit}";
+        return $"{value:0.00} {unit}";
+    }
+
     private static string? ResolvePhasorReferenceName(AnalogValuesSnapshot analogValues)
     {
         if (analogValues.Ua.RmsValue.HasValue)
@@ -4000,6 +4126,7 @@ public sealed class SclStreamCatalogRow
 public sealed class ValidationFindingRow
 {
     public string ObjectText { get; init; } = string.Empty;
+    public string IedName { get; init; } = string.Empty;
     public string ExpectedText { get; init; } = string.Empty;
     public string ObservedText { get; init; } = string.Empty;
     public string StatusText { get; init; } = string.Empty;
@@ -4021,10 +4148,11 @@ public sealed class ValidationFindingRow
         _ => "#142235"
     };
 
-    public static ValidationFindingRow Create(string objectText, string expectedText, string observedText, string statusText, string evidenceText)
+    public static ValidationFindingRow Create(string objectText, string iedName, string expectedText, string observedText, string statusText, string evidenceText)
         => new()
         {
             ObjectText = objectText,
+            IedName = iedName,
             ExpectedText = expectedText,
             ObservedText = observedText,
             StatusText = statusText,
