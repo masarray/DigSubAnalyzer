@@ -3084,8 +3084,17 @@
                                                               MinHeight="180"
                                                               MaxHeight="360"
                                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                                        ScrollViewer.VerticalScrollBarVisibility="Auto">
                                                         <DataGrid.Columns>
+                                                            <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="38">
+                                                                <DataGridTextColumn.ElementStyle>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                                        <Setter Property="Foreground" Value="#8FAAC3"/>
+                                                                    </Style>
+                                                                </DataGridTextColumn.ElementStyle>
+                                                            </DataGridTextColumn>
                                                             <DataGridTextColumn Header="Name" Binding="{Binding NameText}" Width="*">
                                                                 <DataGridTextColumn.ElementStyle>
                                                                     <Style TargetType="TextBlock">
@@ -3103,6 +3112,15 @@
                                                                         <Setter Property="Foreground" Value="#8FAAC3"/>
                                                                         <Setter Property="TextWrapping" Value="Wrap"/>
                                                                         <Setter Property="ToolTip" Value="{Binding SemanticText}"/>
+                                                                    </Style>
+                                                                </DataGridTextColumn.ElementStyle>
+                                                            </DataGridTextColumn>
+                                                            <DataGridTextColumn Header="Source" Binding="{Binding SemanticText}" Width="108">
+                                                                <DataGridTextColumn.ElementStyle>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                        <Setter Property="Foreground" Value="#8FAAC3"/>
+                                                                        <Setter Property="TextWrapping" Value="Wrap"/>
                                                                     </Style>
                                                                 </DataGridTextColumn.ElementStyle>
                                                             </DataGridTextColumn>

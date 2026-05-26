@@ -225,7 +225,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var filter = string.Equals(SelectedGooseIdFilter, "All", StringComparison.OrdinalIgnoreCase) ? "All GOOSE IDs" : SelectedGooseIdFilter;
             var retrans = IncludeGooseRetransmission ? "with retransmission" : "state changes only";
-            return $"{filter} · {retrans}";
+            return $"{filter}  -  {retrans}";
         }
     }
 
@@ -245,13 +245,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     ? "Semantic source: generic typed decode; no matching SCL GOOSE DataSet found."
                     : "Semantic source: generic typed decode; load SCL to resolve signal names.";
 
-            return $"Semantic source: SCL DataSet order · {match.ControlBlockReference} · {match.DataSetReference}";
+            return $"Semantic source: SCL DataSet order  -  {match.ControlBlockReference}  -  {match.DataSetReference}";
         }
     }
 
     public string DiagnosticScopeTitle => SelectedDiagnosticTarget is null
         ? "All Traffic Overview"
-        : $"{SelectedDiagnosticTarget.Protocol} · {SelectedDiagnosticTarget.DisplayName}";
+        : $"{SelectedDiagnosticTarget.Protocol}  -  {SelectedDiagnosticTarget.DisplayName}";
 
     public string DiagnosticScopeSubtitle => SelectedDiagnosticTarget?.Subtitle
         ?? "Select an SV stream, GOOSE publisher, or PTP source from the health navigator.";
@@ -271,8 +271,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return "No decoded traffic yet";
 
             return warnings == 0
-                ? $"{_diagnosticTargets.Count} target(s) observed · no active warning"
-                : $"{warnings} affected target(s) · select an item to inspect";
+                ? $"{_diagnosticTargets.Count} target(s) observed  -  no active warning"
+                : $"{warnings} affected target(s)  -  select an item to inspect";
         }
     }
 
@@ -283,7 +283,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string AdvancedTargetTitle => SelectedDiagnosticTarget is null
         ? "Raw Target Inspector"
-        : $"{SelectedDiagnosticTarget.Protocol} · {SelectedDiagnosticTarget.DisplayName}";
+        : $"{SelectedDiagnosticTarget.Protocol}  -  {SelectedDiagnosticTarget.DisplayName}";
 
     public string AdvancedTargetSubtitle => SelectedDiagnosticTarget?.Subtitle
         ?? "Select an SV, GOOSE, or PTP source from the Advanced explorer.";
@@ -374,7 +374,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 var goose = SelectedGooseMessage;
                 return goose is null
                     ? "No GOOSE message selected."
-                    : $"{goose.GoCbRef}; APPID={goose.AppId}; DataSet={goose.DataSet}; stNum={goose.StNum}; sqNum={goose.SqNum}; values={goose.ValuesText}; changed={goose.ChangedSummaryText}";
+                    : $"{goose.GoCbRef}; APPID={goose.AppId}; DataSet={goose.DataSet}; stNum={goose.StNum}; sqNum={goose.SqNum}; values={goose.ValuesText}; changed={BuildSemanticGooseChangedSummary(goose)}";
             }
 
             var last = PtpEvents.FirstOrDefault();
@@ -408,12 +408,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 if (values is null || values.Count == 0)
                     return "No typed DataSet values decoded.";
 
-                return string.Join(Environment.NewLine, values.Select(v => $"[{v.Index}] {v.Name} · {v.Type} = {v.Value}"));
+                var displayValues = BuildGooseDatasetValues(SelectedGooseMessage);
+                return string.Join(Environment.NewLine, displayValues.Select(v => $"[{v.Index}] {v.NameText} - {v.TypeText} = {v.DisplayValueText}"));
             }
 
             return PtpEvents.Count == 0
                 ? "No PTP event list yet."
-                : string.Join(Environment.NewLine, PtpEvents.Take(12).Select(x => $"{x.TimestampUtc:HH:mm:ss.fff} · {x.Transport} · {x.MessageType} · {x.Source} -> {x.Destination} · {x.DomainText} · seq {x.SequenceIdText}"));
+                : string.Join(Environment.NewLine, PtpEvents.Take(12).Select(x => $"{x.TimestampUtc:HH:mm:ss.fff}  -  {x.Transport}  -  {x.MessageType}  -  {x.Source} -> {x.Destination}  -  {x.DomainText}  -  seq {x.SequenceIdText}"));
         }
     }
 
@@ -528,7 +529,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var payloadIndex = entry.Index - 1;
             var role = InferSvSignalRole(entry);
-            lines.Add($"element[{payloadIndex:00}] -> {entry.DisplayName} · {entry.TypeText} · {role}");
+            lines.Add($"element[{payloadIndex:00}] -> {entry.DisplayName}  -  {entry.TypeText}  -  {role}");
         }
 
         if (stream.Entries.Count > 16)
@@ -608,7 +609,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         };
 
         foreach (var entry in entries.Take(12))
-            lines.Add($"[{entry.Index:00}] {entry.DisplayName} · {entry.TypeText}");
+            lines.Add($"[{entry.Index:00}] {entry.DisplayName}  -  {entry.TypeText}");
 
         if (entries.Count > 12)
             lines.Add($"... {entries.Count - 12} more DataSet entries");
@@ -913,7 +914,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var mismatch = scope.Count(x => string.Equals(x.StatusText, "MISMATCH", StringComparison.OrdinalIgnoreCase));
             var conflict = scope.Count(x => string.Equals(x.StatusText, "CONFLICT", StringComparison.OrdinalIgnoreCase));
             var ambiguous = scope.Count(x => string.Equals(x.StatusText, "AMBIGUOUS", StringComparison.OrdinalIgnoreCase));
-            return $"Binding: {matched} matched · {mismatch} mismatch · {conflict} conflict · {ambiguous} ambiguous · {missing} missing · {unexpected} unexpected · {weak} weak";
+            return $"Binding: {matched} matched  -  {mismatch} mismatch  -  {conflict} conflict  -  {ambiguous} ambiguous  -  {missing} missing  -  {unexpected} unexpected  -  {weak} weak";
         }
     }
 
@@ -986,31 +987,31 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public string SclSemanticStatusText => HasSclProject
-        ? $"SCL semantic map loaded · {_sclProject.SvStreams.Count} SV · {_sclProject.GooseStreams.Count} GOOSE · {_sclProject.EditionText}"
+        ? $"SCL semantic map loaded  -  {_sclProject.SvStreams.Count} SV  -  {_sclProject.GooseStreams.Count} GOOSE  -  {_sclProject.EditionText}"
         : "Load SCL/CID/ICD to enable semantic stream mapping.";
 
     public string SclWorkspaceSummaryText => HasSclProject
-        ? $"{_sclDocuments.Count} document(s) · {_sclIedCards.Count} IED(s) · {_sclStreamCatalog.Count} mapped stream(s) · {_sclProject.DataSets.Count} DataSet(s)"
+        ? $"{_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)  -  {_sclStreamCatalog.Count} mapped stream(s)  -  {_sclProject.DataSets.Count} DataSet(s)"
         : "Import SCD / CID / ICD / IID files to build the engineering context.";
 
     public string SclWorkspaceStatusText => HasSclProject
-        ? $"Semantic catalog ready · {_sclProject.EditionText}"
+        ? $"Semantic catalog ready  -  {_sclProject.EditionText}"
         : "No engineering context loaded";
 
     public string SclSelectedDetailTitle => SelectedSclBindingMatrixRow is { ExpectedStream: null } binding
-        ? $"{binding.StatusText} {binding.Protocol} · {binding.ObservedName}"
+        ? $"{binding.StatusText} {binding.Protocol}  -  {binding.ObservedName}"
         : SelectedSclStreamCatalog is not null
-            ? $"{SelectedSclStreamCatalog.Protocol} stream · {SelectedSclStreamCatalog.DisplayName}"
+            ? $"{SelectedSclStreamCatalog.Protocol} stream  -  {SelectedSclStreamCatalog.DisplayName}"
             : SelectedSclIedCard is not null
-                ? $"IED · {SelectedSclIedCard.Name}"
+                ? $"IED  -  {SelectedSclIedCard.Name}"
                 : "No SCL object selected";
 
     public string SclSelectedDetailSubtitle => SelectedSclBindingMatrixRow is { ExpectedStream: null } binding
         ? binding.EvidenceText
         : SelectedSclStreamCatalog is not null
-            ? $"{SelectedSclStreamCatalog.ControlBlockReference} · {SelectedSclStreamCatalog.TransportText}"
+            ? $"{SelectedSclStreamCatalog.ControlBlockReference}  -  {SelectedSclStreamCatalog.TransportText}"
             : SelectedSclIedCard is not null
-                ? $"{SelectedSclIedCard.SourceFileName} · {SelectedSclIedCard.SummaryText}"
+                ? $"{SelectedSclIedCard.SourceFileName}  -  {SelectedSclIedCard.SummaryText}"
                 : "Select an imported IED or mapped stream.";
 
     public IReadOnlyList<SclDataSetEntryModel> SclSelectedEntries => SelectedSclBindingMatrixRow is { ExpectedStream: null }
@@ -1019,7 +1020,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string SclSelectedTransportText => SelectedSclStreamCatalog?.TransportText ?? "No stream selected";
     public string SclSelectedDatasetText => SelectedSclBindingMatrixRow is { ExpectedStream: null } binding
-        ? $"Observed {binding.Protocol} · APPID {binding.AppIdText} · VLAN {binding.VlanText}"
+        ? $"Observed {binding.Protocol}  -  APPID {binding.AppIdText}  -  VLAN {binding.VlanText}"
         : SelectedSclStreamCatalog?.DataSetReference ?? "No DataSet selected";
     public string SclSelectedBindingText => SelectedSclBindingMatrixRow?.StatusSummaryText
         ?? SelectedSclStreamCatalog?.LiveStatusText
@@ -1065,8 +1066,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : "Samples/cycle pending";
     public string WaveformHeaderWindowText => $"Window: {WaveformTimebase}";
     public string WaveformHeaderStatusText => string.IsNullOrWhiteSpace(WaveformStatusText)
-        ? "Software timestamp timing · reconstructed scope"
-        : WaveformStatusText.Replace("Raw scope reconstructed from RMS + smpCnt timing", "Software timestamp timing · reconstructed scope", StringComparison.OrdinalIgnoreCase);
+        ? "Software timestamp timing  -  reconstructed scope"
+        : WaveformStatusText.Replace("Raw scope reconstructed from RMS + smpCnt timing", "Software timestamp timing  -  reconstructed scope", StringComparison.OrdinalIgnoreCase);
     private string BuildSvMappingSourceText(StreamDetailsModel? details)
     {
         if (details is null)
@@ -1199,7 +1200,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string StreamAliveText =>
         _streamStale ? "NO SV PACKETS" : "SV PACKETS LIVE";
 
-    public string HealthIcon => IsHealthy ? "✓" : "!";
+    public string HealthIcon => IsHealthy ? "OK" : "!";
 
     public Brush HealthBackgroundBrush =>
         IsHealthy
@@ -1329,7 +1330,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
 
     public string PtpStatusText => Diagnostics.PtpObserved
-        ? $"PTP: {Diagnostics.PtpStatusText} · {Diagnostics.PtpTransportText}"
+        ? $"PTP: {Diagnostics.PtpStatusText}  -  {Diagnostics.PtpTransportText}"
         : $"PTP: {Diagnostics.PtpStatusText}";
 
     public string PtpStatusCompactText => Diagnostics.PtpObserved
@@ -1360,12 +1361,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string WorkspaceFooterLeftText => CurrentWorkspaceTabIndex switch
     {
-        0 => $"SV · {SelectedStreamDetails?.MappedChannelNamesText ?? "No SV stream selected"}",
-        1 => $"Diagnostics · {HealthText} · {NetworkHealthText}",
-        2 => $"GOOSE · {_gooseMessages.Count} publisher(s) · {_gooseHistory.Count} event(s)",
-        3 => $"Timing/PTP · {PtpStatusCompactText} · {PtpDomainText}",
-        4 => $"SCL · {_sclDocuments.Count} document(s) · {_sclIedCards.Count} IED(s)",
-        5 => "Advanced · raw decode, estimator, and performance",
+        0 => $"SV  -  {SelectedStreamDetails?.MappedChannelNamesText ?? "No SV stream selected"}",
+        1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
+        2 => $"GOOSE  -  {_gooseMessages.Count} publisher(s)  -  {_gooseHistory.Count} event(s)",
+        3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
+        4 => $"SCL  -  {_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)",
+        5 => "Advanced  -  raw decode, estimator, and performance",
         _ => "Process Bus Insight"
     };
 
@@ -1389,7 +1390,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : "Domain: N/A";
 
     public string PtpClockQualityText => Diagnostics.PtpObserved
-        ? $"ClockClass {Diagnostics.PtpClockClass?.ToString() ?? "N/A"} · Accuracy {Diagnostics.PtpClockAccuracyText} · Steps {Diagnostics.PtpStepsRemoved?.ToString() ?? "N/A"}"
+        ? $"ClockClass {Diagnostics.PtpClockClass?.ToString() ?? "N/A"}  -  Accuracy {Diagnostics.PtpClockAccuracyText}  -  Steps {Diagnostics.PtpStepsRemoved?.ToString() ?? "N/A"}"
         : "Clock quality: N/A";
 
     public string PtpRateText
@@ -1399,7 +1400,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var sync = Diagnostics.PtpSyncRatePerSecond.HasValue ? $"{Diagnostics.PtpSyncRatePerSecond.Value:0.##}/s" : "N/A";
             var announce = Diagnostics.PtpAnnounceRatePerSecond.HasValue ? $"{Diagnostics.PtpAnnounceRatePerSecond.Value:0.##}/s" : "N/A";
             var follow = Diagnostics.PtpFollowUpRatePerSecond.HasValue ? $"{Diagnostics.PtpFollowUpRatePerSecond.Value:0.##}/s" : "N/A";
-            return $"Sync {sync} · Announce {announce} · Follow_Up {follow}";
+            return $"Sync {sync}  -  Announce {announce}  -  Follow_Up {follow}";
         }
     }
 
@@ -1729,7 +1730,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 Protocol = "SV",
                 TargetKey = $"SV|{stream.StreamId}",
                 DisplayName = string.IsNullOrWhiteSpace(stream.SvId) ? stream.StreamName : stream.SvId,
-                Subtitle = $"{stream.AppId} · {stream.VlanText} · {ShortenMac(stream.SourceMac)}",
+                Subtitle = $"{stream.AppId}  -  {stream.VlanText}  -  {ShortenMac(stream.SourceMac)}",
                 StatusText = stream.DisplayStatusText,
                 StatusBrush = stream.StatusBrush,
                 StatusSoftBrush = stream.StatusSoftBrush,
@@ -1749,12 +1750,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 Protocol = "GOOSE",
                 TargetKey = $"GOOSE|{goose.MessageId}",
                 DisplayName = string.IsNullOrWhiteSpace(goose.GoId) || goose.GoId == "N/A" ? goose.GoCbRef : goose.GoId,
-                Subtitle = $"{goose.AppId} · VLAN {goose.VlanId} · st/sq {goose.StNum}/{goose.SqNum}",
+                Subtitle = $"{goose.AppId}  -  VLAN {goose.VlanId}  -  st/sq {goose.StNum}/{goose.SqNum}",
                 StatusText = stale ? "STALE" : "LIVE",
                 StatusBrush = stale ? "#F0B533" : "#70D7A7",
                 StatusSoftBrush = stale ? "#3A2B12" : "#173528",
                 IssueSummaryText = string.IsNullOrWhiteSpace(goose.ChangedSummaryText) || goose.ChangedSummaryText == "N/A"
-                    ? $"State tracked · st/sq {goose.StNum}/{goose.SqNum}"
+                    ? $"State tracked  -  st/sq {goose.StNum}/{goose.SqNum}"
                     : goose.ChangedSummaryText,
                 LastSeenUtc = goose.LastSeenUtc,
                 SeverityRank = stale ? 1 : 0,
@@ -1768,7 +1769,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Protocol = "PTP",
             TargetKey = "PTP|reference",
             DisplayName = ptpObserved ? Diagnostics.PtpGrandmasterIdentity : "Timing reference",
-            Subtitle = ptpObserved ? $"{Diagnostics.PtpTransportText} · {PtpDomainText}" : "No PTP observed",
+            Subtitle = ptpObserved ? $"{Diagnostics.PtpTransportText}  -  {PtpDomainText}" : "No PTP observed",
             StatusText = ptpObserved ? "OBSERVED" : "WAIT",
             StatusBrush = ptpObserved ? "#70D7A7" : "#8FA8BF",
             StatusSoftBrush = ptpObserved ? "#173528" : "#1C2A38",
@@ -2163,7 +2164,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     : "SCL document already imported.";
 
             if (errors.Count > 0 && loaded > 0)
-                _sclLoadStatusText += $" · {errors.Count} file(s) skipped";
+                _sclLoadStatusText += $"  -  {errors.Count} file(s) skipped";
 
             RaiseSclProperties();
             RaiseDiagnosticScopeProperties();
@@ -2243,8 +2244,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 FileName = project.FileName,
                 FilePath = project.FilePath,
                 EditionText = project.EditionText,
-                StatusText = project.Warnings.Count == 0 ? "Parsed" : $"Parsed · {project.Warnings.Count} warning(s)",
-                SummaryText = $"IED {project.Ieds.Count} · SV {project.SvStreams.Count} · GOOSE {project.GooseStreams.Count} · DataSet {project.DataSets.Count}",
+                StatusText = project.Warnings.Count == 0 ? "Parsed" : $"Parsed  -  {project.Warnings.Count} warning(s)",
+                SummaryText = $"IED {project.Ieds.Count}  -  SV {project.SvStreams.Count}  -  GOOSE {project.GooseStreams.Count}  -  DataSet {project.DataSets.Count}",
                 WarningText = project.Warnings.Count == 0 ? "No parser warnings" : string.Join(Environment.NewLine, project.Warnings.Take(3))
             });
 
@@ -2263,7 +2264,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     GooseCount = gooseCount,
                     SvCount = svCount,
                     DataSetCount = dsCount,
-                    SummaryText = $"SV {svCount} · GOOSE {gooseCount} · DataSet {dsCount}",
+                    SummaryText = $"SV {svCount}  -  GOOSE {gooseCount}  -  DataSet {dsCount}",
                     StatusText = (gooseCount + svCount) == 0 ? "No streams" : "Engineering model"
                 });
             }
@@ -3307,13 +3308,73 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     NameText = semantic?.DisplayName ?? (string.IsNullOrWhiteSpace(value.Name) ? $"Entry {value.Index}" : value.Name),
                     TypeText = BuildSemanticGooseTypeText(value, semantic),
                     SemanticText = semantic is null ? "Generic typed decode" : "SCL DataSet entry",
-                    ValueText = value.Value,
+                    ValueText = BuildSemanticGooseValueText(value, semantic),
                     RawHexText = value.RawHex,
                     IsChanged = value.IsChanged,
-                    PreviousValueText = value.PreviousValue
+                    PreviousValueText = string.IsNullOrWhiteSpace(value.PreviousValue)
+                        ? value.PreviousValue
+                        : BuildSemanticGooseValueText(
+                            new GooseDatasetValueItem
+                            {
+                                Index = value.Index,
+                                Name = value.Name,
+                                Type = value.Type,
+                                Value = value.PreviousValue,
+                                RawHex = value.RawHex
+                            },
+                            semantic)
                 };
             })
             .ToArray();
+    }
+
+    private string BuildSemanticGooseChangedSummary(GooseMessageItem goose)
+    {
+        var values = BuildGooseDatasetValues(goose);
+        var changed = values
+            .Where(value => value.IsChanged)
+            .Take(3)
+            .Select(value => string.IsNullOrWhiteSpace(value.PreviousValueText)
+                ? $"{value.NameText}={value.DisplayValueText}"
+                : $"{value.NameText}: {value.PreviousValueText} -> {value.DisplayValueText}")
+            .ToArray();
+
+        if (changed.Length > 0)
+        {
+            var suffix = values.Count(value => value.IsChanged) > changed.Length ? "..." : string.Empty;
+            return string.Join(", ", changed) + suffix;
+        }
+
+        return string.IsNullOrWhiteSpace(goose.ChangedSummaryText) || string.Equals(goose.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase)
+            ? "No dataset value change"
+            : goose.ChangedSummaryText;
+    }
+
+    private static string BuildSemanticGooseValueText(GooseDatasetValueItem value, SclDataSetEntryModel? semantic)
+    {
+        var text = value.Value ?? string.Empty;
+        if (semantic is null)
+            return text;
+
+        if (string.Equals(semantic.Cdc, "DPC", StringComparison.OrdinalIgnoreCase))
+        {
+            return text switch
+            {
+                "10" => "CLOSE [10]",
+                "01" => "OPEN [01]",
+                "00" => "INTERMEDIATE [00]",
+                "11" => "BAD_STATE [11]",
+                _ => text
+            };
+        }
+
+        if (string.Equals(semantic.Cdc, "SPS", StringComparison.OrdinalIgnoreCase) &&
+            bool.TryParse(text, out var singlePoint))
+        {
+            return singlePoint ? "true" : "false";
+        }
+
+        return text;
     }
 
     private static string BuildSemanticGooseTypeText(GooseDatasetValueItem value, SclDataSetEntryModel? semantic)
@@ -3325,7 +3386,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             .Where(part => !string.IsNullOrWhiteSpace(part))
             .ToArray();
         var semanticType = parts.Length == 0 ? "SCL type unresolved" : string.Join(" / ", parts);
-        return $"{semanticType} · MMS {value.Type}";
+        return $"{semanticType}  -  MMS {value.Type}";
     }
 
     private void BufferGooseHistoryRow(GooseMessageItem msg, string eventType)
@@ -3341,7 +3402,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             Source = msg,
             EventType = eventType,
-            DeltaMs = deltaMs
+            DeltaMs = deltaMs,
+            SemanticChangedSummaryText = BuildSemanticGooseChangedSummary(msg)
         });
 
         while (_pendingGooseRows.Count > 500)
@@ -3430,7 +3492,7 @@ public sealed class GooseDatasetValueDisplayItem
     };
 
     public string ChangeText => IsChanged && !string.IsNullOrWhiteSpace(PreviousValueText)
-        ? $"changed: {PreviousValueText} → {ValueText}"
+        ? $"changed: {PreviousValueText} -> {ValueText}"
         : IsChanged ? "changed" : string.Empty;
 
     public Visibility ChangeVisibility => IsChanged ? Visibility.Visible : Visibility.Collapsed;
@@ -3464,6 +3526,7 @@ public sealed class GooseTrafficRow
 
     public string EventType { get; init; } = "STATE";
     public double? DeltaMs { get; init; }
+    public string SemanticChangedSummaryText { get; init; } = string.Empty;
 
     public string TimeText => Source.LastSeenUtc.ToString("HH:mm:ss.fff");
     public string DeltaText => DeltaMs.HasValue ? $"{DeltaMs.Value:0.0}" : "-";
@@ -3484,6 +3547,13 @@ public sealed class GooseTrafficRow
     {
         get
         {
+            if (!string.IsNullOrWhiteSpace(SemanticChangedSummaryText) &&
+                !string.Equals(SemanticChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(SemanticChangedSummaryText, "No dataset value change", StringComparison.OrdinalIgnoreCase))
+            {
+                return SemanticChangedSummaryText;
+            }
+
             if (!string.IsNullOrWhiteSpace(Source.ChangedSummaryText) &&
                 !string.Equals(Source.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(Source.ChangedSummaryText, "No dataset value change", StringComparison.OrdinalIgnoreCase))
@@ -3702,7 +3772,7 @@ public sealed class SclIedCardRow
     public int DataSetCount { get; init; }
     public string SummaryText { get; init; } = string.Empty;
     public string StatusText { get; init; } = string.Empty;
-    public string VendorText => string.Join(" · ", new[] { Manufacturer, Type, ConfigVersion }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    public string VendorText => string.Join("  -  ", new[] { Manufacturer, Type, ConfigVersion }.Where(x => !string.IsNullOrWhiteSpace(x)));
 }
 
 public sealed class SclStreamCatalogRow
@@ -3722,7 +3792,7 @@ public sealed class SclStreamCatalogRow
     public string LiveStatusText { get; init; } = string.Empty;
     public IReadOnlyList<SclDataSetEntryModel> Entries { get; init; } = Array.Empty<SclDataSetEntryModel>();
     public string EntryCountText => $"{Entries.Count} entry(s)";
-    public string SummaryText => $"{IedName} · {TransportText}";
+    public string SummaryText => $"{IedName}  -  {TransportText}";
     public string ExpectedKey => $"{Protocol}|{SourceFileName}|{IedName}|{ControlBlockReference}|{DisplayName}";
     public string ExpectedConfRevText => ConfRev > 0 ? ConfRev.ToString() : "N/A";
 
@@ -3809,7 +3879,7 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
         _ => "#8FA8BF"
     };
 
-    public string StatusSummaryText => $"{StatusText} · confidence {Score}% · {EvidenceText}";
+    public string StatusSummaryText => $"{StatusText}  -  confidence {Score}%  -  {EvidenceText}";
     public string StatusBackgroundBrush => StatusText switch
     {
         "MATCHED" => "#17382C",
