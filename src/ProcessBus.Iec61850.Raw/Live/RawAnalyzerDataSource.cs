@@ -252,6 +252,7 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         {
             StreamName = "Raw passive capture",
             SvId = "N/A",
+            DataSet = "N/A",
             AppId = "N/A",
             SourceMac = "N/A",
             DestinationMac = "N/A",

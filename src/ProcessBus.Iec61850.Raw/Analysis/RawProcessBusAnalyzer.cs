@@ -27,6 +27,7 @@ public sealed class RawProcessBusAnalyzer
     private long _decodeErrors;
     private string? _selectedSvKey;
     private int _svFirstSeenSequence;
+    private int _gooseFirstSeenSequence;
     private DateTime _startedUtc = DateTime.UtcNow;
     private DateTime? _lastSvSeenUtc;
     private DateTime? _lastGooseSeenUtc;
@@ -107,7 +108,7 @@ public sealed class RawProcessBusAnalyzer
                     : $"Raw GOOSE monitor active: {_gooseStates.Count} message(s)",
                 TotalMessages = _goosePackets,
                 Messages = _gooseStates.Values
-                    .OrderByDescending(x => x.Item.LastSeenUtc)
+                    .OrderBy(x => x.FirstSeenOrder)
                     .Select(x => x.Clone())
                     .ToArray(),
                 Events = _events
@@ -129,6 +130,7 @@ public sealed class RawProcessBusAnalyzer
             _aggregatedEvents.Clear();
             _selectedSvKey = null;
             _svFirstSeenSequence = 0;
+            _gooseFirstSeenSequence = 0;
             _totalFrames = 0;
             _svPackets = 0;
             _goosePackets = 0;
@@ -235,7 +237,7 @@ public sealed class RawProcessBusAnalyzer
         if (!_gooseStates.TryGetValue(key, out var state))
         {
             AnnotateGooseChanges(item, previous: null);
-            _gooseStates[key] = new GooseState(item);
+            _gooseStates[key] = new GooseState(item, ++_gooseFirstSeenSequence);
             AddEvent("Info", $"Raw GOOSE message detected: {key}; values={item.ValuesText}.");
             return;
         }
@@ -706,7 +708,9 @@ public sealed class RawProcessBusAnalyzer
                 StreamId = Key,
                 StreamName = SvId == "N/A" ? Key : SvId,
                 SvId = SvId,
+                DataSet = DataSet,
                 AppId = AppId,
+                ConfRevText = ConfRev?.ToString() ?? "N/A",
                 SourceMac = SourceMac,
                 DestinationMac = DestinationMac,
                 VlanText = VlanText,
@@ -744,6 +748,7 @@ public sealed class RawProcessBusAnalyzer
             {
                 StreamName = SvId == "N/A" ? Key : SvId,
                 SvId = SvId,
+                DataSet = DataSet,
                 AppId = AppId,
                 SourceMac = SourceMac,
                 DestinationMac = DestinationMac,
@@ -1565,12 +1570,14 @@ public sealed class RawProcessBusAnalyzer
 
     private sealed class GooseState
     {
-        public GooseState(GooseMessageItem item)
+        public GooseState(GooseMessageItem item, int firstSeenOrder)
         {
             Item = item;
+            FirstSeenOrder = firstSeenOrder;
         }
 
         public GooseMessageItem Item { get; set; }
+        public int FirstSeenOrder { get; }
 
         public GooseMessageItem Clone()
         {

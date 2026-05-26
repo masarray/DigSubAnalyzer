@@ -379,7 +379,7 @@ public sealed class WaveformPanelControl : FrameworkElement
 
         dc.DrawText(CreateText(lane.Title, 13, TitleBrush, TitleTypeface), new Point(rect.Left + 12, rect.Top + 7));
         dc.DrawText(
-            CreateText($"±{amplitudeMax:0.#} {lane.Unit}", 11, LabelBrush, LabelTypeface),
+            CreateText($"+/-{amplitudeMax:0.#} {lane.Unit}", 11, LabelBrush, LabelTypeface),
             new Point(rect.Right - 104, rect.Top + 8));
 
         DrawGrid(dc, innerRect);
@@ -1059,17 +1059,26 @@ public sealed class WaveformPanelControl : FrameworkElement
 
     private static string NormalizeDisplayText(string text)
     {
+        const string DoubleEncodedPlusMinus = "\u00C3\u201A\u00C2\u00B1";
+        const string EncodedPlusMinus = "\u00C2\u00B1";
+        const string PlusMinus = "\u00B1";
+
         if (!text.StartsWith("??", StringComparison.Ordinal) &&
             !text.StartsWith("+/-", StringComparison.Ordinal) &&
-            !text.StartsWith("Â±", StringComparison.Ordinal) &&
-            !text.StartsWith("±", StringComparison.Ordinal))
+            !text.StartsWith(DoubleEncodedPlusMinus, StringComparison.Ordinal) &&
+            !text.StartsWith(EncodedPlusMinus, StringComparison.Ordinal) &&
+            !text.StartsWith(PlusMinus, StringComparison.Ordinal))
             return text;
 
-        var normalized = text.StartsWith("??", StringComparison.Ordinal) || text.StartsWith("Â±", StringComparison.Ordinal)
+        var normalized = text.StartsWith("??", StringComparison.Ordinal)
             ? text[2..].Trim()
-            : text.StartsWith("±", StringComparison.Ordinal)
-                ? text[1..].Trim()
-            : text[3..].Trim();
+            : text.StartsWith(DoubleEncodedPlusMinus, StringComparison.Ordinal)
+                ? text[DoubleEncodedPlusMinus.Length..].Trim()
+                : text.StartsWith(EncodedPlusMinus, StringComparison.Ordinal)
+                    ? text[EncodedPlusMinus.Length..].Trim()
+                    : text.StartsWith(PlusMinus, StringComparison.Ordinal)
+                        ? text[PlusMinus.Length..].Trim()
+                        : text[3..].Trim();
         var parts = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var peak))
             return text.Replace("??", "+/-", StringComparison.Ordinal);

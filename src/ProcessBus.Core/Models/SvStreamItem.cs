@@ -10,7 +10,9 @@ public sealed class SvStreamItem : INotifyPropertyChanged
     private string _streamId = string.Empty;
     private string _streamName = string.Empty;
     private string _svId = string.Empty;
+    private string _dataSet = string.Empty;
     private string _appId = string.Empty;
+    private string _confRevText = "N/A";
     private string _sourceMac = string.Empty;
     private string _destinationMac = string.Empty;
     private string _vlanText = "N/A";
@@ -44,10 +46,22 @@ public sealed class SvStreamItem : INotifyPropertyChanged
         set => SetField(ref _svId, value);
     }
 
+    public string DataSet
+    {
+        get => _dataSet;
+        set => SetField(ref _dataSet, value);
+    }
+
     public string AppId
     {
         get => _appId;
         set => SetField(ref _appId, value);
+    }
+
+    public string ConfRevText
+    {
+        get => _confRevText;
+        set => SetField(ref _confRevText, value);
     }
 
     public string SourceMac

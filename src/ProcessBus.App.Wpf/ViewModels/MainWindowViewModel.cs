@@ -305,12 +305,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return string.Join(Environment.NewLine, new[]
                 {
                     $"svID                 {details.SvId}",
+                    $"DataSet              {details.DataSet}",
                     $"APPID                {details.AppId}",
                     $"Source MAC           {details.SourceMac}",
                     $"Destination MAC      {details.DestinationMac}",
                     $"VLAN                 {details.VlanText}",
                     $"Sample rate          {details.SmpRateText}",
                     $"ConfRev              {details.ConfRevText}",
+                    SvMappingSourceText,
                     $"Last seen            {details.LastSeenText}",
                     $"Phase order          {details.PhaseOrderText}"
                 });
@@ -440,6 +442,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 {
                     string.Join(Environment.NewLine, new[]
                     {
+                        SvMappingSourceText,
+                        SvSemanticChannelSummaryText,
                         details.MappedChannelNamesText,
                         details.ChannelAngleSummaryText,
                         details.PhaseOrderText,
@@ -465,7 +469,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!HasSclProject)
             return "SCL semantic map: not loaded. Load SCD/CID/ICD to resolve SV dataset order and signal names.";
 
-        var match = ResolveSclSvStream(details);
+        var match = ResolveSclSvMapping(details);
 
         if (match is null)
             return $"SCL semantic map: no matching SV stream for svID={details.SvId}, APPID={details.AppId}, dst={details.DestinationMac}.";
@@ -474,6 +478,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private SclSvStreamModel? ResolveSclSvStream(StreamDetailsModel details)
+        => ResolveSclSvMapping(details)?.Stream;
+
+    private SclSvMappingCandidate? ResolveSclSvMapping(StreamDetailsModel details)
     {
         if (!HasSclProject)
             return null;
@@ -487,23 +494,31 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     (AppIdMatches(stream.AppId, details.AppId) ? 30 : 0) +
                     (TextMatches(stream.DestinationMac, details.DestinationMac) ? 20 : 0) +
                     (TextMatches(stream.VlanId, details.VlanText) ? 10 : 0) +
-                    (stream.ConfRev > 0 && string.Equals(stream.ConfRev.ToString(), details.ConfRevText, StringComparison.OrdinalIgnoreCase) ? 15 : 0)
+                    (stream.ConfRev > 0 && string.Equals(stream.ConfRev.ToString(), details.ConfRevText, StringComparison.OrdinalIgnoreCase) ? 15 : 0),
+                MismatchCount =
+                    CountMismatch("svID", stream.SvId, details.SvId) +
+                    CountMismatch("APPID", stream.AppId, details.AppId, appId: true) +
+                    CountMismatch("Dst MAC", stream.DestinationMac, details.DestinationMac, mac: true) +
+                    CountMismatch("VLAN", stream.VlanId, details.VlanText, vlan: true) +
+                    CountMismatch("confRev", stream.ConfRev > 0 ? stream.ConfRev.ToString() : "N/A", details.ConfRevText)
             })
             .Where(candidate => candidate.Score >= 35)
             .OrderByDescending(candidate => candidate.Score)
-            .Select(candidate => candidate.Stream)
+            .Select(candidate => new SclSvMappingCandidate(candidate.Stream, candidate.Score, candidate.MismatchCount))
             .FirstOrDefault();
     }
 
-    private static string BuildSclSvChannelMapText(SclSvStreamModel stream, StreamDetailsModel details)
+    private static string BuildSclSvChannelMapText(SclSvMappingCandidate candidate, StreamDetailsModel details)
     {
+        var stream = candidate.Stream;
         var lines = new List<string>
         {
-            "SCL SV semantic channel map: MATCHED",
+            $"SCL SV semantic channel map: {(candidate.IsConfirmed ? "CONFIRMED" : "CANDIDATE")}",
             $"Control block   {stream.ControlBlockReference}",
             $"DataSet         {stream.DataSetReference}",
             $"Transport       {stream.TransportText}",
             $"confRev         {stream.ConfRev}",
+            $"Binding score   {candidate.Score}%",
             $"Mapping source  SCL DataSet entry order",
             $"Display source  {details.MappedChannelNamesText}",
             "Note            Phasor/waveform rendering still uses raw candidate scaling until semantic SV scaling is validated."
@@ -613,6 +628,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private static int MatchScore(string left, string right)
         => TextMatches(left, right) ? 1 : 0;
+
+    private static int CountMismatch(string name, string expected, string observed, bool appId = false, bool mac = false, bool vlan = false)
+    {
+        var comparison = CompareField(name, expected, observed, required: true, useAppId: appId, useMac: mac, useVlan: vlan);
+        return comparison.IsMismatch ? 1 : 0;
+    }
 
     private static string NormalizeMatchText(string value)
         => (value ?? string.Empty).Trim().Replace("-", ":", StringComparison.Ordinal).Replace("0X", "0x", StringComparison.OrdinalIgnoreCase);
@@ -891,7 +912,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var weak = scope.Count(x => string.Equals(x.StatusText, "WEAK", StringComparison.OrdinalIgnoreCase));
             var mismatch = scope.Count(x => string.Equals(x.StatusText, "MISMATCH", StringComparison.OrdinalIgnoreCase));
             var conflict = scope.Count(x => string.Equals(x.StatusText, "CONFLICT", StringComparison.OrdinalIgnoreCase));
-            return $"Binding: {matched} matched · {mismatch} mismatch · {conflict} conflict · {missing} missing · {unexpected} unexpected · {weak} weak";
+            var ambiguous = scope.Count(x => string.Equals(x.StatusText, "AMBIGUOUS", StringComparison.OrdinalIgnoreCase));
+            return $"Binding: {matched} matched · {mismatch} mismatch · {conflict} conflict · {ambiguous} ambiguous · {missing} missing · {unexpected} unexpected · {weak} weak";
         }
     }
 
@@ -1020,6 +1042,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public StreamDetailsModel? SelectedStreamDetails => _state.SelectedStreamDetails;
+    public string SvMappingSourceText => BuildSvMappingSourceText(SelectedStreamDetails);
+    public string SvSemanticChannelSummaryText => BuildSvSemanticChannelSummaryText(SelectedStreamDetails);
     public AnalogValuesSnapshot AnalogValues => _state.AnalogValues;
     public WaveformSnapshot Waveform => _displayedWaveform;
     public SvDiagnosticsSnapshot Diagnostics => _state.Diagnostics;
@@ -1043,6 +1067,44 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string WaveformHeaderStatusText => string.IsNullOrWhiteSpace(WaveformStatusText)
         ? "Software timestamp timing · reconstructed scope"
         : WaveformStatusText.Replace("Raw scope reconstructed from RMS + smpCnt timing", "Software timestamp timing · reconstructed scope", StringComparison.OrdinalIgnoreCase);
+    private string BuildSvMappingSourceText(StreamDetailsModel? details)
+    {
+        if (details is null)
+            return "Mapping source: no SV stream selected";
+
+        if (!HasSclProject)
+            return $"Mapping source: auto inferred / raw candidate. {details.SampleValueMappingText}";
+
+        var candidate = ResolveSclSvMapping(details);
+        if (candidate is null)
+            return $"Mapping source: auto inferred / no SCL binding. {details.SampleValueMappingText}";
+
+        var source = candidate.IsConfirmed ? "SCL confirmed" : "SCL candidate";
+        return $"Mapping source: {source} ({candidate.Score}% binding). {candidate.Stream.ControlBlockReference}";
+    }
+
+    private string BuildSvSemanticChannelSummaryText(StreamDetailsModel? details)
+    {
+        if (details is null)
+            return "No selected SV stream.";
+
+        var candidate = ResolveSclSvMapping(details);
+        if (candidate is null)
+            return details.MappedChannelNamesText;
+
+        var roles = candidate.Stream.Entries
+            .Select(entry => new { Entry = entry, Role = InferSvSignalRole(entry) })
+            .Where(x => !string.Equals(x.Role, "quality", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(x.Role, "timestamp", StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .Select(x => $"element[{x.Entry.Index - 1:00}] {x.Role} -> {x.Entry.DisplayName}");
+
+        var summary = string.Join("; ", roles);
+        return string.IsNullOrWhiteSpace(summary)
+            ? "SCL DataSet loaded, signal roles unresolved; inspect Advanced for full entry order."
+            : summary;
+    }
+
     public string WaveformShowMode
     {
         get => _waveformShowMode;
@@ -1678,7 +1740,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             });
         }
 
-        foreach (var goose in _gooseMessages.OrderBy(x => string.IsNullOrWhiteSpace(x.GoId) ? x.GoCbRef : x.GoId, StringComparer.OrdinalIgnoreCase))
+        foreach (var goose in _gooseMessages)
         {
             var age = DateTime.UtcNow - goose.LastSeenUtc;
             var stale = age > TimeSpan.FromSeconds(5);
@@ -1890,6 +1952,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private void RaiseAnalyzerRenderProperties()
     {
         OnPropertyChanged(nameof(SelectedStreamDetails));
+        OnPropertyChanged(nameof(SvMappingSourceText));
+        OnPropertyChanged(nameof(SvSemanticChannelSummaryText));
         OnPropertyChanged(nameof(AnalogValues));
         OnPropertyChanged(nameof(Waveform));
         OnPropertyChanged(nameof(WaveformStatusText));
@@ -2230,9 +2294,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         _lastSclBindingSignature = signature;
-        _sclBindingMatrix.Clear();
-        foreach (var row in rows)
-            _sclBindingMatrix.Add(row);
+        SyncSclBindingRows(rows);
 
         _selectedSclBindingMatrixRow = !string.IsNullOrWhiteSpace(previousKey)
             ? _sclBindingMatrix.FirstOrDefault(x => string.Equals(x.BindingKey, previousKey, StringComparison.OrdinalIgnoreCase))
@@ -2252,6 +2314,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         RaiseSclSelectionProperties();
     }
 
+    private void SyncSclBindingRows(IReadOnlyList<SclBindingMatrixRow> rows)
+    {
+        var desiredKeys = rows.Select(x => x.BindingKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = _sclBindingMatrix.Count - 1; index >= 0; index--)
+        {
+            if (!desiredKeys.Contains(_sclBindingMatrix[index].BindingKey))
+                _sclBindingMatrix.RemoveAt(index);
+        }
+
+        foreach (var row in rows)
+        {
+            var existing = _sclBindingMatrix.FirstOrDefault(x => string.Equals(x.BindingKey, row.BindingKey, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                _sclBindingMatrix.Add(row);
+                continue;
+            }
+
+            existing.UpdateFrom(row);
+        }
+    }
+
     private IReadOnlyList<SclBindingMatrixRow> BuildSclBindingRows()
     {
         var rows = new List<SclBindingMatrixRow>();
@@ -2259,7 +2344,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return rows;
 
         var expectedRows = _sclStreamCatalog.ToList();
-        var expectedConflictKeys = BuildExpectedConflictKeys(expectedRows);
+        var expectedConflictReasons = BuildExpectedConflictReasons(expectedRows);
+        var ambiguityReasons = BuildBindingAmbiguityReasons(expectedRows);
         var matchedLiveSvKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var matchedLiveGooseKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -2267,46 +2353,60 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             if (string.Equals(expected.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
             {
-                var best = Streams
+                var candidates = Streams
                     .Select(live => BuildSvBindingCandidate(expected, live))
                     .OrderByDescending(x => x.Score)
                     .ThenByDescending(x => x.MatchCount)
-                    .FirstOrDefault();
+                    .ToList();
+                var best = candidates.FirstOrDefault();
 
                 if (best is not null && best.Score >= 35)
                 {
-                    var status = ClassifyBindingCandidate(best, expectedConflictKeys.Contains(expected.ExpectedKey), matchedLiveSvKeys.Contains(best.LiveKey));
-                    matchedLiveSvKeys.Add(best.LiveKey);
-                    rows.Add(SclBindingMatrixRow.FromExpected(expected, best.ObservedName, best.ObservedAppId, best.ObservedVlan, status, best.Score, best.EvidenceText, best.LiveKey, best.ExpectedDetailText, best.ObservedDetailText));
+                    var candidate = ApplyAmbiguityEvidence(best, candidates, ambiguityReasons.GetValueOrDefault(expected.ExpectedKey));
+                    var liveAlreadyMatched = matchedLiveSvKeys.Contains(candidate.LiveKey);
+                    var status = ClassifyBindingCandidate(candidate, expectedConflictReasons.ContainsKey(expected.ExpectedKey), liveAlreadyMatched);
+                    matchedLiveSvKeys.Add(candidate.LiveKey);
+                    var evidence = AppendEvidence(candidate.EvidenceText, expectedConflictReasons.GetValueOrDefault(expected.ExpectedKey));
+                    if (liveAlreadyMatched)
+                        evidence = AppendEvidence(evidence, $"SCL conflict: live SV {candidate.ObservedName} is already bound to another expected stream.");
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, candidate.ObservedName, candidate.ObservedAppId, candidate.ObservedVlan, status, candidate.Score, evidence, candidate.LiveKey, candidate.ExpectedDetailText, candidate.ObservedDetailText));
                 }
                 else
                 {
-                    var status = expectedConflictKeys.Contains(expected.ExpectedKey) ? "CONFLICT" : "MISSING";
+                    var hasConflict = expectedConflictReasons.ContainsKey(expected.ExpectedKey);
+                    var status = hasConflict ? "CONFLICT" : "MISSING";
                     var evidence = status == "CONFLICT"
-                        ? "Expected SV stream conflicts with another imported SCL expectation before live matching."
+                        ? expectedConflictReasons[expected.ExpectedKey]
                         : "Expected SV stream from SCL has no live candidate on selected adapter.";
                     rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, status, 0, evidence, string.Empty));
                 }
             }
             else if (string.Equals(expected.Protocol, "GOOSE", StringComparison.OrdinalIgnoreCase))
             {
-                var best = _gooseMessages
+                var candidates = _gooseMessages
                     .Select(live => BuildGooseBindingCandidate(expected, live))
                     .OrderByDescending(x => x.Score)
                     .ThenByDescending(x => x.MatchCount)
-                    .FirstOrDefault();
+                    .ToList();
+                var best = candidates.FirstOrDefault();
 
                 if (best is not null && best.Score >= 35)
                 {
-                    var status = ClassifyBindingCandidate(best, expectedConflictKeys.Contains(expected.ExpectedKey), matchedLiveGooseKeys.Contains(best.LiveKey));
-                    matchedLiveGooseKeys.Add(best.LiveKey);
-                    rows.Add(SclBindingMatrixRow.FromExpected(expected, best.ObservedName, best.ObservedAppId, best.ObservedVlan, status, best.Score, best.EvidenceText, best.LiveKey, best.ExpectedDetailText, best.ObservedDetailText));
+                    var candidate = ApplyAmbiguityEvidence(best, candidates, ambiguityReasons.GetValueOrDefault(expected.ExpectedKey));
+                    var liveAlreadyMatched = matchedLiveGooseKeys.Contains(candidate.LiveKey);
+                    var status = ClassifyBindingCandidate(candidate, expectedConflictReasons.ContainsKey(expected.ExpectedKey), liveAlreadyMatched);
+                    matchedLiveGooseKeys.Add(candidate.LiveKey);
+                    var evidence = AppendEvidence(candidate.EvidenceText, expectedConflictReasons.GetValueOrDefault(expected.ExpectedKey));
+                    if (liveAlreadyMatched)
+                        evidence = AppendEvidence(evidence, $"SCL conflict: live GOOSE {candidate.ObservedName} is already bound to another expected publisher.");
+                    rows.Add(SclBindingMatrixRow.FromExpected(expected, candidate.ObservedName, candidate.ObservedAppId, candidate.ObservedVlan, status, candidate.Score, evidence, candidate.LiveKey, candidate.ExpectedDetailText, candidate.ObservedDetailText));
                 }
                 else
                 {
-                    var status = expectedConflictKeys.Contains(expected.ExpectedKey) ? "CONFLICT" : "MISSING";
+                    var hasConflict = expectedConflictReasons.ContainsKey(expected.ExpectedKey);
+                    var status = hasConflict ? "CONFLICT" : "MISSING";
                     var evidence = status == "CONFLICT"
-                        ? "Expected GOOSE publisher conflicts with another imported SCL expectation before live matching."
+                        ? expectedConflictReasons[expected.ExpectedKey]
                         : "Expected GOOSE publisher from SCL has no live candidate on selected adapter.";
                     rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, status, 0, evidence, string.Empty));
                 }
@@ -2325,10 +2425,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 .Max();
 
             if (bestScore < 35)
-                rows.Add(SclBindingMatrixRow.FromUnexpected("SV", live.SvId, live.AppId, live.VlanText, "Live SV stream is not described by imported SCL context.", live.StreamId));
+            {
+                var observedDetail = string.Join(Environment.NewLine, new[]
+                {
+                    $"Observed SV: {live.SvId}",
+                    $"DataSet: {live.DataSet}",
+                    $"APPID: {live.AppId}",
+                    $"Destination MAC: {live.DestinationMac}",
+                    $"VLAN: {live.VlanText}",
+                    $"confRev: {live.ConfRevText}"
+                });
+                rows.Add(SclBindingMatrixRow.FromUnexpected("SV", live.SvId, live.AppId, live.VlanText, "Live SV stream is not described by imported SCL context.", live.StreamId, observedDetail));
+            }
         }
 
-        foreach (var live in _gooseMessages.OrderBy(x => string.IsNullOrWhiteSpace(x.GoId) ? x.GoCbRef : x.GoId, StringComparer.OrdinalIgnoreCase))
+        foreach (var live in _gooseMessages)
         {
             if (matchedLiveGooseKeys.Contains(live.MessageId))
                 continue;
@@ -2342,7 +2453,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (bestScore < 35)
             {
                 var observedName = string.IsNullOrWhiteSpace(live.GoId) || live.GoId == "N/A" ? live.GoCbRef : live.GoId;
-                rows.Add(SclBindingMatrixRow.FromUnexpected("GOOSE", observedName, live.AppId, live.VlanId, "Live GOOSE publisher is not described by imported SCL context.", live.MessageId));
+                var observedDetail = string.Join(Environment.NewLine, new[]
+                {
+                    $"Observed GOOSE: {observedName}",
+                    $"GoCBRef: {live.GoCbRef}",
+                    $"DataSet: {live.DataSet}",
+                    $"APPID: {live.AppId}",
+                    $"Destination MAC: {live.DestinationMac}",
+                    $"VLAN: {live.VlanId} / Priority {live.VlanPriority}",
+                    $"confRev: {live.ConfRev}"
+                });
+                rows.Add(SclBindingMatrixRow.FromUnexpected("GOOSE", observedName, live.AppId, live.VlanId, "Live GOOSE publisher is not described by imported SCL context.", live.MessageId, observedDetail));
             }
         }
 
@@ -2354,34 +2475,167 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             .ToList();
     }
 
-    private static HashSet<string> BuildExpectedConflictKeys(IReadOnlyList<SclStreamCatalogRow> expectedRows)
+    private Dictionary<string, string> BuildBindingAmbiguityReasons(IReadOnlyList<SclStreamCatalogRow> expectedRows)
     {
-        var conflictKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        const int strongScoreThreshold = 65;
+        var reasons = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        void AddReason(string expectedKey, string reason)
+        {
+            if (!reasons.TryGetValue(expectedKey, out var list))
+            {
+                list = new List<string>();
+                reasons[expectedKey] = list;
+            }
+
+            if (!list.Contains(reason, StringComparer.OrdinalIgnoreCase))
+                list.Add(reason);
+        }
+
+        var strongCandidates = new List<(SclStreamCatalogRow Expected, BindingCandidate Candidate)>();
+        foreach (var expected in expectedRows)
+        {
+            IEnumerable<BindingCandidate> candidates = expected.Protocol switch
+            {
+                "SV" => Streams.Select(live => BuildSvBindingCandidate(expected, live)),
+                "GOOSE" => _gooseMessages.Select(live => BuildGooseBindingCandidate(expected, live)),
+                _ => Array.Empty<BindingCandidate>()
+            };
+
+            strongCandidates.AddRange(candidates
+                .Where(candidate => candidate.Score >= strongScoreThreshold)
+                .Select(candidate => (expected, candidate)));
+        }
+
+        foreach (var group in strongCandidates.GroupBy(x => x.Expected.ExpectedKey, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        {
+            var names = group
+                .OrderByDescending(x => x.Candidate.Score)
+                .Take(3)
+                .Select(x => $"{x.Candidate.ObservedName} ({x.Candidate.Score}%)");
+            AddReason(group.Key, $"Ambiguous binding: expected stream has multiple strong live candidates: {string.Join(", ", names)}.");
+        }
+
+        foreach (var group in strongCandidates.GroupBy(x => x.Candidate.LiveKey, StringComparer.OrdinalIgnoreCase).Where(g => g.Select(x => x.Expected.ExpectedKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1))
+        {
+            var names = group
+                .OrderByDescending(x => x.Candidate.Score)
+                .Take(3)
+                .Select(x => $"{x.Expected.DisplayName} ({x.Candidate.Score}%)");
+            var reason = $"Ambiguous binding: live stream {group.First().Candidate.ObservedName} strongly matches multiple SCL expectations: {string.Join(", ", names)}.";
+            foreach (var item in group)
+                AddReason(item.Expected.ExpectedKey, reason);
+        }
+
+        return reasons.ToDictionary(
+            pair => pair.Key,
+            pair => string.Join("; ", pair.Value),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static BindingCandidate ApplyAmbiguityEvidence(BindingCandidate best, IReadOnlyList<BindingCandidate> candidates, string? existingAmbiguityReason)
+    {
+        var tieCandidates = candidates
+            .Where(candidate => candidate.Score >= 35 && candidate.LiveKey != best.LiveKey && Math.Abs(candidate.Score - best.Score) <= 5)
+            .OrderByDescending(candidate => candidate.Score)
+            .Take(3)
+            .Select(candidate => $"{candidate.ObservedName} ({candidate.Score}%)")
+            .ToArray();
+
+        var reason = existingAmbiguityReason;
+        if (tieCandidates.Length > 0)
+            reason = AppendEvidence(reason, $"Ambiguous binding: near-tie live candidate(s): {string.Join(", ", tieCandidates)}.");
+
+        return string.IsNullOrWhiteSpace(reason)
+            ? best
+            : best with
+            {
+                Ambiguous = true,
+                EvidenceText = AppendEvidence(best.EvidenceText, reason)
+            };
+    }
+
+    private static string AppendEvidence(string? primary, string? extra)
+    {
+        if (string.IsNullOrWhiteSpace(primary))
+            return extra ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(extra))
+            return primary;
+
+        return primary.TrimEnd('.', ';', ' ') + "; " + extra.Trim();
+    }
+
+    private static Dictionary<string, string> BuildExpectedConflictReasons(IReadOnlyList<SclStreamCatalogRow> expectedRows)
+    {
+        var conflictReasons = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        void AddReason(IEnumerable<SclStreamCatalogRow> rows, string reason)
+        {
+            foreach (var row in rows)
+            {
+                if (!conflictReasons.TryGetValue(row.ExpectedKey, out var reasons))
+                {
+                    reasons = new List<string>();
+                    conflictReasons[row.ExpectedKey] = reasons;
+                }
+
+                if (!reasons.Contains(reason, StringComparer.OrdinalIgnoreCase))
+                    reasons.Add(reason);
+            }
+        }
 
         foreach (var group in expectedRows
             .Where(x => !string.IsNullOrWhiteSpace(NormalizeAppId(x.AppId)))
             .GroupBy(x => $"{x.Protocol}|APPID|{NormalizeAppId(x.AppId)}", StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1))
         {
-            foreach (var row in group)
-                conflictKeys.Add(row.ExpectedKey);
+            AddReason(group, $"SCL conflict: duplicate {group.First().Protocol} APPID {ValueOrNa(group.First().AppId)} across {group.Count()} expected streams.");
+        }
+
+        foreach (var group in expectedRows
+            .Where(x => !string.IsNullOrWhiteSpace(NormalizeAppId(x.AppId)) &&
+                !string.IsNullOrWhiteSpace(NormalizeComparable(x.DestinationMac, appId: false, mac: true, vlan: false)) &&
+                !string.IsNullOrWhiteSpace(NormalizeVlanValue(x.VlanId)))
+            .GroupBy(x => $"{x.Protocol}|TRANSPORT|{NormalizeAppId(x.AppId)}|{NormalizeComparable(x.DestinationMac, appId: false, mac: true, vlan: false)}|{NormalizeVlanValue(x.VlanId)}", StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1))
+        {
+            AddReason(group, $"SCL conflict: duplicate transport tuple APPID {ValueOrNa(group.First().AppId)}, destination {ValueOrNa(group.First().DestinationMac)}, VLAN {ValueOrNa(group.First().VlanId)}.");
         }
 
         foreach (var group in expectedRows
             .GroupBy(x => $"{x.Protocol}|CTRL|{NormalizeMatchText(x.IedName)}|{NormalizeMatchText(x.ControlBlockReference)}", StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1 && g.Select(x => NormalizeMatchText(x.DataSetReference)).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1))
+            .Where(g => g.Count() > 1))
         {
-            foreach (var row in group)
-                conflictKeys.Add(row.ExpectedKey);
+            var dataSetCount = group.Select(x => NormalizeMatchText(x.DataSetReference)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            var confRevCount = group.Select(x => x.ExpectedConfRevText).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            var entrySignatureCount = group.Select(BuildEntryOrderSignature).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+
+            if (dataSetCount > 1)
+                AddReason(group, $"SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has contradictory DataSet references.");
+            if (confRevCount > 1)
+                AddReason(group, $"SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has conflicting confRev values.");
+            if (entrySignatureCount > 1)
+                AddReason(group, $"SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has different DataSet entry order.");
         }
 
-        return conflictKeys;
+        return conflictReasons.ToDictionary(
+            pair => pair.Key,
+            pair => string.Join("; ", pair.Value),
+            StringComparer.OrdinalIgnoreCase);
     }
+
+    private static string BuildEntryOrderSignature(SclStreamCatalogRow row)
+        => row.Entries.Count == 0
+            ? "NO_ENTRIES"
+            : string.Join("|", row.Entries.Select(entry => $"{entry.Index}:{NormalizeMatchText(entry.SignalReference)}:{NormalizeMatchText(entry.Fc)}:{NormalizeMatchText(entry.Cdc)}:{NormalizeMatchText(entry.BType)}"));
 
     private static string ClassifyBindingCandidate(BindingCandidate candidate, bool expectedConflict, bool liveAlreadyMatched)
     {
-        if (expectedConflict || liveAlreadyMatched || candidate.Ambiguous)
+        if (expectedConflict || liveAlreadyMatched)
             return "CONFLICT";
+
+        if (candidate.Ambiguous)
+            return "AMBIGUOUS";
 
         if (candidate.MismatchCount > 0)
             return "MISMATCH";
@@ -2394,9 +2648,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var comparisons = new List<BindingFieldComparison>
         {
             CompareField("svID", expected.DisplayName, live.SvId, required: true, aliases: new[] { live.StreamName }),
+            CompareField("DataSet", expected.DataSetReference, live.DataSet, required: false),
             CompareField("APPID", expected.AppId, live.AppId, required: true, useAppId: true),
             CompareField("Dst MAC", expected.DestinationMac, live.DestinationMac, required: true, useMac: true),
-            CompareField("VLAN", expected.VlanId, live.VlanText, required: true, useVlan: true)
+            CompareField("VLAN", expected.VlanId, live.VlanText, required: true, useVlan: true),
+            CompareField("confRev", expected.ExpectedConfRevText, live.ConfRevText, required: true)
         };
 
         return BuildBindingCandidate(
@@ -2411,9 +2667,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             string.Join(Environment.NewLine, new[]
             {
                 $"Observed SV: {live.SvId}",
+                $"DataSet: {live.DataSet}",
                 $"APPID: {live.AppId}",
                 $"Destination MAC: {live.DestinationMac}",
-                $"VLAN: {live.VlanText}"
+                $"VLAN: {live.VlanText}",
+                $"confRev: {live.ConfRevText}"
             }));
     }
 
@@ -2469,15 +2727,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var matches = comparisons.Where(x => x.IsMatch).Select(x => x.Name).ToArray();
         var mismatches = comparisons.Where(x => x.IsMismatch).Select(x => $"{x.Name} expected {x.ExpectedValue}, observed {x.ObservedValue}").ToArray();
         var missingObserved = comparisons.Where(x => x.Required && x.HasExpected && !x.HasObserved).Select(x => x.Name).ToArray();
+        var missingExpected = comparisons.Where(x => x.Required && !x.HasExpected && x.HasObserved).Select(x => x.Name).ToArray();
 
         var evidenceParts = new List<string>();
+        evidenceParts.Add($"Score {score}%");
         if (matches.Length > 0)
             evidenceParts.Add($"Matched {string.Join(" + ", matches)}");
         if (mismatches.Length > 0)
             evidenceParts.Add($"Mismatch: {string.Join("; ", mismatches)}");
         if (missingObserved.Length > 0)
             evidenceParts.Add($"Missing observed field(s): {string.Join(", ", missingObserved)}");
-        if (evidenceParts.Count == 0)
+        if (missingExpected.Length > 0)
+            evidenceParts.Add($"Missing SCL expected field(s): {string.Join(", ", missingExpected)}");
+        if (evidenceParts.Count == 1)
             evidenceParts.Add("Candidate selected by weak similarity.");
 
         return new BindingCandidate(
@@ -2559,7 +2821,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             text = text[..slashIndex];
 
         var digits = new string(text.Where(char.IsDigit).ToArray());
-        return string.IsNullOrWhiteSpace(digits) ? text : digits.TrimStart('0');
+        if (string.IsNullOrWhiteSpace(digits))
+            return text;
+
+        var normalizedDigits = digits.TrimStart('0');
+        return string.IsNullOrWhiteSpace(normalizedDigits) ? "0" : normalizedDigits;
     }
 
     private static string BuildExpectedDetail(SclStreamCatalogRow expected)
@@ -3499,35 +3765,36 @@ public sealed class SclStreamCatalogRow
         };
 }
 
-public sealed class SclBindingMatrixRow
+public sealed class SclBindingMatrixRow : INotifyPropertyChanged
 {
-    public string BindingKey { get; init; } = string.Empty;
-    public string Protocol { get; init; } = string.Empty;
-    public string IedName { get; init; } = string.Empty;
-    public string SourceFileName { get; init; } = string.Empty;
-    public string ExpectedName { get; init; } = string.Empty;
-    public string ObservedName { get; init; } = string.Empty;
-    public string AppIdText { get; init; } = string.Empty;
-    public string VlanText { get; init; } = string.Empty;
-    public string StatusText { get; init; } = string.Empty;
-    public int Score { get; init; }
-    public string EvidenceText { get; init; } = string.Empty;
-    public string ExpectedDetailText { get; init; } = string.Empty;
-    public string ObservedDetailText { get; init; } = string.Empty;
-    public string LiveKey { get; init; } = string.Empty;
-    public string ExpectedKey { get; init; } = string.Empty;
-    public SclStreamCatalogRow? ExpectedStream { get; init; }
+    public string BindingKey { get; set; } = string.Empty;
+    public string Protocol { get; set; } = string.Empty;
+    public string IedName { get; set; } = string.Empty;
+    public string SourceFileName { get; set; } = string.Empty;
+    public string ExpectedName { get; set; } = string.Empty;
+    public string ObservedName { get; set; } = string.Empty;
+    public string AppIdText { get; set; } = string.Empty;
+    public string VlanText { get; set; } = string.Empty;
+    public string StatusText { get; set; } = string.Empty;
+    public int Score { get; set; }
+    public string EvidenceText { get; set; } = string.Empty;
+    public string ExpectedDetailText { get; set; } = string.Empty;
+    public string ObservedDetailText { get; set; } = string.Empty;
+    public string LiveKey { get; set; } = string.Empty;
+    public string ExpectedKey { get; set; } = string.Empty;
+    public SclStreamCatalogRow? ExpectedStream { get; set; }
 
     public bool IsMatched => string.Equals(StatusText, "MATCHED", StringComparison.OrdinalIgnoreCase);
     public int SortRank => StatusText switch
     {
         "CONFLICT" => 0,
-        "MISMATCH" => 1,
-        "MISSING" => 2,
-        "UNEXPECTED" => 3,
-        "WEAK" => 4,
-        "MATCHED" => 5,
-        _ => 5
+        "AMBIGUOUS" => 1,
+        "MISMATCH" => 2,
+        "MISSING" => 3,
+        "UNEXPECTED" => 4,
+        "WEAK" => 5,
+        "MATCHED" => 6,
+        _ => 6
     };
 
     public string StatusBrush => StatusText switch
@@ -3538,6 +3805,7 @@ public sealed class SclBindingMatrixRow
         "UNEXPECTED" => "#FF8A6A",
         "MISMATCH" => "#FF6B6B",
         "CONFLICT" => "#DDA0FF",
+        "AMBIGUOUS" => "#B9A4FF",
         _ => "#8FA8BF"
     };
 
@@ -3550,6 +3818,7 @@ public sealed class SclBindingMatrixRow
         "UNEXPECTED" => "#3D231B",
         "MISMATCH" => "#3D1E25",
         "CONFLICT" => "#33254D",
+        "AMBIGUOUS" => "#2B2850",
         _ => "#142235"
     };
 
@@ -3559,6 +3828,28 @@ public sealed class SclBindingMatrixRow
     public string EvidencePrimaryText => SplitEvidence(EvidenceText).Primary;
     public string EvidenceSecondaryText => SplitEvidence(EvidenceText).Secondary;
     public string SignatureText => $"{BindingKey}:{StatusText}:{ObservedName}:{Score}:{EvidenceText}";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void UpdateFrom(SclBindingMatrixRow source)
+    {
+        Protocol = source.Protocol;
+        IedName = source.IedName;
+        SourceFileName = source.SourceFileName;
+        ExpectedName = source.ExpectedName;
+        ObservedName = source.ObservedName;
+        AppIdText = source.AppIdText;
+        VlanText = source.VlanText;
+        StatusText = source.StatusText;
+        Score = source.Score;
+        EvidenceText = source.EvidenceText;
+        ExpectedDetailText = source.ExpectedDetailText;
+        ObservedDetailText = source.ObservedDetailText;
+        LiveKey = source.LiveKey;
+        ExpectedKey = source.ExpectedKey;
+        ExpectedStream = source.ExpectedStream;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+    }
 
     public static SclBindingMatrixRow FromExpected(
         SclStreamCatalogRow expected,
@@ -3591,7 +3882,7 @@ public sealed class SclBindingMatrixRow
             ExpectedStream = expected
         };
 
-    public static SclBindingMatrixRow FromUnexpected(string protocol, string observedName, string appId, string vlan, string evidence, string liveKey)
+    public static SclBindingMatrixRow FromUnexpected(string protocol, string observedName, string appId, string vlan, string evidence, string liveKey, string? observedDetail = null)
         => new()
         {
             BindingKey = $"UNEXPECTED|{protocol}|{liveKey}",
@@ -3606,7 +3897,7 @@ public sealed class SclBindingMatrixRow
             Score = 0,
             EvidenceText = evidence,
             ExpectedDetailText = "Expected: no matching stream in imported SCL context.",
-            ObservedDetailText = $"Observed {protocol}: {observedName}\nAPPID: {appId}\nVLAN: {vlan}",
+            ObservedDetailText = observedDetail ?? $"Observed {protocol}: {observedName}\nAPPID: {appId}\nVLAN: {vlan}",
             LiveKey = liveKey,
             ExpectedKey = string.Empty,
             ExpectedStream = null
@@ -3646,6 +3937,11 @@ internal sealed record BindingCandidate(
     string EvidenceText,
     string ExpectedDetailText,
     string ObservedDetailText);
+
+internal sealed record SclSvMappingCandidate(SclSvStreamModel Stream, int Score, int MismatchCount)
+{
+    public bool IsConfirmed => Score >= 100 && MismatchCount == 0;
+}
 
 internal sealed record BindingFieldComparison(
     string Name,

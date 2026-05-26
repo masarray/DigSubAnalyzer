@@ -856,6 +856,7 @@
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
                                         <DockPanel LastChildFill="True">
@@ -911,7 +912,20 @@
                                             </Border>
                                         </WrapPanel>
 
-                                        <DockPanel Grid.Row="3"
+                                        <StackPanel Grid.Row="3" Margin="0,6,0,0">
+                                            <TextBlock Text="{Binding SvMappingSourceText}"
+                                                       FontSize="10.5"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#F6D781"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Margin="0,2,0,0"
+                                                       Text="{Binding SvSemanticChannelSummaryText}"
+                                                       FontSize="10"
+                                                       Foreground="#8FAAC3"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <DockPanel Grid.Row="4"
                                    Margin="0,6,0,0">
                                             <TextBlock DockPanel.Dock="Left"
                                        FontFamily="Segoe MDL2 Assets"

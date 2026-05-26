@@ -4,6 +4,7 @@ public sealed class StreamDetailsModel
 {
     public string StreamName { get; set; } = string.Empty;
     public string SvId { get; set; } = string.Empty;
+    public string DataSet { get; set; } = "N/A";
     public string AppId { get; set; } = string.Empty;
     public string SourceMac { get; set; } = string.Empty;
     public string DestinationMac { get; set; } = string.Empty;
