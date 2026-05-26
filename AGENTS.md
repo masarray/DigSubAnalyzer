@@ -126,6 +126,27 @@ The app should feel like a mature engineering instrument, not a debug console.
 - Reduce repeated footers, helper text, and status strips.
 - Every screen should answer the engineer's next decision quickly.
 
+## Engineering Layout & Data Grid Rule
+
+Never ship a layout patch that makes engineering information unreadable, clipped, overlapped, or dependent on the user guessing hidden content.
+
+WPF/XAML layout work must follow these rules:
+
+- Before changing visual layout, inspect the active global styles in `Themes/*.xaml`, especially `DataGridRow`, `DataGridCell`, `RowHeight`, `Height`, `MaxHeight`, `MinHeight`, `TextWrapping`, `TextTrimming`, and virtualization settings. Local `MinRowHeight` or wrapping does not help if a global row style hardcodes `Height`.
+- Main engineering grids must prefer readable rows over dense debug rows. Use auto row height for semantic/validation/evidence grids: `RowHeight="{x:Static sys:Double.NaN}"`, no fixed `DataGridRow.Height`, and a realistic `MinRowHeight` such as 72-120 px when rows contain multi-line expected/observed/evidence text.
+- Use fixed compact row height only for raw packet/event lists where every cell is intentionally one-line forensic data. Do not reuse raw/debug grid density for SCL, validation, semantic signal, or evidence views.
+- If a row contains expected-vs-observed evidence, it must show enough text to be understandable at 1080p. If the evidence is too long for a row, provide a selected-row detail panel/drawer/inspector instead of silently truncating the only useful evidence.
+- Do not solve visual clutter by cutting information with `TextTrimming="CharacterEllipsis"` in primary engineering columns unless the full value is visible in the same screen via a detail panel, tooltip, or inspector.
+- Use `TextWrapping="Wrap"` and top-aligned cells for multi-line engineering rows. Use `NoWrap` only for short IDs, counters, status badges, timestamps, APPID, VLAN, and compact raw fields.
+- Avoid nested cards and repeated framed boxes. Prefer clear page structure: left navigator, center decision/work table, right inspector/detail. Use whitespace and section titles to express hierarchy.
+- Navigation/explorer cards must be short and stable. They should show identity, status, and one or two key fields only. Long semantic mappings, evidence strings, raw elements, and phase-order details belong in the center or right detail panel.
+- Validation dashboards must support multiple IEDs. Every validation row must carry IED/scope, object, expected, observed, status, and evidence. Global PASS/WARNING/FAIL cards are only summaries, not substitutes for per-target evidence.
+- Advanced workspace may be forensic-heavy, but it still must not clip evidence. Long raw/engineering panels need enough vertical space or a parent `ScrollViewer`; do not trap important text in small fixed `MaxHeight` boxes.
+- Avoid `MaxHeight` on important engineering/evidence text unless the same content is available in a larger selected detail area. Prefer scrollable parent regions over multiple tiny nested scroll viewers.
+- For large-screen WPF layouts, use `Auto` for natural headers/toolbars, `*` for remaining work areas, and explicit minimum sizes for tables/panels that must remain readable. Do not let a `StackPanel` or fixed row starve a grid that needs vertical space.
+- After visual changes, verify at 1600x900 and 1920x1080 scale: no clipped text, no hidden primary evidence, no overlapping row content, no horizontal scroll in main workspaces unless it is explicitly raw/advanced data, and selected rows remain readable.
+- Treat Microsoft WPF layout/DataGrid behavior and established web-app table practices as the baseline: readable row density, responsive sizing, clear hierarchy, and detail-on-selection for long content.
+
 ## Scope Control
 
 Do not add these before the target-aware receive path is stable:
