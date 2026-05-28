@@ -75,6 +75,63 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="PremiumWorkspaceHeroStyle" TargetType="Border">
+            <Setter Property="Padding" Value="18,14"/>
+            <Setter Property="BorderBrush" Value="#28618F"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#102A42" Offset="0"/>
+                        <GradientStop Color="#0B1D31" Offset="0.55"/>
+                        <GradientStop Color="#081724" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PremiumWorkspacePanelStyle" TargetType="Border">
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Background" Value="#0A1A2A"/>
+            <Setter Property="BorderBrush" Value="#21496A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
+
+        <Style x:Key="PremiumInsightCardStyle" TargetType="Border">
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Background" Value="#0D2033"/>
+            <Setter Property="BorderBrush" Value="#255173"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="MinHeight" Value="72"/>
+        </Style>
+
+        <Style x:Key="PremiumInspectorPanelStyle" TargetType="Border" BasedOn="{StaticResource PremiumWorkspacePanelStyle}">
+            <Setter Property="Background" Value="#081827"/>
+            <Setter Property="BorderBrush" Value="#2A5578"/>
+        </Style>
+
+        <Style x:Key="PremiumSectionCardStyle" TargetType="Border">
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Background" Value="#0B1C2D"/>
+            <Setter Property="BorderBrush" Value="#1F4566"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+        </Style>
+
+        <Style x:Key="CompactExplorerCardStyle" TargetType="Border">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Background" Value="#0B1D2E"/>
+            <Setter Property="BorderBrush" Value="#1E3F5C"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
     </Window.Resources>
 
     <Border Background="{StaticResource ShellBackgroundBrush}">
@@ -828,7 +885,7 @@
                            VerticalAlignment="Center"
                            Foreground="#CFE7FF"
                            FontSize="11.5"
-                           Text="Receive-only SV/GOOSE/PTP analyzer · raw passive capture"/>
+                           Text="Receive-only SV/GOOSE/PTP analyzer - raw passive capture"/>
 
                             <TextBlock Grid.Column="3"
                            VerticalAlignment="Center"
@@ -903,17 +960,7 @@
                            Text="Stable first-seen order"/>
 
                                 <Border Margin="0,7,0,9"
-                        Padding="10"
-                        BorderBrush="#234A6F"
-                        BorderThickness="1"
-                        CornerRadius="8">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#0D2135" Offset="0"/>
-                                            <GradientStop Color="#081827" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
-
+                                        Style="{StaticResource CompactExplorerCardStyle}">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -981,11 +1028,6 @@
                                                        FontSize="10.5"
                                                        FontWeight="SemiBold"
                                                        Foreground="#F6D781"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Margin="0,2,0,0"
-                                                       Text="{Binding SvSemanticChannelCompactText}"
-                                                       FontSize="10"
-                                                       Foreground="#8FAAC3"
                                                        TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
 
@@ -1261,11 +1303,7 @@
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="ListBoxItem">
                                                     <Border x:Name="TargetRow"
-                                                            Padding="10,9"
-                                                            Background="#0C1E2E"
-                                                            BorderBrush="#1D3A55"
-                                                            BorderThickness="1"
-                                                            CornerRadius="9">
+                                                            Style="{StaticResource CompactExplorerCardStyle}">
                                                         <ContentPresenter/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
@@ -1318,7 +1356,8 @@
                                                            Foreground="#D6E8F8"
                                                            FontSize="10.5"
                                                            TextTrimming="CharacterEllipsis"
-                                                           Margin="0,4,0,0"/>
+                                                           Margin="0,4,0,0"
+                                                           MaxHeight="14"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Top">
                                                 <Border Padding="6,2"
@@ -1678,11 +1717,7 @@
 
                             <Border Grid.Row="1"
                                     Margin="0,0,0,10"
-                                    Padding="10"
-                                    Background="#0A1A2B"
-                                    BorderBrush="#223B56"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
+                                    Style="{StaticResource CompactExplorerCardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="Project summary"
                                                FontWeight="SemiBold"
@@ -1710,11 +1745,7 @@
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="ListBoxItem">
                                                     <Border x:Name="SclDocumentCard"
-                                                            Padding="10,8"
-                                                            Background="#0C1E2E"
-                                                            BorderBrush="#1D3A55"
-                                                            BorderThickness="1"
-                                                            CornerRadius="9">
+                                                            Style="{StaticResource CompactExplorerCardStyle}">
                                                         <ContentPresenter/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
@@ -1736,8 +1767,10 @@
                                         <StackPanel>
                                             <TextBlock Text="{Binding Name}" Foreground="#F3FAFF" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding SummaryText}" Foreground="#CFE7FF" FontSize="10.6" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding SourceFileName}" Foreground="#91AFC8" FontSize="10.2" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding StatusText}" Foreground="#6AD59F" FontSize="9.8" Margin="0,4,0,0"/>
+                                            <DockPanel Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding StatusText}" Foreground="#6AD59F" FontSize="9.8" FontWeight="SemiBold" DockPanel.Dock="Left"/>
+                                                <TextBlock Text="{Binding SourceFileName}" Foreground="#91AFC8" FontSize="10.2" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right"/>
+                                            </DockPanel>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -1872,16 +1905,12 @@
 
                                 <TextBlock Margin="0,2,0,10"
                            Style="{StaticResource PanelSubtitleTextStyle}"
-                           Text="Debug-only tools"/>
+                           Text="Forensic target inspector"/>
                             </StackPanel>
 
                             <Border Grid.Row="1"
                                     Margin="0,0,0,10"
-                                    Padding="10"
-                                    Background="#0A1A2B"
-                                    BorderBrush="#223B56"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
+                                    Style="{StaticResource CompactExplorerCardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="SCL Semantic Mapping"
                                                FontWeight="SemiBold"
@@ -1919,7 +1948,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <Border Style="{StaticResource DenseMetricCardStyle}" Margin="0,0,0,10">
+                                <Border Style="{StaticResource CompactExplorerCardStyle}" Margin="0,0,0,10">
                                     <StackPanel>
                                         <TextBlock Text="Raw Target Explorer"
                                                    FontWeight="SemiBold"
@@ -1946,11 +1975,7 @@
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="ListBoxItem">
                                                         <Border x:Name="AdvancedTargetCard"
-                                                                Padding="10,8"
-                                                                Background="#0C1E2E"
-                                                                BorderBrush="#1D3A55"
-                                                                BorderThickness="1"
-                                                                CornerRadius="9">
+                                                                Style="{StaticResource CompactExplorerCardStyle}">
                                                             <ContentPresenter/>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
@@ -3529,7 +3554,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                <Border Grid.Row="0" Style="{StaticResource PremiumWorkspaceHeroStyle}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -3582,19 +3607,19 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                        <Border Grid.Column="0" Style="{StaticResource PremiumInsightCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Text="SV Expected vs Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,5,0,0" Text="{Binding ValidationSvSummaryText}" Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                        <Border Grid.Column="2" Style="{StaticResource PremiumInsightCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Text="GOOSE Expected vs Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,5,0,0" Text="{Binding ValidationGooseSummaryText}" Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="4" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                        <Border Grid.Column="4" Style="{StaticResource PremiumInsightCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Text="Evidence Readiness" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,5,0,0" Text="Expected, observed, status, evidence." Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
@@ -3602,7 +3627,7 @@
                                         </Border>
                                     </Grid>
 
-                                    <Border Grid.Row="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                    <Border Grid.Row="2" Style="{StaticResource PremiumWorkspacePanelStyle}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="1.35*"/>
@@ -3705,11 +3730,7 @@
 
                                             <Border Grid.Row="2"
                                                     Grid.Column="2"
-                                                    Padding="14"
-                                                    Background="#081827"
-                                                    BorderBrush="#1B344F"
-                                                    BorderThickness="1"
-                                                    CornerRadius="10">
+                                                    Style="{StaticResource PremiumInspectorPanelStyle}">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -3755,7 +3776,7 @@
                                                             <ColumnDefinition Width="10"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                                        <Border Grid.Column="0" Style="{StaticResource PremiumSectionCardStyle}">
                                                             <StackPanel>
                                                                 <TextBlock Text="Expected" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                                 <TextBlock Margin="0,6,0,0"
@@ -3766,7 +3787,7 @@
                                                                            LineHeight="16"/>
                                                             </StackPanel>
                                                         </Border>
-                                                        <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                                        <Border Grid.Column="2" Style="{StaticResource PremiumSectionCardStyle}">
                                                             <StackPanel>
                                                                 <TextBlock Text="Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                                 <TextBlock Margin="0,6,0,0"
@@ -3780,7 +3801,7 @@
                                                         </Border>
                                                     </Grid>
 
-                                                    <Border Grid.Row="4" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                                    <Border Grid.Row="4" Style="{StaticResource PremiumSectionCardStyle}">
                                                         <Grid>
                                                             <Grid.RowDefinitions>
                                                                 <RowDefinition Height="Auto"/>
@@ -3824,7 +3845,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                <Border Grid.Row="0" Style="{StaticResource PremiumWorkspaceHeroStyle}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -3856,16 +3877,16 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Semantic stream catalog: filtered by the left SCL Explorer selection -->
-                                    <Border Grid.Column="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
+                                    <Border Grid.Column="0" Style="{StaticResource PremiumWorkspacePanelStyle}">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="8"/>
-                                                <RowDefinition Height="0.95*"/>
+                                                <RowDefinition Height="0.75*"/>
                                                 <RowDefinition Height="10"/>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="8"/>
-                                                <RowDefinition Height="1.05*"/>
+                                                <RowDefinition Height="1.25*"/>
                                             </Grid.RowDefinitions>
                                             <DockPanel>
                                                 <StackPanel DockPanel.Dock="Left">
@@ -4088,7 +4109,7 @@
                                     </Border>
 
                                     <!-- Selected SCL object detail -->
-                                    <Border Grid.Column="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="16">
+                                    <Border Grid.Column="2" Style="{StaticResource PremiumInspectorPanelStyle}">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
@@ -4110,13 +4131,13 @@
                                                     <ColumnDefinition Width="10"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                                <Border Grid.Column="0" Style="{StaticResource PremiumSectionCardStyle}">
                                                     <StackPanel>
                                                         <TextBlock Text="Expected" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                         <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedExpectedText}" Foreground="#EAF6FF" FontSize="12" TextWrapping="Wrap"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                                <Border Grid.Column="2" Style="{StaticResource PremiumSectionCardStyle}">
                                                     <StackPanel>
                                                         <TextBlock Text="Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                         <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedObservedText}" Foreground="#F6D781" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
@@ -4124,7 +4145,7 @@
                                                 </Border>
                                             </Grid>
 
-                                            <Border Grid.Row="4" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                            <Border Grid.Row="4" Style="{StaticResource PremiumSectionCardStyle}">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -4133,7 +4154,7 @@
                                                     </Grid.RowDefinitions>
                                                     <DockPanel>
                                                         <TextBlock Text="DataSet Entry Order" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" DockPanel.Dock="Left"/>
-                                                        <TextBlock Text="Signal · FC · CDC · bType" Foreground="#8FAAC3" FontSize="11" HorizontalAlignment="Right"/>
+                                                        <TextBlock Text="Signal / FC / CDC / bType" Foreground="#8FAAC3" FontSize="11" HorizontalAlignment="Right"/>
                                                     </DockPanel>
                                                     <DataGrid Grid.Row="2"
                                                               Style="{StaticResource DarkDataGridStyle}"
@@ -4197,72 +4218,71 @@
                                     <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Style="{StaticResource DenseGroupBorderStyle}">
+                                <Border Grid.Column="0" Style="{StaticResource PremiumWorkspacePanelStyle}">
                                     <ScrollViewer Style="{StaticResource ModernScrollViewerStyle}"
                                                   VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled">
                                     <StackPanel>
-                                        <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedTargetTitle}"/>
-                                        <TextBlock Margin="0,2,0,8" Style="{StaticResource PanelSubtitleTextStyle}" Text="{Binding AdvancedTargetSubtitle}"/>
+                                        <Border Style="{StaticResource PremiumWorkspaceHeroStyle}" Padding="16,12">
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedTargetTitle}"/>
+                                                <TextBlock Margin="0,4,0,0" Style="{StaticResource PanelSubtitleTextStyle}" Text="{Binding AdvancedTargetSubtitle}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
 
-                                        <Border Padding="10"
-                                                Background="#081827"
-                                                BorderBrush="#1B344F"
-                                                BorderThickness="1"
-                                                CornerRadius="10">
+                                        <Border Margin="0,12,0,0"
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <TextBlock Text="{Binding AdvancedPrimaryDetailsText}"
                                                        TextWrapping="Wrap"
+                                                       LineHeight="17"
                                                        Style="{StaticResource CompactValueTextStyle}"/>
                                         </Border>
 
                                         <Border Margin="0,10,0,0"
-                                            Padding="8"
-                                            Background="#0B1A2A"
-                                            BorderBrush="#1B344F"
-                                            BorderThickness="1"
-                                            CornerRadius="6">
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedEvidenceTitle}"/>
-                                                <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding AdvancedPacketEvidenceText}"/>
+                                                <TextBlock Margin="0,7,0,0"
+                                                           TextWrapping="Wrap"
+                                                           LineHeight="17"
+                                                           Style="{StaticResource CompactValueTextStyle}"
+                                                           Text="{Binding AdvancedPacketEvidenceText}"/>
                                             </StackPanel>
                                         </Border>
 
                                         <Border Margin="0,10,0,0"
-                                            Padding="8"
-                                            Background="#0B1A2A"
-                                            BorderBrush="#1B344F"
-                                            BorderThickness="1"
-                                            CornerRadius="6">
+                                                MinHeight="104"
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedDecodedTitle}"/>
-                                                <ScrollViewer Margin="0,6,0,0"
-                                                          Style="{StaticResource ModernScrollViewerStyle}">
-                                                    <TextBlock TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding AdvancedRawValuesText}"/>
-                                                </ScrollViewer>
+                                                <TextBlock Margin="0,7,0,0"
+                                                           TextWrapping="Wrap"
+                                                           LineHeight="17"
+                                                           Style="{StaticResource CompactValueTextStyle}"
+                                                           Text="{Binding AdvancedRawValuesText}"/>
                                             </StackPanel>
                                         </Border>
 
                                         <Border Margin="0,10,0,0"
-                                            Padding="8"
-                                            Background="#0B1A2A"
-                                            BorderBrush="#1B344F"
-                                            BorderThickness="1"
-                                            CornerRadius="6">
+                                                MinHeight="190"
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedEngineeringTitle}"/>
-                                                <ScrollViewer Margin="0,6,0,0"
-                                                          Style="{StaticResource ModernScrollViewerStyle}">
-                                                    <StackPanel>
-                                                        <TextBlock TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding AdvancedEngineeringText}"/>
-                                                    </StackPanel>
-                                                </ScrollViewer>
+                                                <TextBlock Margin="0,7,0,0"
+                                                           TextWrapping="Wrap"
+                                                           LineHeight="17"
+                                                           Style="{StaticResource CompactValueTextStyle}"
+                                                           Text="{Binding AdvancedEngineeringText}"/>
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
                                     </ScrollViewer>
                                 </Border>
 
-                                <Border Grid.Column="2" Style="{StaticResource DenseGroupBorderStyle}">
+                                <Border Grid.Column="2" Style="{StaticResource PremiumInspectorPanelStyle}">
+                                    <ScrollViewer Style="{StaticResource ModernScrollViewerStyle}"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
                                     <StackPanel>
                                         <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Adapter and estimator"/>
                                         <TextBlock Margin="0,2,0,8" Style="{StaticResource PanelSubtitleTextStyle}" Text="Lab controls and live estimator state"/>
@@ -4294,12 +4314,8 @@
                                             </Button>
                                         </WrapPanel>
 
-                                        <Border Margin="0,10,0,0"
-                                                Padding="8"
-                                                Background="#0B1A2A"
-                                                BorderBrush="#1B344F"
-                                                BorderThickness="1"
-                                                CornerRadius="8">
+                                        <Border Margin="0,12,0,0"
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="SCL semantic map"/>
                                                 <TextBlock Margin="0,5,0,0" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding SclSemanticStatusText}"/>
@@ -4307,11 +4323,7 @@
                                         </Border>
 
                                         <Border Margin="0,10,0,0"
-                                            Padding="8"
-                                            Background="#0B1A2A"
-                                            BorderBrush="#1B344F"
-                                            BorderThickness="1"
-                                            CornerRadius="6">
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Estimator detail"/>
                                                 <TextBlock Margin="0,6,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding Diagnostics.FrequencyReferenceChannel, StringFormat=Reference: {0}}"/>
@@ -4326,7 +4338,7 @@
                                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding Diagnostics.CurrentJitterMicroseconds, StringFormat=Current variation: {0:0.###} us}"/>
                                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding Diagnostics.MaxAbsJitterMicroseconds, StringFormat=Max abs variation: {0:0.###} us}"/>
                                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}">
-                                                    <Run Text="Excursions ≥300 us: "/>
+                                                    <Run Text="Excursions >=300 us: "/>
                                                     <Run Text="{Binding Diagnostics.JitterOver300MicrosecondsCount}"/>
                                                 </TextBlock>
                                                 <TextBlock Margin="0,3,0,0" TextWrapping="Wrap" Style="{StaticResource CompactValueTextStyle}" Text="{Binding Diagnostics.JitterStatusText}"/>
@@ -4335,11 +4347,7 @@
                                         </Border>
 
                                         <Border Margin="0,10,0,0"
-                                            Padding="8"
-                                            Background="#0B1A2A"
-                                            BorderBrush="#1B344F"
-                                            BorderThickness="1"
-                                            CornerRadius="6">
+                                                Style="{StaticResource PremiumSectionCardStyle}">
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Performance"/>
                                                 <TextBlock Margin="0,6,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding UiRefreshDurationText}"/>
@@ -4349,6 +4357,7 @@
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
+                                    </ScrollViewer>
                                 </Border>
                             </Grid>
                         </TabItem>
