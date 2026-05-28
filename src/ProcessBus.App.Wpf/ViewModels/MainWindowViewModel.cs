@@ -523,7 +523,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             $"Binding score   {candidate.Score}%",
             $"Mapping source  SCL DataSet entry order",
             $"Display source  {details.MappedChannelNamesText}",
-            "Note            Phasor/waveform rendering still uses raw candidate scaling until semantic SV scaling is validated."
+            "Note            If channel elements are resolved, Analyzer rendering uses this SCL-bound profile; scaling remains sample-value engineering-unit screening until vendor scale factors are modeled."
         };
 
         foreach (var entry in stream.Entries.Take(16))
@@ -714,7 +714,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             BeginWorkspaceTargetTransition();
             _selectedStream = value;
             _rawDataSource.SelectStream(value?.StreamId);
+            _phasors = Array.Empty<PhasorDisplayItem>();
+            _displayedWaveform = new WaveformSnapshot { StatusText = value is null ? "No SV stream selected." : $"Switching to {value.StreamName}." };
             OnPropertyChanged();
+            OnPropertyChanged(nameof(Phasors));
+            OnPropertyChanged(nameof(Waveform));
             RaiseDiagnosticScopeProperties();
             RaiseAdvancedProperties();
         }
@@ -1284,8 +1288,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (candidate is null)
             return $"Mapping source: auto inferred / no SCL binding. {details.SampleValueMappingText}";
 
-        var source = candidate.IsConfirmed ? "SCL confirmed" : "SCL candidate";
-        return $"Mapping source: {source} ({candidate.Score}% binding). {candidate.Stream.ControlBlockReference}";
+        var elementCount = BuildSclSvChannelElements(candidate.Stream).Count;
+        var source = candidate.IsConfirmed ? "SCL-bound rendering profile" : "SCL candidate rendering profile";
+        return $"Mapping source: {source} ({candidate.Score}% binding, {elementCount} channel element(s)). {candidate.Stream.ControlBlockReference}";
     }
 
     private string BuildSvMappingSourceCompactText(StreamDetailsModel? details)
@@ -1300,9 +1305,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (candidate is null)
             return "Mapping: no SCL binding";
 
+        var elementCount = BuildSclSvChannelElements(candidate.Stream).Count;
         return candidate.IsConfirmed
-            ? $"Mapping: SCL confirmed ({candidate.Score}%)"
-            : $"Mapping: SCL candidate ({candidate.Score}%)";
+            ? $"Mapping: SCL-bound ({candidate.Score}%, {elementCount} ch)"
+            : $"Mapping: SCL candidate ({candidate.Score}%, {elementCount} ch)";
     }
 
     private string BuildSvSemanticChannelSummaryText(StreamDetailsModel? details)
@@ -2442,6 +2448,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             RebuildSclProjectAggregate();
             RebuildSclWorkspaceRows();
+            PushSclSvMappingsToRawEngine();
             _sclLoadStatusText = loaded > 0
                 ? $"Imported {loaded} SCL document(s). {SclWorkspaceSummaryText}"
                 : errors.Count > 0
@@ -2475,6 +2482,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _selectedSclBindingMatrixRow = null;
         _lastSclBindingSignature = string.Empty;
         _sclLoadStatusText = "No SCL loaded";
+        _rawDataSource.SetSvChannelMappings(Array.Empty<SvChannelMappingProfile>());
         RaiseSclProperties();
     }
 
@@ -2569,7 +2577,141 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _selectedSclStreamCatalog = _sclStreamCatalog.FirstOrDefault(x => _selectedSclIedCard is null || string.Equals(x.IedName, _selectedSclIedCard.Name, StringComparison.OrdinalIgnoreCase))
             ?? _sclStreamCatalog.FirstOrDefault();
         RebuildSclBindingMatrix(force: true);
+        PushSclSvMappingsToRawEngine();
     }
+
+    private void PushSclSvMappingsToRawEngine()
+    {
+        if (!HasSclProject)
+        {
+            _rawDataSource.SetSvChannelMappings(Array.Empty<SvChannelMappingProfile>());
+            return;
+        }
+
+        var profiles = _sclProject.SvStreams
+            .Select(BuildSclSvChannelMappingProfile)
+            .Where(profile => profile.HasRenderableChannels)
+            .ToArray();
+
+        _rawDataSource.SetSvChannelMappings(profiles);
+    }
+
+    private static SvChannelMappingProfile BuildSclSvChannelMappingProfile(SclSvStreamModel stream)
+    {
+        var elements = BuildSclSvChannelElements(stream);
+        return new SvChannelMappingProfile
+        {
+            ProfileKey = $"{stream.IedName}|{stream.ControlBlockReference}|{stream.SvId}|{stream.AppId}|{stream.ConfRev}",
+            SourceText = "SCL DataSet entry order",
+            ControlBlockReference = stream.ControlBlockReference,
+            DataSetReference = stream.DataSetReference,
+            SvId = stream.SvId,
+            AppId = stream.AppId,
+            DestinationMac = stream.DestinationMac,
+            VlanId = stream.VlanId,
+            ConfRevText = stream.ConfRev > 0 ? stream.ConfRev.ToString() : "N/A",
+            Elements = elements
+        };
+    }
+
+    private static IReadOnlyList<SvChannelElementMapping> BuildSclSvChannelElements(SclSvStreamModel stream)
+    {
+        var direct = stream.Entries
+            .Select(entry => (Entry: entry, Channel: ResolveExplicitSvChannel(entry)))
+            .Where(x => !string.IsNullOrWhiteSpace(x.Channel))
+            .Select(x => new SvChannelElementMapping
+            {
+                ChannelName = x.Channel!,
+                ElementIndex = Math.Max(0, x.Entry.Index - 1),
+                SignalReference = x.Entry.DisplayName,
+                TypeText = x.Entry.TypeText
+            })
+            .GroupBy(x => x.ChannelName, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.OrderBy(e => e.ElementIndex).First())
+            .ToArray();
+
+        var result = direct.ToList();
+        AddSequentialClassMappings(result, stream.Entries, "TCTR", ["Ia", "Ib", "Ic", "In"]);
+        AddSequentialClassMappings(result, stream.Entries, "TVTR", ["Ua", "Ub", "Uc", "Un"]);
+        return result
+            .GroupBy(x => x.ChannelName, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.OrderBy(e => e.ElementIndex).First())
+            .ToArray();
+    }
+
+    private static void AddSequentialClassMappings(List<SvChannelElementMapping> result, IReadOnlyList<SclDataSetEntryModel> entries, string lnClass, IReadOnlyList<string> channels)
+    {
+        var candidates = entries
+            .Where(entry => !entry.IsQuality &&
+                !entry.IsTimestamp &&
+                string.Equals(entry.LnClass, lnClass, StringComparison.OrdinalIgnoreCase) &&
+                LooksLikeSampleMagnitude(entry))
+            .OrderBy(entry => ParseLnInst(entry.LnInst))
+            .ThenBy(entry => entry.Index)
+            .ToArray();
+
+        for (var i = 0; i < candidates.Length && i < channels.Count; i++)
+        {
+            if (result.Any(existing => string.Equals(existing.ChannelName, channels[i], StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            result.Add(new SvChannelElementMapping
+            {
+                ChannelName = channels[i],
+                ElementIndex = Math.Max(0, candidates[i].Index - 1),
+                SignalReference = candidates[i].DisplayName,
+                TypeText = candidates[i].TypeText
+            });
+        }
+    }
+
+    private static string? ResolveExplicitSvChannel(SclDataSetEntryModel entry)
+    {
+        if (entry.IsQuality || entry.IsTimestamp || !LooksLikeSampleMagnitude(entry))
+            return null;
+
+        var text = $"{entry.SignalReference}.{entry.DoName}.{entry.DaName}".ToLowerInvariant();
+        var tokenText = BuildTokenText(text);
+        var compactText = new string(text.Where(char.IsLetterOrDigit).ToArray());
+        var isVoltageNode = string.Equals(entry.LnClass, "TVTR", StringComparison.OrdinalIgnoreCase) || ContainsAny(text, "vol", "voltage");
+        var isCurrentNode = string.Equals(entry.LnClass, "TCTR", StringComparison.OrdinalIgnoreCase) || ContainsAny(text, "amp", "current");
+
+        if (isVoltageNode && (HasToken(tokenText, "phsa", "ua") || compactText.Contains("instua", StringComparison.Ordinal))) return "Ua";
+        if (isVoltageNode && (HasToken(tokenText, "phsb", "ub") || compactText.Contains("instub", StringComparison.Ordinal))) return "Ub";
+        if (isVoltageNode && (HasToken(tokenText, "phsc", "uc") || compactText.Contains("instuc", StringComparison.Ordinal))) return "Uc";
+        if (isVoltageNode && (HasToken(tokenText, "phsn", "un", "neutral", "neut") || compactText.Contains("instun", StringComparison.Ordinal))) return "Un";
+        if (isCurrentNode && (HasToken(tokenText, "phsa", "ia") || compactText.Contains("instia", StringComparison.Ordinal))) return "Ia";
+        if (isCurrentNode && (HasToken(tokenText, "phsb", "ib") || compactText.Contains("instib", StringComparison.Ordinal))) return "Ib";
+        if (isCurrentNode && (HasToken(tokenText, "phsc", "ic") || compactText.Contains("instic", StringComparison.Ordinal))) return "Ic";
+        if (isCurrentNode && (HasToken(tokenText, "phsn", "in", "neutral", "neut") || compactText.Contains("instin", StringComparison.Ordinal))) return "In";
+        return null;
+    }
+
+    private static string BuildTokenText(string value)
+    {
+        var builder = new StringBuilder(value.Length + 2);
+        builder.Append(' ');
+        foreach (var c in value)
+            builder.Append(char.IsLetterOrDigit(c) ? c : ' ');
+        builder.Append(' ');
+        return builder.ToString();
+    }
+
+    private static bool HasToken(string tokenText, params string[] tokens)
+        => tokens.Any(token => tokenText.Contains($" {token} ", StringComparison.Ordinal));
+
+    private static bool LooksLikeSampleMagnitude(SclDataSetEntryModel entry)
+    {
+        var text = $"{entry.SignalReference}.{entry.DoName}.{entry.DaName}.{entry.BType}".ToLowerInvariant();
+        return text.Contains("instmag") ||
+               text.Contains("samples") ||
+               text.Contains("ampsv") ||
+               text.Contains("volsv") ||
+               string.Equals(entry.BType, "INT32", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ParseLnInst(string value)
+        => int.TryParse(value, out var parsed) ? parsed : int.MaxValue;
 
     private void RebuildSclBindingMatrix(bool force = false)
     {

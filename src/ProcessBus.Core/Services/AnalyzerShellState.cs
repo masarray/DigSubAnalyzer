@@ -90,7 +90,9 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
 
             existing.StreamName = incoming.StreamName;
             existing.SvId = incoming.SvId;
+            existing.DataSet = incoming.DataSet;
             existing.AppId = incoming.AppId;
+            existing.ConfRevText = incoming.ConfRevText;
             existing.SourceMac = incoming.SourceMac;
             existing.DestinationMac = incoming.DestinationMac;
             existing.VlanText = incoming.VlanText;

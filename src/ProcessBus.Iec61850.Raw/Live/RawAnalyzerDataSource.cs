@@ -47,6 +47,11 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         _analyzer.SelectStream(streamId);
     }
 
+    public void SetSvChannelMappings(IReadOnlyList<SvChannelMappingProfile> profiles)
+    {
+        _analyzer.SetSvChannelMappings(profiles);
+    }
+
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         lock (_sync)

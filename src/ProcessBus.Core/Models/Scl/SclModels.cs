@@ -27,7 +27,7 @@ public sealed class SclProjectModel
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
 
     public string SummaryText =>
-        $"{EditionText} · IED {Ieds.Count} · SV {SvStreams.Count} · GOOSE {GooseStreams.Count} · DataSet {DataSets.Count}";
+        $"{EditionText} - IED {Ieds.Count} - SV {SvStreams.Count} - GOOSE {GooseStreams.Count} - DataSet {DataSets.Count}";
 
     public static SclProjectModel Empty { get; } = new()
     {
@@ -86,7 +86,7 @@ public sealed class SclDataSetEntryModel
         get
         {
             var parts = new[] { Fc, Cdc, BType }.Where(x => !string.IsNullOrWhiteSpace(x));
-            var text = string.Join(" · ", parts);
+            var text = string.Join(" - ", parts);
             return string.IsNullOrWhiteSpace(text) ? "type unresolved" : text;
         }
     }
@@ -115,7 +115,7 @@ public abstract class SclStreamModel
             var app = string.IsNullOrWhiteSpace(AppId) ? "APPID N/A" : $"APPID {AppId}";
             var vlan = string.IsNullOrWhiteSpace(VlanId) ? "VLAN N/A" : $"VLAN {VlanId}";
             var prio = string.IsNullOrWhiteSpace(VlanPriority) ? "Prio N/A" : $"Prio {VlanPriority}";
-            return $"{app} · {vlan} · {prio}";
+            return $"{app} - {vlan} - {prio}";
         }
     }
 }

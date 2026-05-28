@@ -20,6 +20,8 @@ public sealed class RawProcessBusAnalyzer
     private readonly PtpHealthTracker _ptpTracker = new();
     private readonly Queue<PtpEventItem> _recentPtpEvents = new();
     private readonly List<DiagnosticEventItem> _events = new();
+    private IReadOnlyList<SvChannelMappingProfile> _svChannelMappings = Array.Empty<SvChannelMappingProfile>();
+    private string _svChannelMappingSetSignature = string.Empty;
     private long _totalFrames;
     private long _svPackets;
     private long _goosePackets;
@@ -151,6 +153,26 @@ public sealed class RawProcessBusAnalyzer
             _selectedSvKey = string.IsNullOrWhiteSpace(streamId) ? null : streamId;
     }
 
+    public void SetSvChannelMappings(IReadOnlyList<SvChannelMappingProfile> profiles)
+    {
+        lock (_gate)
+        {
+            var nextMappings = profiles.Where(x => x.HasRenderableChannels).ToArray();
+            var nextSignature = BuildMappingSetSignature(nextMappings);
+            if (string.Equals(_svChannelMappingSetSignature, nextSignature, StringComparison.Ordinal))
+            {
+                _svChannelMappings = nextMappings;
+                return;
+            }
+
+            _svChannelMappings = nextMappings;
+            _svChannelMappingSetSignature = nextSignature;
+
+            foreach (var stream in _svStreams.Values)
+                stream.ResetRenderMappingState();
+        }
+    }
+
     private void ObserveSampledValues(SampledValuePacket packet)
     {
         _svPackets++;
@@ -174,7 +196,7 @@ public sealed class RawProcessBusAnalyzer
                 AddEvent("Info", $"Raw SV stream detected: {DescribeSv(packet.Frame, asdu)}.");
             }
 
-            state.Observe(packet.Frame, asdu);
+            state.Observe(packet.Frame, asdu, ResolveSvMappingProfile(packet.Frame, asdu));
             if (state.ConsumeJitterEvidence() is { } jitterEvidence)
             {
                 AddAggregatedEvent(
@@ -185,6 +207,132 @@ public sealed class RawProcessBusAnalyzer
                     JitterEventInterval);
             }
         }
+    }
+
+    private SvChannelMappingProfile? ResolveSvMappingProfile(ProcessBusFrame frame, SampledValueAsdu asdu)
+    {
+        if (_svChannelMappings.Count == 0)
+            return null;
+
+        var appId = FormatAppId(frame.AppId);
+        var vlanId = frame.Ethernet.Vlan?.VlanId.ToString() ?? "Untagged";
+        var confRev = asdu.ConfRev?.ToString() ?? "N/A";
+
+        return _svChannelMappings
+            .Where(profile => IsSvProfileIdentityCompatible(profile, frame, asdu, appId, vlanId, confRev))
+            .Select(profile => new
+            {
+                Profile = profile,
+                Score =
+                    (TextMatches(profile.SvId, asdu.SvId) ? 45 : 0) +
+                    (AppIdMatches(profile.AppId, appId) ? 35 : 0) +
+                    (TextMatches(profile.DestinationMac, frame.Ethernet.DestinationMac) ? 20 : 0) +
+                    (VlanMatches(profile.VlanId, vlanId) ? 10 : 0) +
+                    (TextMatches(profile.ConfRevText, confRev) ? 15 : 0) +
+                    (TextMatches(profile.DataSetReference, asdu.DataSet) ? 20 : 0)
+            })
+            .Where(candidate => candidate.Score >= 65)
+            .OrderByDescending(candidate => candidate.Score)
+            .Select(candidate => candidate.Profile)
+            .FirstOrDefault();
+    }
+
+    private static string BuildMappingSetSignature(IReadOnlyList<SvChannelMappingProfile> profiles)
+    {
+        return string.Join("|", profiles
+            .OrderBy(profile => profile.ProfileKey, StringComparer.OrdinalIgnoreCase)
+            .Select(profile =>
+            {
+                var elements = string.Join(",", profile.Elements
+                    .OrderBy(element => element.ChannelName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(element => element.ElementIndex)
+                    .Select(element => $"{element.ChannelName}:{element.ElementIndex}"));
+                return $"{profile.ProfileKey}:{elements}";
+            }));
+    }
+
+    private static bool IsSvProfileIdentityCompatible(
+        SvChannelMappingProfile profile,
+        ProcessBusFrame frame,
+        SampledValueAsdu asdu,
+        string observedAppId,
+        string observedVlan,
+        string observedConfRev)
+    {
+        if (HasValue(profile.SvId) && HasValue(asdu.SvId) && !TextMatches(profile.SvId, asdu.SvId))
+            return false;
+        if (HasValue(profile.AppId) && HasValue(observedAppId) && !AppIdMatches(profile.AppId, observedAppId))
+            return false;
+        if (HasValue(profile.DestinationMac) && HasValue(frame.Ethernet.DestinationMac) && !TextMatches(profile.DestinationMac, frame.Ethernet.DestinationMac))
+            return false;
+        if (HasValue(profile.VlanId) && HasValue(observedVlan) && !VlanMatches(profile.VlanId, observedVlan))
+            return false;
+        if (HasValue(profile.ConfRevText) && HasValue(observedConfRev) && !TextMatches(profile.ConfRevText, observedConfRev))
+            return false;
+        if (HasValue(profile.DataSetReference) && HasValue(asdu.DataSet) && !TextMatches(profile.DataSetReference, asdu.DataSet))
+            return false;
+
+        return true;
+    }
+
+    private static bool HasValue(string? value)
+        => !string.IsNullOrWhiteSpace(value) &&
+           !string.Equals(value, "N/A", StringComparison.OrdinalIgnoreCase) &&
+           !string.Equals(value, "UNTAGGED", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TextMatches(string? expected, string? observed)
+    {
+        var a = NormalizeComparable(expected);
+        var b = NormalizeComparable(observed);
+        return !string.IsNullOrWhiteSpace(a) &&
+               !string.IsNullOrWhiteSpace(b) &&
+               string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool AppIdMatches(string? expected, string? observed)
+    {
+        var a = NormalizeAppId(expected);
+        var b = NormalizeAppId(observed);
+        return !string.IsNullOrWhiteSpace(a) &&
+               !string.IsNullOrWhiteSpace(b) &&
+               string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool VlanMatches(string? expected, string? observed)
+    {
+        var a = NormalizeVlan(expected);
+        var b = NormalizeVlan(observed);
+        return !string.IsNullOrWhiteSpace(a) &&
+               !string.IsNullOrWhiteSpace(b) &&
+               string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeComparable(string? value)
+        => string.IsNullOrWhiteSpace(value) || string.Equals(value, "N/A", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : value.Trim().Replace("-", ":", StringComparison.Ordinal).ToUpperInvariant();
+
+    private static string NormalizeAppId(string? value)
+    {
+        var text = NormalizeComparable(value).Replace("APPID", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
+        if (text.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
+            text = text[2..];
+        text = new string(text.Where(Uri.IsHexDigit).ToArray()).TrimStart('0');
+        return string.IsNullOrWhiteSpace(text) ? "0" : text;
+    }
+
+    private static string NormalizeVlan(string? value)
+    {
+        var text = NormalizeComparable(value);
+        if (string.IsNullOrWhiteSpace(text) || string.Equals(text, "UNTAGGED", StringComparison.OrdinalIgnoreCase))
+            return text;
+
+        var slashIndex = text.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex >= 0)
+            text = text[..slashIndex];
+
+        var digits = new string(text.Where(char.IsDigit).ToArray()).TrimStart('0');
+        return string.IsNullOrWhiteSpace(digits) ? "0" : digits;
     }
 
 
@@ -288,7 +436,7 @@ public sealed class RawProcessBusAnalyzer
             SvStatusText = BuildProtocolStatus("SV", _svPackets, _lastSvSeenUtc, now, _svStreams.Count == 0 ? "no stream" : $"{_svStreams.Count} stream(s)"),
             GooseStatusText = BuildProtocolStatus("GOOSE", _goosePackets, _lastGooseSeenUtc, now, _gooseStates.Count == 0 ? "no publisher" : $"{_gooseStates.Count} publisher(s)"),
             PtpStatusText = ptp.Observed
-                ? $"PTP {ptp.StatusText} · {ptp.TransportText} · {ptp.TotalMessages} msg"
+                ? $"PTP {ptp.StatusText} - {ptp.TransportText} - {ptp.TotalMessages} msg"
                 : "PTP not observed",
             TimingConfidenceText = ptp.Observed
                 ? "PTP context available; Npcap timestamp remains software-screening."
@@ -305,7 +453,7 @@ public sealed class RawProcessBusAnalyzer
         var state = age <= TimeSpan.FromSeconds(2) ? "live"
             : age <= TimeSpan.FromSeconds(10) ? "stale"
             : "lost";
-        return $"{name} {state} · {detail} · last {age.TotalSeconds:0.0}s ago";
+        return $"{name} {state} - {detail} - last {age.TotalSeconds:0.0}s ago";
     }
 
     private SvDiagnosticsSnapshot BuildDiagnostics(SvStreamState? selected)
@@ -619,6 +767,7 @@ public sealed class RawProcessBusAnalyzer
         private long? _previousCaptureTicks;
         private string? _pendingJitterEvidence;
         private string? _lastWaveformSignature;
+        private string? _activeMappingSignature;
         private WaveformSnapshot? _lastReconstructedWaveform;
         private DateTime _lastSequenceIssueUtc = DateTime.MinValue;
 
@@ -664,7 +813,13 @@ public sealed class RawProcessBusAnalyzer
         public DateTime LastSeenUtc { get; private set; }
         public string SmpSynchText => SmpSynch.HasValue ? SmpSynch.Value.ToString() : "N/A";
 
-        public void Observe(ProcessBusFrame frame, SampledValueAsdu asdu)
+        public void ResetRenderMappingState()
+        {
+            _activeMappingSignature = null;
+            ClearRenderBuffers();
+        }
+
+        public void Observe(ProcessBusFrame frame, SampledValueAsdu asdu, SvChannelMappingProfile? mappingProfile)
         {
             PacketCount++;
             SvId = ValueOrFallback(asdu.SvId, "N/A");
@@ -688,8 +843,7 @@ public sealed class RawProcessBusAnalyzer
             if (asdu.SmpCnt.HasValue)
                 acceptForDisplay = ObserveTiming(frame.CaptureTicks, frame.CaptureTimeUtc, asdu.SmpCnt.Value);
 
-            if (acceptForDisplay)
-                ObserveSamples(asdu.SamplePayload, asdu.SmpCnt);
+            ObserveSamples(asdu.SamplePayload, asdu.SmpCnt, mappingProfile, acceptForDisplay);
         }
 
         public SvStreamItem ToStreamItem()
@@ -738,8 +892,8 @@ public sealed class RawProcessBusAnalyzer
                 return $"Arrival excursion: {RecentJitterOver300MicrosecondsCount}/5s, max {MaxAbsJitterMicroseconds?.ToString("0.#") ?? "N/A"} us";
 
             return LastSmpCnt.HasValue
-                ? $"Continuous · smpCnt {LastSmpCnt}"
-                : "Continuous · awaiting smpCnt";
+                ? $"Continuous - smpCnt {LastSmpCnt}"
+                : "Continuous - awaiting smpCnt";
         }
 
         public StreamDetailsModel ToDetails()
@@ -829,11 +983,40 @@ public sealed class RawProcessBusAnalyzer
             return snapshot;
         }
 
-        private void ObserveSamples(ReadOnlyMemory<byte> samplePayload, ushort? smpCnt)
+        private void ObserveSamples(ReadOnlyMemory<byte> samplePayload, ushort? smpCnt, SvChannelMappingProfile? mappingProfile, bool acceptForDisplay)
         {
             var decoded = DecodeInt32Elements(samplePayload.Span);
             DecodedElementCount = decoded.Count;
             RawValuesText = BuildRawValuesText(decoded);
+            ApplyMappingSignature(BuildMappingSignature(mappingProfile, decoded.Count));
+
+            if (mappingProfile?.HasRenderableChannels == true)
+            {
+                var sclMapped = new List<string>(mappingProfile.Elements.Count);
+                var sclUsed = new List<int>(mappingProfile.Elements.Count);
+
+                foreach (var element in mappingProfile.Elements)
+                {
+                    if (element.ElementIndex < 0 || element.ElementIndex >= decoded.Count)
+                        continue;
+                    if (!_channelSamples.TryGetValue(element.ChannelName, out var samples))
+                        continue;
+
+                    if (acceptForDisplay)
+                        samples.Add(smpCnt, decoded[element.ElementIndex].Value, ResolveSamplesPerCycle());
+
+                    sclMapped.Add($"{element.ChannelName}<-element[{element.ElementIndex}]");
+                    sclUsed.Add(element.ElementIndex);
+                }
+
+                if (sclMapped.Count > 0)
+                {
+                    MappingProfileName = $"{mappingProfile.SourceText} / {mappingProfile.ControlBlockReference}";
+                    var displayGateText = acceptForDisplay ? string.Empty : " | display held by SV sequence gate";
+                    MappedChannelNamesText = $"{string.Join(", ", sclMapped)} | SCL DataSet {mappingProfile.DataSetReference} | Used elements: {string.Join(", ", sclUsed)}{displayGateText}";
+                    return;
+                }
+            }
 
             if (decoded.Count < 15)
             {
@@ -850,7 +1033,9 @@ public sealed class RawProcessBusAnalyzer
                 if (elementIndex >= decoded.Count)
                     continue;
 
-                _channelSamples[channel].Add(smpCnt, decoded[elementIndex].Value, ResolveSamplesPerCycle());
+                if (acceptForDisplay)
+                    _channelSamples[channel].Add(smpCnt, decoded[elementIndex].Value, ResolveSamplesPerCycle());
+
                 mapped.Add(channel);
                 used.Add(elementIndex);
             }
@@ -861,6 +1046,43 @@ public sealed class RawProcessBusAnalyzer
             MappedChannelNamesText = mapped.Count == 0
                 ? "Not mapped yet"
                 : $"{string.Join(", ", mapped)} | Used elements: {string.Join(", ", used)}";
+        }
+
+        private static string BuildMappingSignature(SvChannelMappingProfile? mappingProfile, int decodedElementCount)
+        {
+            if (mappingProfile?.HasRenderableChannels == true)
+            {
+                var elementSignature = string.Join(",", mappingProfile.Elements
+                    .OrderBy(x => x.ChannelName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.ElementIndex)
+                    .Select(x => $"{x.ChannelName}:{x.ElementIndex}"));
+                return $"scl|{mappingProfile.ProfileKey}|{elementSignature}";
+            }
+
+            return decodedElementCount >= 15
+                ? "raw|4i4v-instmag-q"
+                : "raw|unmapped";
+        }
+
+        private void ApplyMappingSignature(string signature)
+        {
+            if (string.Equals(_activeMappingSignature, signature, StringComparison.Ordinal))
+                return;
+
+            _activeMappingSignature = signature;
+            ClearRenderBuffers();
+        }
+
+        private void ClearRenderBuffers()
+        {
+            foreach (var samples in _channelSamples.Values)
+                samples.Clear();
+
+            foreach (var channel in _displayAngles.Keys.ToArray())
+                _displayAngles[channel] = null;
+
+            _lastWaveformSignature = null;
+            _lastReconstructedWaveform = null;
         }
 
         private ChannelValueModel CreateChannelValue(string channel, PhasorReference? reference)
@@ -1495,6 +1717,16 @@ public sealed class RawProcessBusAnalyzer
         public IReadOnlyList<double> GetSamples()
         {
             return _samples.ToArray();
+        }
+
+        public void Clear()
+        {
+            _samples.Clear();
+            _sampleCounters.Clear();
+            _samplesByCounter.Clear();
+            _sumSquares = 0;
+            _displayRms = null;
+            LastValue = null;
         }
 
         public double? GetFundamentalAngleDegrees(int samplesPerCycle)
