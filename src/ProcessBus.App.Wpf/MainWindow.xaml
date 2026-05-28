@@ -3604,12 +3604,17 @@
 
                                     <Border Grid.Row="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="14">
                                         <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.35*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="0.9*"/>
+                                            </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="10"/>
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
-                                            <DockPanel>
+                                            <DockPanel Grid.ColumnSpan="3">
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Validation Findings" Style="{StaticResource PanelTitleTextStyle}"/>
                                                     <TextBlock Margin="0,4,0,0"
@@ -3620,8 +3625,10 @@
                                             </DockPanel>
 
                                             <DataGrid Grid.Row="2"
+                                                      Grid.Column="0"
                                                       Style="{StaticResource DarkDataGridStyle}"
                                                       ItemsSource="{Binding ValidationFindings}"
+                                                      SelectedItem="{Binding SelectedValidationFindingRow, Mode=TwoWay}"
                                                       AutoGenerateColumns="False"
                                                       IsReadOnly="True"
                                                       HeadersVisibility="Column"
@@ -3695,6 +3702,106 @@
                                                     </DataGridTemplateColumn>
                                                 </DataGrid.Columns>
                                             </DataGrid>
+
+                                            <Border Grid.Row="2"
+                                                    Grid.Column="2"
+                                                    Padding="14"
+                                                    Background="#081827"
+                                                    BorderBrush="#1B344F"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="12"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="12"/>
+                                                        <RowDefinition Height="*"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <StackPanel>
+                                                        <DockPanel LastChildFill="True">
+                                                            <Border DockPanel.Dock="Right"
+                                                                    Padding="8,3"
+                                                                    Background="{Binding ValidationDetailStatusBackgroundBrush}"
+                                                                    BorderBrush="{Binding ValidationDetailStatusBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="10">
+                                                                <TextBlock Text="{Binding SelectedValidationFindingRow.StatusText}"
+                                                                           Foreground="{Binding ValidationDetailStatusBrush}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"/>
+                                                            </Border>
+                                                            <StackPanel>
+                                                                <TextBlock Text="Selected Evidence" Style="{StaticResource PanelTitleTextStyle}"/>
+                                                                <TextBlock Margin="0,4,0,0"
+                                                                           Text="{Binding ValidationDetailTitle}"
+                                                                           Foreground="#F4FAFF"
+                                                                           FontSize="13"
+                                                                           FontWeight="SemiBold"
+                                                                           TextWrapping="Wrap"/>
+                                                                <TextBlock Margin="0,4,0,0"
+                                                                           Text="{Binding ValidationDetailScopeText}"
+                                                                           Foreground="#8FAAC3"
+                                                                           FontSize="11"
+                                                                           TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </StackPanel>
+
+                                                    <Grid Grid.Row="2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="10"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                                            <StackPanel>
+                                                                <TextBlock Text="Expected" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                                <TextBlock Margin="0,6,0,0"
+                                                                           Text="{Binding ValidationDetailExpectedText}"
+                                                                           Foreground="#EAF6FF"
+                                                                           FontSize="11.5"
+                                                                           TextWrapping="Wrap"
+                                                                           LineHeight="16"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <Border Grid.Column="2" Style="{StaticResource DenseMetricCardStyle}" Padding="10">
+                                                            <StackPanel>
+                                                                <TextBlock Text="Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                                <TextBlock Margin="0,6,0,0"
+                                                                           Text="{Binding ValidationDetailObservedText}"
+                                                                           Foreground="#F6D781"
+                                                                           FontSize="11.5"
+                                                                           FontWeight="SemiBold"
+                                                                           TextWrapping="Wrap"
+                                                                           LineHeight="16"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <Border Grid.Row="4" Style="{StaticResource DenseMetricCardStyle}" Padding="12">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="8"/>
+                                                                <RowDefinition Height="*"/>
+                                                            </Grid.RowDefinitions>
+                                                            <TextBlock Text="Evidence" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold"/>
+                                                            <ScrollViewer Grid.Row="2"
+                                                                          Style="{StaticResource ModernScrollViewerStyle}"
+                                                                          VerticalScrollBarVisibility="Auto"
+                                                                          HorizontalScrollBarVisibility="Disabled">
+                                                                <TextBlock Text="{Binding ValidationDetailEvidenceText}"
+                                                                           Foreground="#D6E8F8"
+                                                                           FontSize="12"
+                                                                           TextWrapping="Wrap"
+                                                                           LineHeight="17"/>
+                                                            </ScrollViewer>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
                                         </Grid>
                                     </Border>
                                 </Grid>

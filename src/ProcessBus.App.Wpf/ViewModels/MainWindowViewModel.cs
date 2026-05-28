@@ -116,6 +116,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private SclIedCardRow? _selectedSclIedCard;
     private SclStreamCatalogRow? _selectedSclStreamCatalog;
     private SclBindingMatrixRow? _selectedSclBindingMatrixRow;
+    private ValidationFindingRow? _selectedValidationFindingRow;
     private string _lastSclBindingSignature = string.Empty;
     private string _goosePublisherFilterText = string.Empty;
     private string _selectedGooseIdFilter = "All";
@@ -968,6 +969,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : (_state.ProtocolMonitor.PtpFrames > 0 ? "PTP stale - previously observed on capture path" : "PTP not observed");
     public string ValidationTimingConfidenceText => $"{TimingConfidenceText} - {TimestampSourceText}";
     public IReadOnlyList<ValidationFindingRow> ValidationFindings => BuildValidationFindings();
+    public ValidationFindingRow? SelectedValidationFindingRow
+    {
+        get => _selectedValidationFindingRow ?? ValidationFindings.FirstOrDefault(x => string.Equals(x.StatusText, "FAIL", StringComparison.OrdinalIgnoreCase))
+            ?? ValidationFindings.FirstOrDefault(x => string.Equals(x.StatusText, "WARNING", StringComparison.OrdinalIgnoreCase))
+            ?? ValidationFindings.FirstOrDefault();
+        set
+        {
+            if (ReferenceEquals(_selectedValidationFindingRow, value))
+                return;
+
+            _selectedValidationFindingRow = value;
+            OnPropertyChanged();
+            RaiseValidationSelectionProperties();
+        }
+    }
+    public string ValidationDetailTitle => SelectedValidationFindingRow is null
+        ? "No validation finding selected"
+        : $"{SelectedValidationFindingRow.StatusText} - {SelectedValidationFindingRow.ObjectText}";
+    public string ValidationDetailScopeText => SelectedValidationFindingRow is null
+        ? "Select a validation row to inspect its evidence."
+        : $"{SelectedValidationFindingRow.IedName} - {SelectedValidationFindingRow.StatusText}";
+    public string ValidationDetailExpectedText => SelectedValidationFindingRow?.ExpectedText ?? "No expected evidence selected.";
+    public string ValidationDetailObservedText => SelectedValidationFindingRow?.ObservedText ?? "No observed evidence selected.";
+    public string ValidationDetailEvidenceText => SelectedValidationFindingRow?.EvidenceText ?? "No evidence selected.";
+    public string ValidationDetailStatusBrush => SelectedValidationFindingRow?.StatusBrush ?? "#8FA8BF";
+    public string ValidationDetailStatusBackgroundBrush => SelectedValidationFindingRow?.StatusBackgroundBrush ?? "#142235";
 
     private string GetValidationOverallStatus()
     {
@@ -2300,6 +2327,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(ValidationPtpSummaryText));
         OnPropertyChanged(nameof(ValidationTimingConfidenceText));
         OnPropertyChanged(nameof(ValidationFindings));
+        OnPropertyChanged(nameof(SelectedValidationFindingRow));
+        RaiseValidationSelectionProperties();
+    }
+
+    private void RaiseValidationSelectionProperties()
+    {
+        OnPropertyChanged(nameof(ValidationDetailTitle));
+        OnPropertyChanged(nameof(ValidationDetailScopeText));
+        OnPropertyChanged(nameof(ValidationDetailExpectedText));
+        OnPropertyChanged(nameof(ValidationDetailObservedText));
+        OnPropertyChanged(nameof(ValidationDetailEvidenceText));
+        OnPropertyChanged(nameof(ValidationDetailStatusBrush));
+        OnPropertyChanged(nameof(ValidationDetailStatusBackgroundBrush));
     }
 
     private void RaiseDebugProperties()
