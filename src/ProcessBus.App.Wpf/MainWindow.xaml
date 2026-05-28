@@ -132,6 +132,13 @@
             <Setter Property="CornerRadius" Value="9"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
         </Style>
+
+        <Style x:Key="FlowHintTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#8FCBFF"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
     </Window.Resources>
 
     <Border Background="{StaticResource ShellBackgroundBrush}">
@@ -3582,6 +3589,9 @@
                                                        Text="{Binding ValidationSummaryCompactText}"
                                                        Style="{StaticResource PanelSubtitleTextStyle}"
                                                        TextWrapping="Wrap"/>
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Text="Flow: summary -> findings table -> selected evidence"
+                                                       Style="{StaticResource FlowHintTextStyle}"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="3" VerticalAlignment="Center" MinWidth="220">
@@ -3857,6 +3867,9 @@
                                                        Text="Import SCD / CID / ICD / IID files, inspect IED cards, and build semantic mapping for SV and GOOSE streams."
                                                        Style="{StaticResource PanelSubtitleTextStyle}"
                                                        TextWrapping="Wrap"/>
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Text="Flow: SCL Explorer -> stream catalog / binding matrix -> semantic detail"
+                                                       Style="{StaticResource FlowHintTextStyle}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button Command="{Binding LoadSclCommand}" Style="{StaticResource HeroToolbarButtonStyle}" MinWidth="104" Height="34" Padding="14,0">
@@ -4116,6 +4129,8 @@
                                                 <RowDefinition Height="12"/>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="12"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="12"/>
                                                 <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
 
@@ -4134,18 +4149,30 @@
                                                 <Border Grid.Column="0" Style="{StaticResource PremiumSectionCardStyle}">
                                                     <StackPanel>
                                                         <TextBlock Text="Expected" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedExpectedText}" Foreground="#EAF6FF" FontSize="12" TextWrapping="Wrap"/>
+                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedExpectedText}" Foreground="#EAF6FF" FontSize="12" TextWrapping="Wrap" LineHeight="17"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <Border Grid.Column="2" Style="{StaticResource PremiumSectionCardStyle}">
                                                     <StackPanel>
                                                         <TextBlock Text="Observed" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedObservedText}" Foreground="#F6D781" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                        <TextBlock Margin="0,6,0,0" Text="{Binding SclSelectedObservedText}" Foreground="#F6D781" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" LineHeight="17"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
 
                                             <Border Grid.Row="4" Style="{StaticResource PremiumSectionCardStyle}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Binding Evidence" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold"/>
+                                                    <TextBlock Margin="0,7,0,0"
+                                                               Text="{Binding SclSelectedBindingText}"
+                                                               Foreground="#D6E8F8"
+                                                               FontSize="12"
+                                                               TextWrapping="Wrap"
+                                                               LineHeight="17"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Grid.Row="6" Style="{StaticResource PremiumSectionCardStyle}">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -4227,6 +4254,9 @@
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedTargetTitle}"/>
                                                 <TextBlock Margin="0,4,0,0" Style="{StaticResource PanelSubtitleTextStyle}" Text="{Binding AdvancedTargetSubtitle}" TextWrapping="Wrap"/>
+                                                <TextBlock Margin="0,6,0,0"
+                                                           Text="Flow: target explorer -> raw evidence -> engineering interpretation"
+                                                           Style="{StaticResource FlowHintTextStyle}"/>
                                             </StackPanel>
                                         </Border>
 
