@@ -323,7 +323,7 @@ In real substation projects, the most expensive issues are often not caused by o
                         <StackPanel>
                             <TextBlock Text="Open Source License" Style="{StaticResource SectionTitleStyle}"/>
                             <TextBlock Style="{StaticResource BodyTextStyle}">
-Process Bus Insight source code is licensed under GPL-3.0-or-later. The analyzer remains receive-only and raw-passive: it does not link to libiec61850 or any external IEC 61850 subscriber stack in the WPF product runtime.
+Process Bus Insight source code is licensed under Apache-2.0. The analyzer remains receive-only and raw-passive: it does not link to external IEC 61850 subscriber stacks in the WPF product runtime.
                             </TextBlock>
 
                             <Border Style="{StaticResource ValueChipBorderStyle}">
@@ -339,7 +339,7 @@ Process Bus Insight source code is licensed under GPL-3.0-or-later. The analyzer
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Source" Style="{StaticResource LabelMiniStyle}" />
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="GPL-3.0-or-later" Style="{StaticResource ValueMiniStyle}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Apache-2.0" Style="{StaticResource ValueMiniStyle}" />
 
                                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Text="Runtime" Style="{StaticResource LabelMiniStyle}" />
                                     <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" Text=".NET 8 WPF, Windows desktop" Style="{StaticResource ValueMiniStyle}" />

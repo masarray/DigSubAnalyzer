@@ -1,15 +1,15 @@
-# R&D Validation Test Plan - Raw Passive SV/GOOSE Analyzer
+# Validation Test Plan - Raw Passive SV/GOOSE Analyzer
 
 ## Purpose
 
-Provide a focused validation route for R&D review. The goal is not to certify a timing instrument. The goal is to prove that the analyzer is raw-passive, decodes process-bus frames internally, and reports stream/timing anomalies honestly.
+Provide a focused validation route for Process Bus Insight as a public engineering tool. The goal is not to certify a timing instrument. The goal is to verify that the analyzer is raw-passive, decodes process-bus frames internally, binds live traffic to SCL context, and reports stream/timing anomalies honestly.
 
 ## Test 1 - Product Dependency Boundary
 
 Expected result:
 
 - `ProcessBus.App.Wpf` references only `ProcessBus.Core` and `ProcessBus.Iec61850.Raw`.
-- No product project reference to `ProcessBus.Sv.LibIec61850` or vendor wrapper code.
+- No product project reference to vendor wrapper code or external IEC 61850 subscriber stacks.
 - Product output does not require `iec61850.dll`.
 
 Evidence:
@@ -25,7 +25,7 @@ Procedure:
 1. Open app.
 2. Select physical Ethernet adapter.
 3. Start capture.
-4. Copy R&D evidence.
+4. Copy evidence.
 
 Expected result:
 
@@ -37,7 +37,7 @@ Expected result:
 
 Procedure:
 
-1. Feed IEC 61850-9-2LE style SV traffic from Omicron/bench publisher/known source.
+1. Feed IEC 61850-9-2LE style SV traffic from Omicron, a bench publisher, or a known process-bus source.
 2. Observe stream explorer.
 3. Select stream.
 
@@ -48,11 +48,11 @@ Expected result:
 - sequence/missing-sample counters are visible,
 - metering/phasor/scope update when mapping is available.
 
-## Test 4 - 300 us Arrival Timing Excursion Screening
+## Test 4 - Arrival Timing Excursion Screening
 
 Procedure:
 
-1. Use a controlled source capable of introducing delay/jitter, or use a known unstable capture path for screening demonstration.
+1. Use a controlled source capable of introducing delay/arrival variation, or use a known unstable capture path for screening demonstration.
 2. Run capture for at least 10 seconds.
 3. Open Diagnostics.
 4. Copy evidence.
@@ -60,8 +60,8 @@ Procedure:
 Expected result:
 
 - `>=300 us` event count increments when excursions occur,
-- event log records latest svID/APPID/smpCnt/delta/jitter,
-- interpretation differentiates clean `smpCnt` from arrival timing path suspicion.
+- event log records latest svID/APPID/smpCnt/delta/arrival variation,
+- interpretation differentiates clean `smpCnt` from capture timing path suspicion.
 
 Acceptance wording:
 
@@ -95,13 +95,13 @@ Expected result:
 - no control workflow is exposed,
 - state/event history is append-oriented and readable.
 
-## Final R&D Acceptance Criteria
+## Final Acceptance Criteria
 
-The project is ready for R&D submission when:
+The product is ready for broader user evaluation when:
 
 - raw product boundary is clear,
-- no legacy external IEC 61850 dependency appears in product solution,
-- timing/jitter claims are honest and confidence-graded,
+- no external IEC 61850 stack dependency appears in product solution,
+- timing claims are honest and confidence-graded,
 - event/evidence copy is repeatable,
-- physical Ethernet demo path is prepared,
+- physical Ethernet validation path is prepared,
 - known limitations are documented.

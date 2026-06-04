@@ -80,7 +80,7 @@ public partial class MainWindow : Window
 
         MessageBox.Show(
             this,
-            $"{featureName} is not part of the receive-only R&D demo build.",
+            $"{featureName} is not part of the receive-only product build.",
             "Feature not included",
             MessageBoxButton.OK,
             MessageBoxImage.Information);

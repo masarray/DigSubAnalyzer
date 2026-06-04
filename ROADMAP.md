@@ -2,7 +2,7 @@
 
 ## Product Positioning
 
-**Process Bus Insight** is a raw-passive IEC 61850 SV / GOOSE / PTP diagnostic instrument for digital substation commissioning, FAT/SAT, interoperability troubleshooting, and R&D validation.
+**Process Bus Insight** is a raw-passive IEC 61850 SV / GOOSE / PTP diagnostic instrument for digital substation commissioning, FAT/SAT, interoperability troubleshooting, and public engineering learning.
 
 It should not become a Wireshark clone, a relay test set, a PTP grandmaster, or an IEC 61850 control client. Its value is:
 
@@ -120,7 +120,7 @@ User can confirm PTP traffic and timing context inside the app without Wireshark
 
 ## Stage 5 — GOOSE Inspector Maturity
 
-Status: R&D Preview semantic pass implemented.
+Status: semantic pass implemented.
 
 Done:
 
@@ -184,26 +184,26 @@ Engineer can load SCL, start capture, and immediately see which expected traffic
 
 ## Stage 7 — PCAP Playback and Support Reproduction
 
-Goal: make support and demo easy without hardware.
+Goal: make support and walkthroughs easy without hardware.
 
 Required behavior:
 
 - open PCAP/PCAPNG,
 - replay or scan capture files,
 - populate SV/GOOSE/PTP views from recorded traffic,
-- ship demo PCAP + demo SCL.
+- ship sample PCAP + sample SCL.
 
 Done when:
 
 ```text
-A customer or R&D reviewer can reproduce a case from a capture file without the live bench.
+A user can reproduce a case from a capture file without the live bench.
 ```
 
 ---
 
 ## Stage 8 — Reporting
 
-Goal: compact engineering report for FAT/SAT/R&D.
+Goal: compact engineering report for FAT/SAT and troubleshooting.
 
 Required content:
 
@@ -326,7 +326,7 @@ Next hardening steps:
 
 ## Stage 4B — SCL Live Binding Matrix
 
-Status: implemented as R&D Preview v2.
+Status: implemented as engineering preview.
 
 Goal: turn SCL from a passive semantic catalog into a live commissioning context that compares expected engineering streams against observed network traffic.
 

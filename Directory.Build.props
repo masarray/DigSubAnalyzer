@@ -2,8 +2,8 @@
   <PropertyGroup>
     <Authors>Process Bus Insight Contributors</Authors>
     <Company>Process Bus Insight Contributors</Company>
-    <Copyright>Copyright (C) 2026 Process Bus Insight Contributors</Copyright>
-    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <Copyright>Copyright 2026 Process Bus Insight Contributors</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>

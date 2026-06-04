@@ -3413,7 +3413,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         builder.AppendLine("Process Bus Insight - Raw Passive SV/GOOSE/PTP Engineering Snapshot");
         builder.AppendLine($"Generated local: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
-        builder.AppendLine("Engine: Raw Passive SV/GOOSE/PTP decoder; product WPF app does not reference, load, or call libiec61850");
+        builder.AppendLine("Engine: Raw Passive SV/GOOSE/PTP decoder; product WPF app does not reference, load, or call external IEC 61850 subscriber stacks");
         builder.AppendLine($"Verdict: {EvidenceVerdictText}");
         builder.AppendLine();
         builder.AppendLine("[Standard]");

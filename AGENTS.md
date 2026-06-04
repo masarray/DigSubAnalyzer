@@ -2,7 +2,7 @@
 
 ## Product Mission
 
-Build **Process Bus Insight** as a receive-only, raw-passive IEC 61850 Process Bus diagnostic instrument for FAT/SAT, commissioning, interoperability troubleshooting, and R&D validation.
+Build **Process Bus Insight** as a receive-only, raw-passive IEC 61850 Process Bus diagnostic instrument for FAT/SAT, commissioning, interoperability troubleshooting, public engineering learning, and substation automation portfolio use.
 
 The product must help an engineer answer, without Wireshark first:
 
