@@ -2,6 +2,10 @@
 
 Raw-passive IEC 61850 Process Bus analyzer for FAT/SAT troubleshooting, commissioning visibility, interoperability investigation, and public engineering learning.
 
+![Process Bus Insight Analyzer](docs/screenshot/analyzer-overview.webp)
+
+Public landing page: [`docs/index.html`](docs/index.html)
+
 ## Current Product Direction
 
 This repository is positioned as a **receive-only raw-passive analyzer**, not an IEC 61850 client/server stack or control workflow.

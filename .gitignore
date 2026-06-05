@@ -62,6 +62,7 @@ UpgradeLog*.htm
 # Local generated media / reports
 *.pdf
 *.gif
+docs/screenshot/*.png
 
 # Codex/browser local state
 .codex/
