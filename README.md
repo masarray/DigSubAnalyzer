@@ -1,95 +1,173 @@
-# Mas Ari Digital Substation Instrument
+# Process Bus Insight (DigSubAnalyzer) — IEC 61850 SV, GOOSE & PTP Analyzer for Windows
 
-Raw-passive IEC 61850 Process Bus analyzer for FAT/SAT troubleshooting, commissioning visibility, interoperability investigation, and public engineering learning.
+[![CI](https://github.com/masarray/DigSubAnalyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/ci.yml)
+[![GitHub Pages](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml)
+[![Release Package](https://github.com/masarray/DigSubAnalyzer/actions/workflows/release-package.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/release-package.yml)
+[![Latest Release](https://img.shields.io/github/v/release/masarray/DigSubAnalyzer?include_prereleases&label=release)](https://github.com/masarray/DigSubAnalyzer/releases)
+[![License](https://img.shields.io/github/license/masarray/DigSubAnalyzer)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4)](#download--install--run)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#build-from-source)
 
-![Process Bus Insight Analyzer](docs/screenshot/analyzer-overview.webp)
+**Process Bus Insight** is a free, open-source **IEC 61850 Process Bus analyzer** for Windows. It gives substation automation engineers a raw-passive view of **Sampled Values (SV)**, **GOOSE**, **PTP timing context**, and **SCL expected-vs-observed validation** during FAT, SAT, commissioning, interoperability checks, and troubleshooting.
 
-Public landing page: [`docs/index.html`](docs/index.html)
+It is built for field clarity: see what traffic is present, which stream or publisher is unhealthy, what the SCL file expects, and what evidence can be copied into an engineering finding. No subscription. No license key. Apache-2.0 source license.
 
-## Current Product Direction
+> Timing note: arrival timing shown by the app is software/Npcap timestamp based. It is useful for screening and troubleshooting, not certification-grade jitter proof unless validated with suitable hardware timestamping, TAP, or trusted timing equipment.
 
-This repository is positioned as a **receive-only raw-passive analyzer**, not an IEC 61850 client/server stack or control workflow.
+![Process Bus Insight analyzer overview](docs/screenshot/analyzer-overview.webp)
 
-The product analyzer runtime decodes SV/GOOSE from raw Ethernet frames through the internal raw engine:
+## What is this?
+
+Process Bus Insight is a receive-only Windows desktop instrument for IEC 61850 Process Bus visibility. It listens to raw Ethernet traffic through Npcap and presents engineering-level information instead of leaving the user with packet lists only.
+
+The current product scope focuses on:
+
+- IEC 61850-9-2 / Sampled Values stream discovery and diagnostics.
+- IEC 61850 GOOSE publisher discovery, sequence tracking, and typed value inspection.
+- PTPv2 visibility for timing context and confidence wording.
+- SCL-assisted comparison between expected engineering configuration and observed network traffic.
+- Evidence-oriented views that support FAT/SAT troubleshooting discussions.
+
+## Why use it?
+
+Wireshark is powerful, but commissioning work often needs faster answers:
+
+- Which SV stream is live?
+- Is the APPID, VLAN, MAC, svID, or confRev what the SCL says it should be?
+- Which GOOSE publisher changed state?
+- Is the issue in a stream, a publisher, a PTP source, or the capture path?
+- What can be copied into an engineering finding without overclaiming timing accuracy?
+
+Process Bus Insight is designed around those questions.
+
+## Features
+
+| Area | What you get |
+| --- | --- |
+| SV analyzer | Stream discovery, APPID/svID/source metadata, RMS/phasor visualization, reconstructed waveform, continuity counters, missing-sample indicators, arrival timing evidence. |
+| GOOSE inspector | Passive publisher discovery, stNum/sqNum visibility, event timeline, typed value decoding, changed-value summary, publisher-focused inspection. |
+| PTP visibility | Passive PTPv2 context for Ethernet and UDP transport, message timeline, grandmaster/domain context where available, timing-confidence wording. |
+| SCL validation | Load SCD/ICD/CID files, compare expected streams/publishers with observed network evidence, surface matched, missing, unexpected, weak, mismatched, and conflicted status. |
+| Evidence workflow | Copyable evidence text, cautious timing labels, target-aware diagnostics, and practical troubleshooting context for FAT/SAT. |
+| Open source | Free to use, Apache-2.0 source license, no license server, no subscription, no hidden commercial gate. |
+
+## Screenshots
+
+| Analyzer overview | SCL binding workspace |
+| --- | --- |
+| ![Analyzer overview](docs/screenshot/analyzer-overview.webp) | ![SCL binding workspace](docs/screenshot/scl-binding.webp) |
+
+| Diagnostics | GOOSE inspector |
+| --- | --- |
+| ![Diagnostics workspace](docs/screenshot/diagnostics-health.webp) | ![GOOSE inspector](docs/screenshot/goose-inspector.webp) |
+
+## Quick start
+
+1. Install **Npcap** on the Windows machine that will capture Process Bus traffic.
+2. Download the latest portable package from [GitHub Releases](https://github.com/masarray/DigSubAnalyzer/releases).
+3. Extract the ZIP to a local folder such as `C:\Tools\ProcessBusInsight`.
+4. Run `ProcessBusInsight.exe`.
+5. Select a real Ethernet adapter connected to the Process Bus network or TAP.
+6. Start capture and review SV, GOOSE, PTP, diagnostics, and SCL binding views.
+
+For a field-oriented checklist, see [`docs/QUICK_START.md`](docs/QUICK_START.md).
+
+## Download / Install / Run
+
+The recommended user package is the **Windows x64 portable ZIP** created by the release workflow:
 
 ```text
-ProcessBus.App.Wpf
-ProcessBus.Core
+ProcessBusInsight-v1.2.0-public-beta-win-x64-portable.zip
+SHA256SUMS.txt
+```
+
+The portable package contains the published Windows app, quick-start notes, license files, third-party notices, and a small launcher batch file for convenience. Visual Studio is not required to run the portable release package.
+
+Runtime notes:
+
+- Windows 10/11 x64 is recommended.
+- Npcap must be installed separately on the target machine.
+- Prefer a physical Ethernet NIC or TAP for timing investigation.
+- Avoid loopback, Wi-Fi Direct, virtual adapters, and unverified USB Ethernet paths for serious timing interpretation.
+
+## How it works
+
+```text
+Process Bus / TAP / Mirror Port
+        ↓
+Npcap raw capture
+        ↓
 ProcessBus.Iec61850.Raw
+        ↓
+SV + GOOSE + PTP decode
+        ↓
+ProcessBus.Core state and models
+        ↓
+ProcessBus.App.Wpf engineering workspace
 ```
 
-The WPF product app must not reference, load, or call external IEC 61850 subscriber stacks.
+The app is raw-passive: it receives and decodes traffic. It does not send IEC 61850 commands, does not control IEDs, and does not act as a publisher or subscriber stack for protection/control operation.
 
-## Public Product Positioning
+## Build from source
 
-Safe external wording:
+Requirements:
 
-> Raw-passive IEC 61850 Process Bus Insight tool with SCL-aware SV, GOOSE, and PTP visibility.
+- Windows 10/11.
+- Visual Studio 2022 or 2026 with the .NET desktop workload.
+- .NET 8 SDK.
+- Npcap installed for runtime capture tests.
 
-Do not claim metrology-grade microsecond jitter measurement unless the result is externally validated using hardware timestamping, a TAP, or a trusted protocol analyzer.
-
-## What Works Now
-
-- WPF analyzer shell with process-bus workspace layout.
-- Raw passive capture path using Npcap adapter selection.
-- Internal SV APDU decoding and stream discovery.
-- Passive GOOSE discovery/event surface.
-- SV stream explorer, APPID/svID/source metadata, stream state, diagnostics, event log.
-- Phasor, metering, and reconstructed scope from decoded RMS/phasor plus `smpCnt` timing.
-- Arrival timing anomaly detection including `>=300 us` jitter excursion evidence.
-- Evidence copy panel with capture-path caution and timing-confidence wording.
-
-## Deliberate Limitations
-
-- Timing is software timestamp based. It is valid for screening and troubleshooting, not certification-grade timing proof.
-- The waveform panel is reconstructed from decoded electrical values and timing; it is not a hardware-sampled oscilloscope trace.
-- Generic SCL-driven channel semantic mapping is not complete yet.
-- Advanced reporting, replay, COMTRADE, FFT/THD, and control workflows are out of current scope.
-
-## Main Solution Shape
-
-```text
-ProcessBusSuite.sln
-src/
-  ProcessBus.App.Wpf/          WPF analyzer product shell
-  ProcessBus.Core/             shared models, shell state, adapter catalog
-  ProcessBus.Iec61850.Raw/     raw Ethernet SV/GOOSE decoder and live data source
-```
-
-Legacy external-library experiments and bench publisher code must stay outside the product package. If retained locally, keep them under a separate tools/legacy area and do not include them in the product solution.
-
-## Build Notes
-
-- Target: .NET 8 Windows / WPF.
-- Recommended IDE: Visual Studio 2026 or later with .NET desktop workload.
-- Npcap is required on the target machine for raw Ethernet capture.
-- For timing evaluation, prefer a physical Ethernet NIC/TAP. Avoid loopback, Wi-Fi Direct, virtual adapters, or unverified USB Ethernet paths.
-- Installer build is disabled by default. Enable explicitly only when the installer script exists:
+Build:
 
 ```powershell
-dotnet build .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Release /p:BuildInstaller=true
+git clone https://github.com/masarray/DigSubAnalyzer.git
+cd DigSubAnalyzer
+dotnet restore .\ProcessBusSuite.sln
+dotnet build .\ProcessBusSuite.sln -c Release
 ```
 
-## Evidence Policy
+Run from source:
 
-When demonstrating the app, always show:
+```powershell
+dotnet run --project .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Release
+```
 
-1. selected adapter raw device name,
-2. stream status and APPID/svID/source MAC,
-3. sequence continuity and missing-sample count,
-4. current/average/max arrival jitter,
-5. timing-confidence classification,
-6. copied evidence text.
+Create a local portable package:
 
-Use `docs/PUBLIC_PORTFOLIO_STRATEGY.md` and `docs/VALIDATION_TEST_PLAN.md` as the working checklist before publication.
+```powershell
+.\scripts\publish-windows-portable.ps1 -Version "1.2.0-public-beta"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.2.0-public-beta-win-x64-portable.zip"
+```
 
+## Documentation
 
-## PTP Timing Layer
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) — first run and field checklist.
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — adapter, Npcap, empty traffic, and timing interpretation issues.
+- [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md) — practical validation scope for SV, GOOSE, PTP, SCL, and evidence.
+- [`docs/RELEASE_PACKAGING.md`](docs/RELEASE_PACKAGING.md) — portable release package design.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — GitHub Pages and release automation notes.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — user-facing product roadmap.
+- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — runtime and redistribution notes.
 
-Phase 1 adds passive PTP visibility to the raw analyzer: EtherType 0x88F7 capture, PTPv2 common header decoding, Announce Grandmaster extraction, Sync/Announce/Follow_Up rate tracking, and timing-confidence wording that distinguishes SV arrival variation from measurement-grade jitter. See `docs/PTP_TIMING_LAYER_PHASE1.md`.
+## Roadmap / Planned improvements
+
+Near-term direction:
+
+- Stronger target-aware diagnostics for individual SV streams, GOOSE publishers, PTP sources, and capture path warnings.
+- More complete SCL expected-vs-observed validation.
+- Cleaner GOOSE semantic labels for common breaker, trip, alarm, and interlock signals.
+- Evidence report export for FAT/SAT documentation.
+- Capture/replay workflow for repeatable demonstration and regression testing.
+- More formal validation with physical NIC/TAP and trusted timing equipment.
+
+## Contributing
+
+Contributions are welcome when they keep the product receive-only, evidence-focused, and honest about timing confidence. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md), then open an issue or pull request with a clear engineering use case.
+
+Good contribution areas include decoder tests, SCL parsing examples, documentation, UI clarity, validation scenarios, and field troubleshooting notes.
 
 ## License
 
-Process Bus Insight source code is licensed under **Apache-2.0**. See `LICENSE`.
+Source code is licensed under **Apache-2.0**. See [`LICENSE`](LICENSE).
 
-Npcap is a runtime prerequisite and is not vendored in this repository. Self-contained Windows publish artifacts include Microsoft .NET runtime/WPF files generated by `dotnet publish`; review `THIRD_PARTY_NOTICES.md` before redistributing binary packages.
+Npcap is a runtime prerequisite and is not vendored in this repository. Microsoft .NET/WPF runtime files may be included in self-contained published artifacts generated by `dotnet publish`; review [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) before redistributing binary packages.

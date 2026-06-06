@@ -1,0 +1,6 @@
+Process Bus Insight / DigSubAnalyzer
+Copyright 2026 Process Bus Insight Contributors
+
+This product includes source code licensed under the Apache License, Version 2.0.
+
+Npcap is a runtime prerequisite for raw packet capture on Windows. Npcap is not vendored in this repository and must be installed separately by the user.

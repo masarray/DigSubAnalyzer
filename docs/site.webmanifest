@@ -1,0 +1,9 @@
+{
+  "name": "Process Bus Insight",
+  "short_name": "Process Bus Insight",
+  "description": "IEC 61850 Process Bus analyzer for SV, GOOSE, PTP, SCL validation, and FAT/SAT evidence.",
+  "start_url": "/DigSubAnalyzer/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0b1d33"
+}

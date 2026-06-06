@@ -6,5 +6,11 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <NeutralLanguage>en</NeutralLanguage>
+    <VersionPrefix>1.2.0</VersionPrefix>
+    <VersionSuffix>public-beta</VersionSuffix>
+    <PackageVersion>1.2.0-public-beta</PackageVersion>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2.0-public-beta</InformationalVersion>
   </PropertyGroup>
 </Project>

@@ -249,3 +249,19 @@ Required behavior:
 - Missing expected streams and unexpected live streams are both important commissioning evidence.
 - Binding matrix selection should drive the semantic inspector so the engineer can move from finding to evidence quickly.
 - Never silently auto-correct semantic mapping. Show evidence and confidence.
+
+## Public Repository Packaging Rule
+
+Public-facing repo work must keep README, landing page, release notes, and package quick-start material written for users who want to understand, download, run, build, and contribute.
+
+Do not write public docs as internal audit notes. Avoid wording such as "owner should", "next step for maintainer", or "audit found" in README, landing page, package notes, or release body.
+
+For Windows desktop releases, keep the portable package flow working:
+
+```text
+scripts/publish-windows-portable.ps1
+scripts/verify-release-package.ps1
+.github/workflows/release-package.yml
+```
+
+The package should contain the published app, quick-start note, license, notice files, third-party notices, and a convenience launcher only when it helps desktop users run the app.
