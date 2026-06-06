@@ -28,7 +28,7 @@ Before opening a pull request:
 
 1. Build the solution in Release mode.
 2. Confirm the app still starts on Windows.
-3. Keep README and docs user-facing.
+3. Keep README and docs clear for engineers using the application.
 4. Add or update validation notes when behavior changes.
 5. Avoid committing `bin`, `obj`, `artifacts`, captures, logs, or local settings.
 

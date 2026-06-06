@@ -17,10 +17,11 @@ try {
     Expand-Archive -Path $PackageZip -DestinationPath $temp -Force
 
     $required = @(
-        "README_QUICK_START.txt",
-        "LICENSE",
-        "Start-ProcessBusInsight.bat",
-        "app/$AppName.exe"
+        "$AppName.exe",
+        "Quick Start.pdf",
+        "User Manual.pdf",
+        "README.txt",
+        "LICENSE.txt"
     )
 
     foreach ($relative in $required) {
@@ -30,17 +31,28 @@ try {
         }
     }
 
-
-    $appFiles = Get-ChildItem -Path (Join-Path $temp "app") -File
-    if ($appFiles.Count -ne 1 -or $appFiles[0].Name -ne "$AppName.exe") {
-        $names = ($appFiles | Select-Object -ExpandProperty Name) -join ', '
-        throw "Package verification failed. Single-file release expected exactly app/$AppName.exe. Found: $names"
+    $batFiles = Get-ChildItem -Path $temp -Recurse -File -Filter "*.bat"
+    if ($batFiles.Count -gt 0) {
+        $names = ($batFiles | ForEach-Object { $_.FullName.Substring($temp.Length + 1) }) -join ', '
+        throw "Package verification failed. Batch files are not allowed in the portable package: $names"
     }
 
-    $exe = Join-Path $temp "app/$AppName.exe"
-    $size = (Get-Item $exe).Length
+    $exeFiles = Get-ChildItem -Path $temp -File -Filter "*.exe"
+    if ($exeFiles.Count -ne 1 -or $exeFiles[0].Name -ne "$AppName.exe") {
+        $names = ($exeFiles | Select-Object -ExpandProperty Name) -join ', '
+        throw "Package verification failed. Expected exactly one root EXE: $AppName.exe. Found: $names"
+    }
+
+    $size = (Get-Item (Join-Path $temp "$AppName.exe")).Length
     if ($size -lt 1024) {
         throw "Package verification failed. Executable looks too small: $size bytes"
+    }
+
+    foreach ($pdfName in @("Quick Start.pdf", "User Manual.pdf")) {
+        $pdfPath = Join-Path $temp $pdfName
+        if ((Get-Item $pdfPath).Length -lt 2048) {
+            throw "Package verification failed. PDF document looks too small: $pdfName"
+        }
     }
 
     Write-Host "Package verification passed: $PackageZip"

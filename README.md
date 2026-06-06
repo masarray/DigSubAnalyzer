@@ -1,4 +1,4 @@
-# Process Bus Insight (DigSubAnalyzer) — IEC 61850 SV, GOOSE & PTP Analyzer for Windows
+# Process Bus Insight (DigSubAnalyzer) - IEC 61850 SV, GOOSE & PTP Analyzer for Windows
 
 [![CI](https://github.com/masarray/DigSubAnalyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml)
@@ -81,7 +81,7 @@ ProcessBusInsight-v1.2.0-public-beta-win-x64-portable.zip
 SHA256SUMS.txt
 ```
 
-The portable package contains a self-contained single-file Windows EXE in the `app` folder, quick-start notes, license files, third-party notices, and a small launcher batch file for convenience. Visual Studio and a separate .NET runtime installation are not required to run the portable release package.
+The portable package contains a clean single-file Windows EXE at the package root, Quick Start PDF, User Manual PDF, license file, and third-party notices. Visual Studio and a separate .NET runtime installation are not required to run the portable release package.
 
 Runtime notes:
 
@@ -141,13 +141,13 @@ Create a local portable package:
 
 ## Documentation
 
-- [`docs/QUICK_START.md`](docs/QUICK_START.md) — first run and field checklist.
-- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — adapter, Npcap, empty traffic, and timing interpretation issues.
-- [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md) — practical validation scope for SV, GOOSE, PTP, SCL, and evidence.
-- [`docs/RELEASE_PACKAGING.md`](docs/RELEASE_PACKAGING.md) — portable release package design.
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — GitHub Pages and release automation notes.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — user-facing product roadmap.
-- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — runtime and redistribution notes.
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) / [`docs/QUICK_START.pdf`](docs/QUICK_START.pdf) - first run and field checklist.
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) - adapter, Npcap, empty traffic, and timing interpretation issues.
+- [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md) - practical validation scope for SV, GOOSE, PTP, SCL, and evidence.
+- [`docs/RELEASE_PACKAGING.md`](docs/RELEASE_PACKAGING.md) - portable release package design.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) - GitHub Pages and release automation notes.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) - product roadmap.
+- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) - runtime and redistribution notes.
 
 ## Roadmap / Planned improvements
 

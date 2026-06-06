@@ -1,12 +1,12 @@
 {
   "name": "Process Bus Insight",
   "short_name": "Process Bus",
-  "description": "Free open-source Windows IEC 61850 Process Bus analyzer for SV, GOOSE, PTP context, and SCL validation.",
+  "description": "Free Windows IEC 61850 Process Bus analyzer for SV, GOOSE, PTP timing context, and SCL validation.",
   "start_url": "/DigSubAnalyzer/",
   "scope": "/DigSubAnalyzer/",
   "display": "standalone",
-  "background_color": "#f4f7fb",
-  "theme_color": "#f5f8fc",
+  "background_color": "#f6f8fb",
+  "theme_color": "#f7f9fc",
   "icons": [
     {
       "src": "assets/branding/icon-192.png",

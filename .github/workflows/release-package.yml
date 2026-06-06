@@ -25,7 +25,7 @@ on:
       release_notes_file:
         description: 'Markdown file used as release body'
         required: true
-        default: 'docs/RELEASE_NOTES_v1.2.0.md'
+        default: 'docs/RELEASE_NOTES_v1.2.6.md'
   push:
     tags:
       - 'v*'
@@ -103,8 +103,8 @@ jobs:
           $zip = "artifacts/release/ProcessBusInsight-v$version-win-x64-portable.zip"
           $sha = "artifacts/release/SHA256SUMS.txt"
           $notesFile = '${{ github.event.inputs.release_notes_file }}'
-          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.2.0.md' }
-          if (-not (Test-Path $notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.2.0.md' }
+          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.2.6.md' }
+          if (-not (Test-Path $notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.2.6.md' }
           if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
 
           $releaseArgs = @('release','create',$tag,$zip,$sha,'--title',"Process Bus Insight $tag",'--notes-file',$notesFile,'--target','${{ github.sha }}')

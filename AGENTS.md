@@ -264,4 +264,4 @@ scripts/verify-release-package.ps1
 .github/workflows/release-package.yml
 ```
 
-The package should contain the published app, quick-start note, license, notice files, third-party notices, and a convenience launcher only when it helps desktop users run the app.
+The package should contain the published app, quick-start note, license, notice files, third-party notices, and documents needed by desktop users.

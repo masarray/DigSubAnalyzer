@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.2.0-public-beta",
+    [string]$Version = "1.2.6",
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$AppName = "ProcessBusInsight",
@@ -19,7 +19,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 }
 
 $portableName = "$AppName-v$Version-$Runtime-portable"
-$publishDir = Join-Path $repoRoot "$OutputRoot/publish/$portableName/app"
+$publishDir = Join-Path $repoRoot "$OutputRoot/publish/$portableName/publish"
 $stageDir = Join-Path $repoRoot "$OutputRoot/package/$portableName"
 $releaseDir = Join-Path $repoRoot "$OutputRoot/release"
 $zipPath = Join-Path $releaseDir "$portableName.zip"
@@ -38,9 +38,8 @@ New-Item -ItemType Directory -Path $publishDir, $stageDir, $releaseDir | Out-Nul
 $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
 
 # Runtime-specific restore is done explicitly, then publish runs with --no-restore.
-# Do not pass /p:AssemblyName from the command line. MSBuild global properties flow into
-# project references too, which can make every project in the graph look like the same
-# project name to NuGet restore and trigger: Ambiguous project name 'ProcessBusInsight'.
+# Do not pass /p:AssemblyName from the command line. MSBuild global properties flow
+# into project references too and can trigger NuGet ambiguous project-name errors.
 $restoreArgs = @(
     "restore", $resolvedProjectPath,
     "-r", $Runtime,
@@ -75,9 +74,6 @@ else {
 
 dotnet @publishArgs
 
-$appStageDir = Join-Path $stageDir "app"
-New-Item -ItemType Directory -Path $appStageDir | Out-Null
-
 $publishedExe = Join-Path $publishDir "$AppName.exe"
 if (-not (Test-Path $publishedExe)) {
     $fallbackExe = Get-ChildItem -Path $publishDir -Filter "*.exe" -File | Select-Object -First 1
@@ -90,61 +86,50 @@ if ($singleFile) {
     if (-not (Test-Path $publishedExe)) {
         throw "Single-file publish did not produce an executable in: $publishDir"
     }
-    Copy-Item -Path $publishedExe -Destination (Join-Path $appStageDir "$AppName.exe") -Force
+    Copy-Item -Path $publishedExe -Destination (Join-Path $stageDir "$AppName.exe") -Force
 }
 else {
+    $appStageDir = Join-Path $stageDir "app"
+    New-Item -ItemType Directory -Path $appStageDir | Out-Null
     Copy-Item -Path (Join-Path $publishDir "*") -Destination $appStageDir -Recurse -Force
-    $exeInApp = Join-Path $appStageDir "$AppName.exe"
-    if (-not (Test-Path $exeInApp) -and (Test-Path $publishedExe)) {
-        Copy-Item $publishedExe $exeInApp -Force
-    }
 }
 
-$quickStart = @"
+$packageReadme = @"
 Process Bus Insight / DigSubAnalyzer
 Windows portable package
 Version: $Version
 
+How to run:
 1. Install Npcap on the Windows machine that will capture IEC 61850 Process Bus traffic.
 2. Extract this ZIP to a local folder, for example C:\Tools\ProcessBusInsight.
-3. Run app\$AppName.exe or Start-ProcessBusInsight.bat. The app folder is intentionally published as a single self-contained EXE by default.
+3. Run $AppName.exe.
 4. Select a real physical Ethernet adapter connected to a TAP, mirror port, or isolated test network.
 5. Start capture and review SV, GOOSE, PTP, diagnostics, and SCL binding views.
+
+Included documents:
+- Quick Start.pdf
+- User Manual.pdf
 
 Timing note:
 Normal Windows/Npcap timestamps are software based. Use timing findings as screening evidence unless the capture path is validated with hardware timestamping, TAP, or trusted timing equipment.
 
-Documentation:
-https://github.com/masarray/DigSubAnalyzer#readme
+Project page:
+https://github.com/masarray/DigSubAnalyzer
 "@
-
-Set-Content -Path (Join-Path $stageDir "README_QUICK_START.txt") -Value $quickStart -Encoding UTF8
-
-$launcher = @"
-@echo off
-setlocal
-cd /d "%~dp0"
-if exist "app\$AppName.exe" (
-  start "Process Bus Insight" "app\$AppName.exe"
-) else (
-  echo Process Bus Insight executable was not found in the app folder.
-  pause
-)
-"@
-Set-Content -Path (Join-Path $stageDir "Start-ProcessBusInsight.bat") -Value $launcher -Encoding ASCII
+Set-Content -Path (Join-Path $stageDir "README.txt") -Value $packageReadme -Encoding UTF8
 
 $copyMap = @(
-    @{ Source = "LICENSE"; Required = $true },
-    @{ Source = "NOTICE"; Required = $false },
-    @{ Source = "THIRD_PARTY_NOTICES.md"; Required = $false },
-    @{ Source = "docs/QUICK_START.md"; Required = $false },
-    @{ Source = "docs/TROUBLESHOOTING.md"; Required = $false }
+    @{ Source = "LICENSE"; Destination = "LICENSE.txt"; Required = $true },
+    @{ Source = "NOTICE"; Destination = "NOTICE.txt"; Required = $false },
+    @{ Source = "THIRD_PARTY_NOTICES.md"; Destination = "THIRD_PARTY_NOTICES.md"; Required = $false },
+    @{ Source = "docs/QUICK_START.pdf"; Destination = "Quick Start.pdf"; Required = $true },
+    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf"; Required = $true }
 )
 
 foreach ($item in $copyMap) {
     $source = Join-Path $repoRoot $item.Source
     if (Test-Path $source) {
-        Copy-Item $source -Destination $stageDir -Force
+        Copy-Item $source -Destination (Join-Path $stageDir $item.Destination) -Force
     }
     elseif ($item.Required) {
         throw "Required package file missing: $($item.Source)"

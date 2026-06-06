@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Process Bus Insight — IEC 61850 SV, GOOSE, PTP & SCL Analyzer for Windows</title>
+  <title>Process Bus Insight - IEC 61850 SV, GOOSE, PTP and SCL Analyzer for Windows</title>
   <meta name="description" content="Download Process Bus Insight, a free open-source Windows IEC 61850 Process Bus analyzer for Sampled Values, GOOSE, PTP timing context, and SCL validation during FAT, SAT, commissioning, and digital substation troubleshooting." />
   <meta name="keywords" content="IEC 61850 analyzer, Process Bus analyzer, Sampled Values analyzer, SV analyzer, GOOSE inspector, PTP analyzer, SCL validation, digital substation software, substation automation engineering, FAT SAT commissioning" />
   <meta name="author" content="Mas Ari / Tutorial Mas Ari" />
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="https://masarray.github.io/DigSubAnalyzer/" />
-  <meta name="theme-color" content="#f5f8fc" />
+  <meta name="theme-color" content="#f7f9fc" />
 
   <link rel="icon" type="image/x-icon" href="assets/branding/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/branding/icon-32.png" />
@@ -18,15 +18,15 @@
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Process Bus Insight" />
-  <meta property="og:title" content="Process Bus Insight — Free IEC 61850 Process Bus Analyzer" />
-  <meta property="og:description" content="A professional Windows tool for IEC 61850 SV, GOOSE, PTP context, and SCL expected-vs-observed validation." />
+  <meta property="og:title" content="Process Bus Insight - Free IEC 61850 Process Bus Analyzer" />
+  <meta property="og:description" content="Download a Windows tool for IEC 61850 Sampled Values, GOOSE, PTP context, and SCL expected-vs-observed validation." />
   <meta property="og:url" content="https://masarray.github.io/DigSubAnalyzer/" />
   <meta property="og:image" content="https://masarray.github.io/DigSubAnalyzer/screenshot/analyzer-overview.webp" />
   <meta property="og:image:alt" content="Process Bus Insight analyzer dashboard for IEC 61850 Process Bus traffic" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Process Bus Insight — IEC 61850 SV, GOOSE, PTP & SCL Analyzer" />
-  <meta name="twitter:description" content="Free open-source Windows tool for Process Bus visibility, SCL validation, and evidence-ready IEC 61850 troubleshooting." />
+  <meta name="twitter:title" content="Process Bus Insight - IEC 61850 SV, GOOSE, PTP and SCL Analyzer" />
+  <meta name="twitter:description" content="Free open-source Windows tool for Process Bus visibility, SCL validation, and IEC 61850 troubleshooting." />
   <meta name="twitter:image" content="https://masarray.github.io/DigSubAnalyzer/screenshot/analyzer-overview.webp" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -42,7 +42,7 @@
     "alternateName": "DigSubAnalyzer",
     "applicationCategory": "EngineeringApplication",
     "operatingSystem": "Windows 10, Windows 11",
-    "softwareVersion": "1.2.5-landing-product-polish",
+    "softwareVersion": "1.2.6",
     "license": "https://www.apache.org/licenses/LICENSE-2.0",
     "isAccessibleForFree": true,
     "url": "https://masarray.github.io/DigSubAnalyzer/",
@@ -54,7 +54,7 @@
       "GOOSE publisher inspection",
       "PTP timing context",
       "SCL expected-vs-observed validation",
-      "Windows portable release package"
+      "Windows portable EXE package"
     ],
     "description": "Free open-source Windows analyzer for IEC 61850 Process Bus SV, GOOSE, PTP timing context, and SCL validation during FAT, SAT, commissioning, and troubleshooting."
   }
@@ -71,7 +71,7 @@
       },
       {
         "@type": "Question",
-        "name": "Can I use it during FAT or commissioning?",
+        "name": "Can I use it during FAT, SAT, or commissioning?",
         "acceptedAnswer": {"@type": "Answer", "text": "Yes. The application is intended for visibility, troubleshooting, and engineering evidence during FAT, SAT, commissioning, and lab validation workflows."}
       },
       {
@@ -94,18 +94,32 @@
   </script>
 </head>
 <body>
-  <div class="ambient ambient-a"></div>
-  <div class="ambient ambient-b"></div>
-  <svg class="fluid-lines" viewBox="0 0 1440 900" aria-hidden="true">
-    <path class="line line-a" d="M-80 230 C 180 120, 340 420, 560 260 S 930 80, 1160 230 S 1470 390, 1540 180" />
-    <path class="line line-b" d="M-120 560 C 150 450, 320 670, 560 540 S 890 360, 1130 510 S 1360 710, 1540 560" />
-    <path class="line line-c" d="M-90 760 C 170 650, 420 810, 700 680 S 1080 520, 1510 720" />
-  </svg>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+  <div class="wave-field" aria-hidden="true">
+    <div class="wave-gradient"></div>
+    <svg class="wave-lines" viewBox="0 0 1440 920" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="waveVertical" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(22,104,232,0)" />
+          <stop offset="32%" stop-color="rgba(22,104,232,0.24)" />
+          <stop offset="54%" stop-color="rgba(33,168,232,0.22)" />
+          <stop offset="100%" stop-color="rgba(32,165,111,0)" />
+          <animateTransform attributeName="gradientTransform" type="translate" values="0 -1;0 1" dur="18s" repeatCount="indefinite" />
+        </linearGradient>
+      </defs>
+      <path d="M-90 95 C 160 20, 300 210, 520 132 S 920 12, 1160 130 S 1450 240, 1530 90" />
+      <path d="M-110 240 C 130 140, 340 360, 610 230 S 980 110, 1260 250 S 1480 415, 1560 250" />
+      <path d="M-120 420 C 130 315, 340 520, 620 405 S 1010 280, 1280 430 S 1480 620, 1560 430" />
+      <path d="M-120 620 C 170 520, 430 705, 710 585 S 1080 470, 1530 660" />
+      <path d="M-130 780 C 160 710, 460 860, 760 735 S 1120 600, 1560 795" />
+    </svg>
+  </div>
   <div class="scroll-progress"></div>
 
   <header class="site-header" data-header>
-    <div class="header-shell">
-      <a class="brand interactive" href="#top" aria-label="Process Bus Insight home">
+    <div class="header-shell interactive">
+      <a class="brand" href="#top" aria-label="Process Bus Insight home">
         <img class="brand-logo" src="assets/branding/icon-180.png" alt="Process Bus Insight logo" />
         <span class="brand-copy">
           <strong>Process Bus Insight</strong>
@@ -114,7 +128,7 @@
       </a>
 
       <nav class="segmented-nav" aria-label="Primary navigation" data-segmented-nav>
-        <span class="nav-indicator"></span>
+        <span class="nav-indicator" aria-hidden="true"></span>
         <a href="#download">Download</a>
         <a href="#features">Features</a>
         <a href="#workflow">Workflow</a>
@@ -139,7 +153,7 @@
     <section class="hero">
       <div class="hero-copy" data-reveal>
         <span class="eyebrow"><span class="material-symbols-rounded">verified</span> Free open-source Windows tool</span>
-        <h1>IEC 61850 Process Bus visibility, packaged for engineers who need answers fast.</h1>
+        <h1>IEC 61850 Process Bus visibility for engineers who need answers fast.</h1>
         <p class="lead">Download a focused Windows analyzer for Sampled Values, GOOSE, PTP timing context, and SCL expected-vs-observed validation. Built for FAT, SAT, commissioning, and real digital substation troubleshooting.</p>
 
         <div class="hero-actions">
@@ -147,9 +161,9 @@
             <span class="material-symbols-rounded">download_for_offline</span>
             Download portable ZIP
           </a>
-          <a class="button pill soft large" href="#trailer">
-            <span class="material-symbols-rounded">play_circle</span>
-            Watch trailer
+          <a class="button pill soft large" href="USER_MANUAL.pdf">
+            <span class="material-symbols-rounded">menu_book</span>
+            User manual
           </a>
         </div>
 
@@ -167,8 +181,9 @@
             <div class="frame-title"><span class="material-symbols-rounded">hub</span> Process Bus Insight</div>
             <div class="frame-status"><span></span> Analyzer ready</div>
           </div>
-          <div class="screen-wrap">
+          <div class="screen-wrap preview-target" data-preview-src="screenshot/analyzer-overview.webp" data-preview-title="Analyzer overview" tabindex="0" role="button" aria-label="Open analyzer overview screenshot preview">
             <img src="screenshot/analyzer-overview.webp" alt="Process Bus Insight IEC 61850 analyzer dashboard showing waveform, phasor, metering, and stream diagnostics" />
+            <span class="zoom-pill"><i class="material-symbols-rounded">fullscreen</i> Preview</span>
           </div>
           <div class="metric-pill metric-a"><span class="material-symbols-rounded">timeline</span> SV stream view</div>
           <div class="metric-pill metric-b"><span class="material-symbols-rounded">sync</span> PTP context</div>
@@ -181,7 +196,7 @@
       <div>
         <span class="section-label"><span class="material-symbols-rounded">download</span> Download and run</span>
         <h2>Try the Windows portable package without opening Visual Studio.</h2>
-        <p>Get the latest release, extract the ZIP, install Npcap if raw capture is needed, then launch the application from the portable folder.</p>
+        <p>Get the latest release, extract the ZIP, install Npcap if raw capture is needed, then run the single EXE from the portable folder.</p>
       </div>
       <div class="download-steps">
         <a class="step-card interactive" href="https://github.com/masarray/DigSubAnalyzer/releases">
@@ -189,10 +204,10 @@
           <strong>1. Download ZIP</strong>
           <p>Use the latest Windows x64 portable package from GitHub Releases.</p>
         </a>
-        <a class="step-card interactive" href="QUICK_START.md">
+        <a class="step-card interactive" href="QUICK_START.pdf">
           <span class="material-symbols-rounded">rocket_launch</span>
-          <strong>2. Follow quick start</strong>
-          <p>Connect to a safe capture path and select the correct Ethernet adapter.</p>
+          <strong>2. Read Quick Start</strong>
+          <p>Use the PDF checklist to launch the app and select the correct capture adapter.</p>
         </a>
         <a class="step-card interactive" href="TROUBLESHOOTING.md">
           <span class="material-symbols-rounded">support_agent</span>
@@ -206,7 +221,7 @@
       <div class="section-head" data-reveal>
         <span class="section-label"><span class="material-symbols-rounded">auto_awesome</span> Product capabilities</span>
         <h2>Focused features for substation automation engineers.</h2>
-        <p>The interface is designed to shorten the path from live packet capture to usable engineering evidence. It keeps capture limitations visible and avoids pretending that Windows software capture is certified metrology.</p>
+        <p>The interface shortens the path from live packet capture to usable engineering evidence. It keeps capture limitations visible and avoids pretending that Windows software capture is certified metrology.</p>
       </div>
 
       <div class="feature-grid">
@@ -232,7 +247,7 @@
         </article>
         <article class="feature-card interactive" data-reveal data-delay="70">
           <span class="material-symbols-rounded card-icon">assignment_turned_in</span>
-          <h3>Evidence-ready findings</h3>
+          <h3>Engineering findings</h3>
           <p>Capture clearer findings for FAT, SAT, commissioning review, and practical troubleshooting discussion.</p>
         </article>
         <article class="feature-card interactive" data-reveal data-delay="140">
@@ -263,7 +278,7 @@
           <article class="workflow-item interactive" data-reveal data-delay="140">
             <span>03</span>
             <strong>Load SCL when available</strong>
-            <p>Move from “traffic exists” to “traffic matches engineering expectation” with expected-vs-observed checks.</p>
+            <p>Move from traffic exists to traffic matches engineering expectation with expected-vs-observed checks.</p>
           </article>
           <article class="workflow-item interactive" data-reveal data-delay="210">
             <span>04</span>
@@ -271,8 +286,9 @@
             <p>Use clear wording for what was expected, what was observed, and which object needs attention.</p>
           </article>
         </div>
-        <div class="workflow-preview tilt-card interactive" data-reveal>
+        <div class="workflow-preview tilt-card interactive preview-target" data-preview-src="screenshot/scl-binding.webp" data-preview-title="SCL expected-vs-observed workspace" tabindex="0" role="button" aria-label="Open SCL binding screenshot preview" data-reveal>
           <img src="screenshot/scl-binding.webp" alt="SCL binding workspace showing IEC 61850 expected versus observed traffic" />
+          <span class="zoom-pill"><i class="material-symbols-rounded">fullscreen</i> Preview</span>
         </div>
       </div>
     </section>
@@ -281,23 +297,27 @@
       <div class="section-head" data-reveal>
         <span class="section-label"><span class="material-symbols-rounded">dashboard</span> Application preview</span>
         <h2>Readable screens for real troubleshooting sessions.</h2>
-        <p>The screenshot presentation is intentionally clean: enough context to build trust, without turning the landing page into a noisy manual.</p>
+        <p>Click any screenshot to preview it fullscreen with a calm blurred backdrop.</p>
       </div>
       <div class="gallery-grid">
-        <figure class="shot-card featured tilt-card interactive" data-reveal>
+        <figure class="shot-card featured tilt-card interactive preview-target" data-preview-src="screenshot/validation-dashboard.webp" data-preview-title="Validation dashboard" tabindex="0" role="button" aria-label="Open validation dashboard screenshot preview" data-reveal>
           <img src="screenshot/validation-dashboard.webp" alt="Validation dashboard for IEC 61850 Process Bus validation" />
+          <span class="zoom-pill"><i class="material-symbols-rounded">fullscreen</i> Preview</span>
           <figcaption><strong>Validation dashboard</strong><span>Expected-vs-observed validation for engineering review.</span></figcaption>
         </figure>
-        <figure class="shot-card interactive" data-reveal data-delay="70">
+        <figure class="shot-card interactive preview-target" data-preview-src="screenshot/diagnostics-health.webp" data-preview-title="Diagnostics health" tabindex="0" role="button" aria-label="Open diagnostics screenshot preview" data-reveal data-delay="70">
           <img src="screenshot/diagnostics-health.webp" alt="Diagnostics health workspace" />
+          <span class="zoom-pill"><i class="material-symbols-rounded">fullscreen</i> Preview</span>
           <figcaption><strong>Diagnostics health</strong><span>Traffic and timing confidence in one readable workspace.</span></figcaption>
         </figure>
-        <figure class="shot-card interactive" data-reveal data-delay="140">
+        <figure class="shot-card interactive preview-target" data-preview-src="screenshot/goose-inspector.webp" data-preview-title="GOOSE inspector" tabindex="0" role="button" aria-label="Open GOOSE inspector screenshot preview" data-reveal data-delay="140">
           <img src="screenshot/goose-inspector.webp" alt="GOOSE inspector workspace" />
+          <span class="zoom-pill"><i class="material-symbols-rounded">fullscreen</i> Preview</span>
           <figcaption><strong>GOOSE inspector</strong><span>Publisher state and dataset inspection for troubleshooting.</span></figcaption>
         </figure>
-        <figure class="shot-card interactive" data-reveal data-delay="210">
+        <figure class="shot-card interactive preview-target" data-preview-src="screenshot/advanced-evidence.webp" data-preview-title="Evidence workspace" tabindex="0" role="button" aria-label="Open evidence workspace screenshot preview" data-reveal data-delay="210">
           <img src="screenshot/advanced-evidence.webp" alt="Advanced evidence workspace" />
+          <span class="zoom-pill"><i class="material-symbols-rounded">fullscreen</i> Preview</span>
           <figcaption><strong>Evidence workspace</strong><span>Better discussion material for FAT and commissioning teams.</span></figcaption>
         </figure>
       </div>
@@ -359,6 +379,16 @@
     </section>
   </main>
 
+  <div class="preview-overlay" data-preview-overlay aria-hidden="true">
+    <button class="preview-close" type="button" aria-label="Close preview">
+      <span class="material-symbols-rounded">close</span>
+    </button>
+    <figure class="preview-dialog" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+      <img data-preview-image src="" alt="" />
+      <figcaption data-preview-caption></figcaption>
+    </figure>
+  </div>
+
   <footer class="site-footer interactive" data-reveal>
     <div class="footer-brand">
       <img src="assets/branding/icon-180.png" alt="Process Bus Insight icon" />
@@ -370,8 +400,8 @@
     <div class="footer-links">
       <a href="https://github.com/masarray/DigSubAnalyzer"><span class="material-symbols-rounded">code</span> GitHub</a>
       <a href="https://github.com/masarray/DigSubAnalyzer/releases"><span class="material-symbols-rounded">download</span> Releases</a>
-      <a href="QUICK_START.md"><span class="material-symbols-rounded">rocket_launch</span> Quick start</a>
-      <a href="VALIDATION_MATRIX.md"><span class="material-symbols-rounded">fact_check</span> Validation</a>
+      <a href="QUICK_START.pdf"><span class="material-symbols-rounded">rocket_launch</span> Quick Start PDF</a>
+      <a href="USER_MANUAL.pdf"><span class="material-symbols-rounded">menu_book</span> User Manual</a>
     </div>
   </footer>
 
