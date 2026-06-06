@@ -81,7 +81,7 @@ ProcessBusInsight-v1.2.0-public-beta-win-x64-portable.zip
 SHA256SUMS.txt
 ```
 
-The portable package contains the published Windows app, quick-start notes, license files, third-party notices, and a small launcher batch file for convenience. Visual Studio is not required to run the portable release package.
+The portable package contains a self-contained single-file Windows EXE in the `app` folder, quick-start notes, license files, third-party notices, and a small launcher batch file for convenience. Visual Studio and a separate .NET runtime installation are not required to run the portable release package.
 
 Runtime notes:
 

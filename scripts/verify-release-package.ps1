@@ -30,6 +30,13 @@ try {
         }
     }
 
+
+    $appFiles = Get-ChildItem -Path (Join-Path $temp "app") -File
+    if ($appFiles.Count -ne 1 -or $appFiles[0].Name -ne "$AppName.exe") {
+        $names = ($appFiles | Select-Object -ExpandProperty Name) -join ', '
+        throw "Package verification failed. Single-file release expected exactly app/$AppName.exe. Found: $names"
+    }
+
     $exe = Join-Path $temp "app/$AppName.exe"
     $size = (Get-Item $exe).Length
     if ($size -lt 1024) {

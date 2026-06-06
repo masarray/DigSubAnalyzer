@@ -6,7 +6,7 @@ This public beta hardens Process Bus Insight as a user-facing open-source Window
 
 - User-facing README with clear download, run, build, documentation, and contribution guidance.
 - SEO-ready GitHub Pages landing page with screenshots, FAQ, social preview metadata, and structured data.
-- Windows portable release automation for GitHub Actions.
+- Windows portable release automation for GitHub Actions with a self-contained single-EXE app payload.
 - Local PowerShell scripts to publish and verify the portable package.
 - GitHub repository setup script for description, homepage, topics, and repository feature settings.
 - Documentation for quick start, troubleshooting, validation matrix, deployment, release packaging, roadmap, security, and contribution flow.

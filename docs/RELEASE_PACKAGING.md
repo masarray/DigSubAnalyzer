@@ -1,6 +1,6 @@
 # Release Packaging — Process Bus Insight
 
-The release workflow creates a Windows x64 portable package for users who want to try the app without Visual Studio.
+The release workflow creates a Windows x64 portable package for users who want to try the app without Visual Studio. By default, the application payload is published as a self-contained single EXE.
 
 ## Output files
 
@@ -14,8 +14,7 @@ SHA256SUMS.txt
 The ZIP contains:
 
 ```text
-app/                         published Windows application
-ProcessBusInsight.exe         convenience copy/entry point when publish output allows it
+app/ProcessBusInsight.exe     single self-contained Windows application
 Start-ProcessBusInsight.bat   simple launcher
 README_QUICK_START.txt        user-facing run instructions
 LICENSE

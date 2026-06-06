@@ -5,7 +5,8 @@ param(
     [string]$AppName = "ProcessBusInsight",
     [string]$ProjectPath = "src/ProcessBus.App.Wpf/ProcessBus.App.Wpf.csproj",
     [string]$OutputRoot = "artifacts",
-    [switch]$FrameworkDependent
+    [switch]$FrameworkDependent,
+    [switch]$MultiFile
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,9 +25,11 @@ $releaseDir = Join-Path $repoRoot "$OutputRoot/release"
 $zipPath = Join-Path $releaseDir "$portableName.zip"
 $shaPath = Join-Path $releaseDir "SHA256SUMS.txt"
 $selfContained = -not $FrameworkDependent.IsPresent
+$singleFile = -not $MultiFile.IsPresent
 
 Write-Host "Publishing $AppName $Version for $Runtime"
 Write-Host "Self-contained: $selfContained"
+Write-Host "Single-file EXE: $singleFile"
 
 Remove-Item -LiteralPath $publishDir -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -37,7 +40,10 @@ $publishArgs = @(
     "-c", $Configuration,
     "-r", $Runtime,
     "-o", $publishDir,
-    "/p:PublishSingleFile=false",
+    "/p:PublishSingleFile=$($singleFile.ToString().ToLowerInvariant())",
+    "/p:IncludeNativeLibrariesForSelfExtract=true",
+    "/p:EnableCompressionInSingleFile=true",
+    "/p:PublishTrimmed=false",
     "/p:DebugType=None",
     "/p:DebugSymbols=false",
     "/p:AssemblyName=$AppName"
@@ -56,13 +62,26 @@ dotnet @publishArgs
 
 $appStageDir = Join-Path $stageDir "app"
 New-Item -ItemType Directory -Path $appStageDir | Out-Null
-Copy-Item -Path (Join-Path $publishDir "*") -Destination $appStageDir -Recurse -Force
 
-$exeInApp = Join-Path $appStageDir "$AppName.exe"
-if (-not (Test-Path $exeInApp)) {
-    $fallbackExe = Get-ChildItem -Path $appStageDir -Filter "*.exe" -File | Select-Object -First 1
+$publishedExe = Join-Path $publishDir "$AppName.exe"
+if (-not (Test-Path $publishedExe)) {
+    $fallbackExe = Get-ChildItem -Path $publishDir -Filter "*.exe" -File | Select-Object -First 1
     if ($fallbackExe) {
-        Copy-Item $fallbackExe.FullName $exeInApp -Force
+        $publishedExe = $fallbackExe.FullName
+    }
+}
+
+if ($singleFile) {
+    if (-not (Test-Path $publishedExe)) {
+        throw "Single-file publish did not produce an executable in: $publishDir"
+    }
+    Copy-Item -Path $publishedExe -Destination (Join-Path $appStageDir "$AppName.exe") -Force
+}
+else {
+    Copy-Item -Path (Join-Path $publishDir "*") -Destination $appStageDir -Recurse -Force
+    $exeInApp = Join-Path $appStageDir "$AppName.exe"
+    if (-not (Test-Path $exeInApp) -and (Test-Path $publishedExe)) {
+        Copy-Item $publishedExe $exeInApp -Force
     }
 }
 
@@ -73,7 +92,7 @@ Version: $Version
 
 1. Install Npcap on the Windows machine that will capture IEC 61850 Process Bus traffic.
 2. Extract this ZIP to a local folder, for example C:\Tools\ProcessBusInsight.
-3. Run app\$AppName.exe or Start-ProcessBusInsight.bat.
+3. Run app\$AppName.exe or Start-ProcessBusInsight.bat. The app folder is intentionally published as a single self-contained EXE by default.
 4. Select a real physical Ethernet adapter connected to a TAP, mirror port, or isolated test network.
 5. Start capture and review SV, GOOSE, PTP, diagnostics, and SCL binding views.
 

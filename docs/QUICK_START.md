@@ -34,10 +34,10 @@ C:\Tools\ProcessBusInsight
 Open the extracted folder and run:
 
 ```text
-ProcessBusInsight.exe
+app\ProcessBusInsight.exe
 ```
 
-The package may also include `Start-ProcessBusInsight.bat` as a convenience launcher.
+The default release package publishes the app payload as a self-contained single EXE. The package also includes `Start-ProcessBusInsight.bat` as a convenience launcher.
 
 ## 4. Start a safe capture workflow
 
