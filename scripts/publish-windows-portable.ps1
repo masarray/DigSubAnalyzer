@@ -35,8 +35,23 @@ Remove-Item -LiteralPath $publishDir -Recurse -Force -ErrorAction SilentlyContin
 Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $publishDir, $stageDir, $releaseDir | Out-Null
 
+$resolvedProjectPath = (Resolve-Path $ProjectPath).Path
+
+# Runtime-specific restore is done explicitly, then publish runs with --no-restore.
+# Do not pass /p:AssemblyName from the command line. MSBuild global properties flow into
+# project references too, which can make every project in the graph look like the same
+# project name to NuGet restore and trigger: Ambiguous project name 'ProcessBusInsight'.
+$restoreArgs = @(
+    "restore", $resolvedProjectPath,
+    "-r", $Runtime,
+    "/p:ContinuousIntegrationBuild=true"
+)
+
+dotnet @restoreArgs
+
 $publishArgs = @(
-    "publish", $ProjectPath,
+    "publish", $resolvedProjectPath,
+    "--no-restore",
     "-c", $Configuration,
     "-r", $Runtime,
     "-o", $publishDir,
@@ -46,7 +61,7 @@ $publishArgs = @(
     "/p:PublishTrimmed=false",
     "/p:DebugType=None",
     "/p:DebugSymbols=false",
-    "/p:AssemblyName=$AppName"
+    "/p:ErrorOnDuplicatePublishOutputFiles=true"
 )
 
 if ($selfContained) {

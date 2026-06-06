@@ -49,6 +49,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Show .NET SDK selection
+        run: dotnet --info
+
       - name: Resolve release version
         id: version
         shell: pwsh

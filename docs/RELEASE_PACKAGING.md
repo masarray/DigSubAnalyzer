@@ -46,3 +46,7 @@ Manual inputs:
 ## Runtime prerequisite
 
 Npcap is required on the target Windows machine and is not bundled in the repository.
+
+## CI restore note
+
+The portable release script performs a runtime-specific restore and then publishes with `--no-restore`. It intentionally does not pass `/p:AssemblyName=...` on the command line because MSBuild global properties also flow into referenced projects. Passing the same assembly name into the whole project graph can make NuGet restore report `Ambiguous project name`.
