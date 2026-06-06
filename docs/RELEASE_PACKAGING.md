@@ -1,5 +1,19 @@
 # Release Packaging - Process Bus Insight
 
+
+## Release documentation PDFs
+
+The Windows portable package includes `Quick Start.pdf` and `User Manual.pdf` at the ZIP root. These files are intentionally tracked in the repository because the release workflow packages them directly.
+
+If the workflow fails with `Required package file missing: docs/QUICK_START.pdf`, the PDF files were not committed. Add them explicitly:
+
+```powershell
+git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
+git commit -m "Add release PDF documentation"
+git push origin main
+```
+
+
 The release workflow creates a Windows x64 portable package for users who want to try the app without Visual Studio. The application is published as a self-contained single EXE.
 
 ## Output files

@@ -79,8 +79,12 @@ tmp/
 
 # Local generated reports/media
 *.pdf
+!docs/QUICK_START.pdf
+!docs/USER_MANUAL.pdf
 *.gif
 docs/screenshot/*.png
+docs/pdf_renders/
+docs/_renders/
 
 # Node/web outputs if a future site toolchain is added
 node_modules/

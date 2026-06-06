@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.2.6",
+    [string]$Version = "1.2.7",
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$AppName = "ProcessBusInsight",
@@ -16,6 +16,19 @@ Set-Location $repoRoot
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version cannot be empty."
+}
+
+
+$requiredReleaseDocs = @(
+    "docs/QUICK_START.pdf",
+    "docs/USER_MANUAL.pdf"
+)
+
+foreach ($doc in $requiredReleaseDocs) {
+    $docPath = Join-Path $repoRoot $doc
+    if (-not (Test-Path $docPath)) {
+        throw "Release documentation is missing: $doc. These PDF files must be committed to the repository before running the release workflow. If you just copied the repo upgrade files locally, run: git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf"
+    }
 }
 
 $portableName = "$AppName-v$Version-$Runtime-portable"
@@ -132,7 +145,7 @@ foreach ($item in $copyMap) {
         Copy-Item $source -Destination (Join-Path $stageDir $item.Destination) -Force
     }
     elseif ($item.Required) {
-        throw "Required package file missing: $($item.Source)"
+        throw "Required package file missing: $($item.Source). For release documentation PDFs, make sure they are committed with: git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf"
     }
 }
 
