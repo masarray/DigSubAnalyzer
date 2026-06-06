@@ -1,5 +1,5 @@
 ################################################################################
-# Source-only repository hygiene
+# Source repository hygiene
 ################################################################################
 
 # IDE / editor state
@@ -19,17 +19,23 @@ bin/
 obj/
 **/bin/
 **/obj/
+out/
 artifacts/
 installer/
 publish/
+release/
 
-# .NET local state
+# .NET local state and packages
 .dotnet/
 .dotnet-cli/
 .dotnet-home/
 .dotnet-home-build/
 *.nupkg
 *.snupkg
+TestResults/
+coverage/
+coverage.*
+*.trx
 
 # Native / Visual C++ generated files
 *.ipch
@@ -53,16 +59,36 @@ UpgradeLog*.htm
 *.cache
 *.log
 
+# Local configuration / secrets
+.env
+.env.*
+*.pfx
+*.snk
+secrets.json
+appsettings.Development.json
+
 # Local capture/runtime state
 *.last_interface.txt
 *.pcap
 *.pcapng
 *.etl
+captures/
+logs/
+temp/
+tmp/
 
-# Local generated media / reports
+# Local generated reports/media
 *.pdf
 *.gif
 docs/screenshot/*.png
 
-# Codex/browser local state
+# Node/web outputs if a future site toolchain is added
+node_modules/
+dist/
+build/
+.parcel-cache/
+.vite/
+
+# Local automation/browser state
 .codex/
+.playwright/

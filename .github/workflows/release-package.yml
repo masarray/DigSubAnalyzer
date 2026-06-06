@@ -1,0 +1,121 @@
+name: Release Windows portable package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label, for example 1.2.0-public-beta'
+        required: true
+        default: '1.2.0-public-beta'
+      publish_release:
+        description: 'Create or update a GitHub Release'
+        required: true
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark GitHub Release as prerelease'
+        required: true
+        default: true
+        type: boolean
+      draft:
+        description: 'Create GitHub Release as draft'
+        required: true
+        default: false
+        type: boolean
+      release_notes_file:
+        description: 'Markdown file used as release body'
+        required: true
+        default: 'docs/RELEASE_NOTES_v1.2.0.md'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build portable Windows package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $version = '${{ github.event.inputs.version }}'
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = '${{ github.ref_name }}'
+          }
+          $version = $version.Trim()
+          if ($version.StartsWith('v')) { $version = $version.Substring(1) }
+          if ([string]::IsNullOrWhiteSpace($version)) { throw 'Unable to resolve release version.' }
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Release version: $version"
+
+      - name: Restore
+        run: dotnet restore .\ProcessBusSuite.sln
+
+      - name: Build
+        run: dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Publish portable package
+        shell: pwsh
+        run: |
+          .\scripts\publish-windows-portable.ps1 -Version '${{ steps.version.outputs.value }}' -Configuration Release -Runtime win-x64
+
+      - name: Verify portable package
+        shell: pwsh
+        run: |
+          $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
+          .\scripts\verify-release-package.ps1 -PackageZip $zip
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable
+          path: |
+            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
+            artifacts/release/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: ${{ github.event_name == 'push' || github.event.inputs.publish_release == 'true' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $tag = "v$version"
+          $zip = "artifacts/release/ProcessBusInsight-v$version-win-x64-portable.zip"
+          $sha = "artifacts/release/SHA256SUMS.txt"
+          $notesFile = '${{ github.event.inputs.release_notes_file }}'
+          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.2.0.md' }
+          if (-not (Test-Path $notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.2.0.md' }
+          if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
+
+          $releaseArgs = @('release','create',$tag,$zip,$sha,'--title',"Process Bus Insight $tag",'--notes-file',$notesFile,'--target','${{ github.sha }}')
+
+          $isDraft = '${{ github.event.inputs.draft }}'
+          $isPrerelease = '${{ github.event.inputs.prerelease }}'
+          if ('${{ github.event_name }}' -eq 'push') { $isPrerelease = 'false' }
+          if ($isDraft -eq 'true') { $releaseArgs += '--draft' }
+          if ($isPrerelease -eq 'true') { $releaseArgs += '--prerelease' }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip $sha --clobber
+          }
+          else {
+            gh @releaseArgs
+          }

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Restore and build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore .\ProcessBusSuite.sln
+
+      - name: Build
+        run: dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Run tests when present
+        shell: pwsh
+        run: |
+          $testProjects = Get-ChildItem -Path . -Recurse -Filter *.csproj |
+            Where-Object { $_.FullName -match '(Test|Tests)\\|\.(Test|Tests)\.csproj$' }
+
+          if (-not $testProjects) {
+            Write-Host "No test project found. Build validation completed."
+            exit 0
+          }
+
+          foreach ($project in $testProjects) {
+            dotnet test $project.FullName -c Release --no-build --logger "trx"
+          }
