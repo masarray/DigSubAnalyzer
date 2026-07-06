@@ -14,9 +14,11 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
 
     private readonly string _deviceName;
     private readonly Action<string, string>? _diagnosticSink;
+    private readonly object _handleGate = new();
     private IntPtr _handle;
     private int _timestampPrecision = TimestampPrecisionMicroseconds;
-    private bool _disposed;
+    private volatile bool _disposed;
+    private int _disposeState;
 
     public NpcapRawFrameSource(string deviceName, Action<string, string>? diagnosticSink = null)
     {
@@ -31,36 +33,71 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
 
         while (!cancellationToken.IsCancellationRequested && !_disposed)
         {
-            var result = PcapNextEx(_handle, out var headerPtr, out var dataPtr);
+            var status = TryReadNextFrame(out var frame);
 
-            if (result == 0)
+            if (status == ReadStatus.Frame && frame is not null)
             {
-                await Task.Yield();
+                yield return frame;
                 continue;
             }
 
-            if (result < 0)
+            if (status == ReadStatus.Stop)
                 yield break;
 
+            if (status == ReadStatus.Timeout)
+                await Task.Yield();
+        }
+    }
+
+    private enum ReadStatus
+    {
+        Frame,
+        Skip,
+        Timeout,
+        Stop
+    }
+
+    private ReadStatus TryReadNextFrame(out RawCapturedFrame? frame)
+    {
+        frame = null;
+
+        // Every wpcap call that dereferences _handle happens under _handleGate. Dispose
+        // acquires the same gate before pcap_close, so a blocked/racing PcapNextEx can
+        // never observe a freed handle (previously a native AV window on stop timeout).
+        lock (_handleGate)
+        {
+            if (_disposed || _handle == IntPtr.Zero)
+                return ReadStatus.Stop;
+
+            var result = PcapNextEx(_handle, out var headerPtr, out var dataPtr);
+
+            if (result == 0)
+                return ReadStatus.Timeout;
+
+            if (result < 0)
+                return ReadStatus.Stop;
+
             if (headerPtr == IntPtr.Zero || dataPtr == IntPtr.Zero)
-                continue;
+                return ReadStatus.Skip;
 
             var header = Marshal.PtrToStructure<PcapPacketHeader>(headerPtr);
             if (header.CapturedLength == 0 || header.CapturedLength > SnapshotLength)
             {
                 _diagnosticSink?.Invoke("Warning", $"Npcap returned invalid captured length: {header.CapturedLength}");
-                continue;
+                return ReadStatus.Skip;
             }
 
+            // The pcap-owned buffers behind headerPtr/dataPtr are only valid until the
+            // next pcap call or close, so the managed copy must complete inside the gate.
             var bytes = new byte[header.CapturedLength];
             Marshal.Copy(dataPtr, bytes, 0, checked((int)header.CapturedLength));
-            var captureTimeUtc = ResolveCaptureTimeUtc(header.Timestamp, _timestampPrecision);
-            var captureTicks = ResolveCaptureTicks(header.Timestamp, _timestampPrecision);
 
-            yield return new RawCapturedFrame(
+            frame = new RawCapturedFrame(
                 bytes,
-                captureTimeUtc,
-                captureTicks);
+                ResolveCaptureTimeUtc(header.Timestamp, _timestampPrecision),
+                ResolveCaptureTicks(header.Timestamp, _timestampPrecision));
+
+            return ReadStatus.Frame;
         }
     }
 
@@ -72,24 +109,36 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
 
     public void Dispose()
     {
-        if (_disposed)
+        // Only one caller wins the close; others return immediately.
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
             return;
 
         _disposed = true;
 
-        if (_handle != IntPtr.Zero)
+        // Break-loop is issued OUTSIDE _handleGate on purpose: the reader may be blocked
+        // inside PcapNextEx while holding the gate, and pcap_breakloop is documented as
+        // safe to call from another thread precisely to wake that blocked read.
+        var handleForBreak = _handle;
+        if (handleForBreak != IntPtr.Zero)
         {
             try
             {
-                PcapBreakLoop(_handle);
+                PcapBreakLoop(handleForBreak);
             }
             catch (EntryPointNotFoundException)
             {
-                // Older WinPcap/Npcap builds may not export pcap_breakloop. Close still releases the handle.
+                // Older WinPcap/Npcap builds may not export pcap_breakloop. The reader will
+                // still exit on its next timeout tick, and close below waits for the gate.
             }
+        }
 
-            PcapClose(_handle);
-            _handle = IntPtr.Zero;
+        lock (_handleGate)
+        {
+            if (_handle != IntPtr.Zero)
+            {
+                PcapClose(_handle);
+                _handle = IntPtr.Zero;
+            }
         }
     }
 
@@ -101,24 +150,26 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
         if (string.IsNullOrWhiteSpace(_deviceName) || _deviceName.StartsWith("index:", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("A real Npcap adapter device name is required for raw capture.");
 
-        _handle = OpenActivatedCapture(_deviceName);
+        var handle = OpenActivatedCapture(_deviceName);
 
-        if (_handle == IntPtr.Zero)
+        if (handle == IntPtr.Zero)
             throw new InvalidOperationException("Npcap open failed.");
 
-        var linkType = PcapDataLink(_handle);
+        // Configure the still-private local handle first. It is not yet visible to
+        // Dispose, so no gate is needed here; publication happens once, below.
+        var linkType = PcapDataLink(handle);
         _diagnosticSink?.Invoke("Info", $"Npcap raw capture opened. DLT={linkType}, timestampPrecision={ResolveTimestampPrecisionText(_timestampPrecision)}, device={_deviceName}");
         if (linkType != DataLinkEthernet)
             _diagnosticSink?.Invoke("Warning", $"Selected adapter DLT={linkType}; raw SV/GOOSE/PTP decoding expects Ethernet DLT=1. Loopback adapters usually cannot decode process-bus Ethernet frames.");
 
-        if (PcapCompile(_handle, out var filter, ProcessBusFilter, 1, 0) == 0)
+        if (PcapCompile(handle, out var filter, ProcessBusFilter, 1, 0) == 0)
         {
             try
             {
-                if (PcapSetFilter(_handle, ref filter) == 0)
+                if (PcapSetFilter(handle, ref filter) == 0)
                     _diagnosticSink?.Invoke("Info", "Npcap process-bus/PTP BPF filter installed (SV, GOOSE, PTP L2, PTP UDP 319/320).");
                 else
-                    _diagnosticSink?.Invoke("Warning", $"Npcap setfilter failed; continuing unfiltered. {PcapGetErrorText(_handle)}");
+                    _diagnosticSink?.Invoke("Warning", $"Npcap setfilter failed; continuing unfiltered. {PcapGetErrorText(handle)}");
             }
             finally
             {
@@ -127,7 +178,18 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
         }
         else
         {
-            _diagnosticSink?.Invoke("Warning", $"Npcap filter compile failed; continuing unfiltered. {PcapGetErrorText(_handle)}");
+            _diagnosticSink?.Invoke("Warning", $"Npcap filter compile failed; continuing unfiltered. {PcapGetErrorText(handle)}");
+        }
+
+        lock (_handleGate)
+        {
+            if (_disposed)
+            {
+                PcapClose(handle);
+                throw new ObjectDisposedException(nameof(NpcapRawFrameSource));
+            }
+
+            _handle = handle;
         }
     }
 

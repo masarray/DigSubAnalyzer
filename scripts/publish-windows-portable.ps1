@@ -61,12 +61,24 @@ $restoreArgs = @(
 
 dotnet @restoreArgs
 
+# Split "1.2.7" / "1.2.7-public-beta" into a numeric prefix (for AssemblyVersion,
+# which must be four numeric parts) and an optional suffix.
+$versionParts = $Version.Split('-', 2)
+$versionPrefix = $versionParts[0]
+$versionSuffix = if ($versionParts.Length -gt 1) { $versionParts[1] } else { '' }
+
 $publishArgs = @(
     "publish", $resolvedProjectPath,
     "--no-restore",
     "-c", $Configuration,
     "-r", $Runtime,
     "-o", $publishDir,
+    "/p:VersionPrefix=$versionPrefix",
+    "/p:VersionSuffix=$versionSuffix",
+    "/p:PackageVersion=$Version",
+    "/p:AssemblyVersion=$versionPrefix.0",
+    "/p:FileVersion=$versionPrefix.0",
+    "/p:InformationalVersion=$Version",
     "/p:PublishSingleFile=$($singleFile.ToString().ToLowerInvariant())",
     "/p:IncludeNativeLibrariesForSelfExtract=true",
     "/p:EnableCompressionInSingleFile=true",

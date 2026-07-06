@@ -102,17 +102,17 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         {
             try
             {
-                await captureTask.WaitAsync(TimeSpan.FromMilliseconds(750), cancellationToken);
+                await captureTask.WaitAsync(TimeSpan.FromMilliseconds(750), cancellationToken).ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
                 EnqueueEvent("Warning", "Raw capture stop timed out; forcing Npcap reader disposal.");
                 if (frameSource is not null)
-                    await frameSource.DisposeAsync();
+                    await frameSource.DisposeAsync().ConfigureAwait(false);
 
                 try
                 {
-                    await captureTask.WaitAsync(TimeSpan.FromMilliseconds(750), CancellationToken.None);
+                    await captureTask.WaitAsync(TimeSpan.FromMilliseconds(750), CancellationToken.None).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -127,7 +127,7 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         }
 
         if (frameSource is not null)
-            await frameSource.DisposeAsync();
+            await frameSource.DisposeAsync().ConfigureAwait(false);
 
         cts?.Dispose();
         EnqueueEvent("Info", "Raw process-bus capture stopped.");
@@ -200,10 +200,22 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
     {
         try
         {
-            await foreach (var frame in frameSource.ReadFramesAsync(cancellationToken))
+            await foreach (var frame in frameSource.ReadFramesAsync(cancellationToken).ConfigureAwait(false))
             {
                 Interlocked.Increment(ref _capturedFrames);
-                _analyzer.ObserveFrame(frame.Bytes, frame.CaptureTimeUtc, frame.CaptureTicks);
+
+                // The frame source allocates a fresh, never-reused array per frame, so the
+                // pump may transfer ownership and skip the analyzer's defensive copy. At
+                // SV rates (~4 800 fps per stream) that halves per-frame allocations.
+                if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(frame.Bytes, out ArraySegment<byte> segment) &&
+                    segment.Array is not null && segment.Offset == 0 && segment.Count == segment.Array.Length)
+                {
+                    _analyzer.ObserveOwnedFrame(segment.Array, frame.CaptureTimeUtc, frame.CaptureTicks);
+                }
+                else
+                {
+                    _analyzer.ObserveFrame(frame.Bytes, frame.CaptureTimeUtc, frame.CaptureTicks);
+                }
             }
         }
         catch (OperationCanceledException)

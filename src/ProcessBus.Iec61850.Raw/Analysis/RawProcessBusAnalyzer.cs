@@ -37,7 +37,19 @@ public sealed class RawProcessBusAnalyzer
 
     public void ObserveFrame(ReadOnlyMemory<byte> frameBytes, DateTime? captureTimeUtc = null, long? captureTicks = null)
     {
-        var stableBytes = frameBytes.ToArray();
+        // Defensive copy: callers may hand in memory backed by a reusable buffer, while
+        // decoded ASDUs (RefrTm/SamplePayload) hold slices of these bytes long-term.
+        ObserveOwnedFrame(frameBytes.ToArray(), captureTimeUtc, captureTicks);
+    }
+
+    /// <summary>
+    /// Zero-copy variant for callers that transfer ownership of a freshly allocated,
+    /// never-reused array (e.g. the Npcap pump, which already copies out of the pcap
+    /// buffer per frame). Avoids a second full-frame allocation on the SV hot path.
+    /// </summary>
+    public void ObserveOwnedFrame(byte[] ownedFrameBytes, DateTime? captureTimeUtc = null, long? captureTicks = null)
+    {
+        var stableBytes = ownedFrameBytes;
 
         lock (_gate)
         {

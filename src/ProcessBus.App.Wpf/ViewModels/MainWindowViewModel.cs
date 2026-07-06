@@ -662,9 +662,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         LoadSclCommand = new RelayCommand(LoadSclProject);
         ClearSclCommand = new RelayCommand(ClearSclProject);
 
-        SwitchToRawCommand = new RelayCommand(() =>
+        SwitchToRawCommand = new AsyncRelayCommand(async () =>
         {
-            SwitchToRaw();
+            await SwitchToRawAsync();
             RaiseModeStateChanged();
         });
         GooseInteractionCommand = new RelayCommand(() => DeferGooseUiFlush());
@@ -3539,9 +3539,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    private void SwitchToRaw()
+    private async Task SwitchToRawAsync()
     {
-        _rawDataSource.StopAsync().GetAwaiter().GetResult();
+        // Previously sync-over-async (StopAsync().GetAwaiter().GetResult()) on the UI
+        // thread; combined with continuations posted back to the WPF context this could
+        // deadlock the dispatcher. Awaiting keeps the UI responsive during stop.
+        await _rawDataSource.StopAsync();
         IsRunning = false;
 
         IsLiveMode = true;
@@ -4554,7 +4557,16 @@ public sealed class AsyncRelayCommand : ICommand
     {
         if (_isExecuting) return;
         _isExecuting = true;
-        try { await _execute(); }
+        try
+        {
+            await _execute();
+        }
+        catch (Exception ex)
+        {
+            // async void: an escaping exception here would crash the process. Command
+            // handlers surface errors through diagnostics; never take the app down.
+            System.Diagnostics.Trace.TraceError($"Command execution failed: {ex}");
+        }
         finally
         {
             _isExecuting = false;

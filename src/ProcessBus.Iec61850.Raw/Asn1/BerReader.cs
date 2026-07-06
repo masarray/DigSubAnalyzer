@@ -41,7 +41,10 @@ public static class BerReader
                 length = (length << 8) | span[offset++];
         }
 
-        if (length < 0 || offset + length > source.Length)
+        // Compare as "length > remaining" instead of "offset + length > total" so a
+        // hostile 4-byte length near int.MaxValue cannot overflow the addition and
+        // slip past validation into Slice(). Try-methods must never throw on raw traffic.
+        if (length < 0 || length > source.Length - offset)
             return false;
 
         tlv = new BerTlv(
