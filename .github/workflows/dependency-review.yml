@@ -36,7 +36,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          dotnet restore ./ProcessBusSuite.sln -p:AuditPipeline=true 2>&1 | tee nuget-audit.log
+          dotnet restore ./ProcessBusSuite.sln \
+            -p:AuditPipeline=true \
+            -p:EnableWindowsTargeting=true \
+            2>&1 | tee nuget-audit.log
 
       - name: Upload NuGet audit evidence
         if: always()
