@@ -11,7 +11,15 @@ The product is moving from a capable public beta toward a repeatable, evidence-b
 - Multi-stream, rollover, malformed-frame, and publisher-restart regression coverage
 - Repository, CI, security, and release hardening
 
-## Next: runtime architecture
+### v1.3.0-beta.2 stabilization
+
+- Repeated deterministic Runtime Stability workflow with downloadable TRX evidence
+- Eight-stream selected-stream isolation coverage
+- 4000/65536 rollover, duplicate, gap, and coherent-window regression coverage
+- Waveform/RMS same-window evidence
+- Maintained field-evidence template for Windows/Npcap smoke and 30–60 minute soak validation
+
+## Next: runtime architecture (v1.4)
 
 - Extract `SvStreamRuntime`, sequence tracking, waveform windowing, phasor calculation, and shape analysis from the monolithic analyzer
 - Publish immutable per-stream snapshots
