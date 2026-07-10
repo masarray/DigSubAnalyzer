@@ -27,13 +27,16 @@ $required = @(
     ".gitignore",
     ".github/CODEOWNERS",
     ".github/workflows/ci.yml",
+    ".github/workflows/runtime-stability.yml",
     ".github/workflows/codeql.yml",
     ".github/workflows/dependency-review.yml",
     ".github/workflows/pages.yml",
     ".github/workflows/release-package.yml",
     "docs/architecture/STREAM_RUNTIME.md",
     "docs/validation/TESTED_CONFIGURATIONS.md",
-    "docs/development/RELEASE_CHECKLIST.md"
+    "docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md",
+    "docs/development/RELEASE_CHECKLIST.md",
+    "tests/ProcessBus.Tests/RuntimeStabilityTests.cs"
 )
 $required | ForEach-Object { Assert-Path $_ }
 
@@ -105,6 +108,9 @@ $readme = Get-Content (Join-Path $repoRoot "README.md") -Raw
 if ($readme -notmatch [regex]::Escape("ProcessBusInsight-v$version-win-x64-portable.zip")) {
     throw "README package example is not synchronized with version $version."
 }
+
+$releaseNotesPath = "docs/RELEASE_NOTES_v$version.md"
+Assert-Path $releaseNotesPath
 
 $solution = Get-Content (Join-Path $repoRoot "ProcessBusSuite.sln") -Raw
 if ($solution -notmatch 'ProcessBus.Tests') {
