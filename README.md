@@ -1,6 +1,7 @@
 # Process Bus Insight (DigSubAnalyzer)
 
 [![CI](https://github.com/masarray/DigSubAnalyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/ci.yml)
+[![Runtime Stability](https://github.com/masarray/DigSubAnalyzer/actions/workflows/runtime-stability.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/runtime-stability.yml)
 [![CodeQL](https://github.com/masarray/DigSubAnalyzer/actions/workflows/codeql.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/codeql.yml)
 [![GitHub Pages](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml)
 [![Release Package](https://github.com/masarray/DigSubAnalyzer/actions/workflows/release-package.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/release-package.yml)
@@ -53,7 +54,7 @@ Wireshark remains an essential packet-analysis tool. Process Bus Insight focuses
 Current public-beta package naming:
 
 ```text
-ProcessBusInsight-v1.3.0-beta.1-win-x64-portable.zip
+ProcessBusInsight-v1.3.0-beta.2-win-x64-portable.zip
 SHA256SUMS.txt
 release-manifest.json
 ```
@@ -105,8 +106,8 @@ dotnet run --project .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Relea
 Create and verify a portable package:
 
 ```powershell
-.\scripts\publish-windows-portable.ps1 -Version "1.3.0-beta.1"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.3.0-beta.1-win-x64-portable.zip"
+.\scripts\publish-windows-portable.ps1 -Version "1.3.0-beta.2"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.3.0-beta.2-win-x64-portable.zip"
 ```
 
 Run the repository-quality gate:
@@ -115,13 +116,20 @@ Run the repository-quality gate:
 .\scripts\repository-health.ps1
 ```
 
+Run only the deterministic runtime-stability suite:
+
+```powershell
+dotnet test .\tests\ProcessBus.Tests\ProcessBus.Tests.csproj -c Release --filter "Category=RuntimeStability"
+```
+
 ## Validation status
 
-The repository includes parser and regression tests, CI build/test evidence, CodeQL analysis, dependency review, release-package verification, and explicit repository-hygiene checks. Public-beta status does **not** imply vendor certification or measurement-grade timing validation.
+The repository includes parser and regression tests, repeated deterministic multi-stream stability evidence, CI build/test evidence, CodeQL analysis, dependency review, release-package verification, and explicit repository-hygiene checks. Public-beta status does **not** imply vendor certification or measurement-grade timing validation.
 
 Before interpreting results, review:
 
 - [`docs/validation/TESTED_CONFIGURATIONS.md`](docs/validation/TESTED_CONFIGURATIONS.md)
+- [`docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md`](docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md)
 - [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md)
 - [`docs/VALIDATION_TEST_PLAN.md`](docs/VALIDATION_TEST_PLAN.md)
 - [`docs/development/RELEASE_CHECKLIST.md`](docs/development/RELEASE_CHECKLIST.md)
@@ -133,6 +141,7 @@ Before interpreting results, review:
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — capture and interpretation issues
 - [`docs/architecture/STREAM_RUNTIME.md`](docs/architecture/STREAM_RUNTIME.md) — selected-stream and snapshot invariants
 - [`docs/validation/TESTED_CONFIGURATIONS.md`](docs/validation/TESTED_CONFIGURATIONS.md) — explicitly tested environments
+- [`docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md`](docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md) — maintained live/replay evidence form
 - [`docs/RELEASE_PACKAGING.md`](docs/RELEASE_PACKAGING.md) — portable packaging design
 - [`ROADMAP.md`](ROADMAP.md) — product direction
 - [`SECURITY.md`](SECURITY.md) — vulnerability reporting and data-handling policy
