@@ -39,6 +39,63 @@ public static class BindingCandidateEligibility
         };
     }
 
+    /// <summary>
+    /// Produces the final dashboard classification for an eligible binding candidate.
+    /// The ordering intentionally mirrors the UI contract: hard conflicts dominate,
+    /// then ambiguity, then field mismatch, followed by clean confidence outcomes.
+    /// </summary>
+    public static string Classify(
+        int score,
+        int mismatchCount,
+        bool ambiguous,
+        bool expectedConflict,
+        bool liveAlreadyMatched,
+        string? warningReason)
+    {
+        if (expectedConflict || liveAlreadyMatched)
+            return "CONFLICT";
+
+        if (ambiguous)
+            return "AMBIGUOUS";
+
+        if (mismatchCount > 0)
+            return "MISMATCH";
+
+        if (score >= GenericScoreThreshold)
+            return string.IsNullOrWhiteSpace(warningReason) ? "MATCHED" : "MATCHED_WITH_WARNING";
+
+        return "WEAK";
+    }
+
+    /// <summary>
+    /// Evaluates eligibility and final classification together for regression tests
+    /// and other callers that need one deterministic decision contract.
+    /// </summary>
+    public static BindingCandidateDecision Evaluate(
+        string protocol,
+        int score,
+        int mismatchCount,
+        bool ambiguous,
+        bool expectedConflict,
+        bool liveAlreadyMatched,
+        string? warningReason,
+        IReadOnlyCollection<string> matchedFields)
+    {
+        var eligible = IsEligible(protocol, score, mismatchCount, matchedFields);
+        if (!eligible)
+            return new BindingCandidateDecision(false, "INELIGIBLE");
+
+        return new BindingCandidateDecision(
+            true,
+            Classify(
+                score,
+                mismatchCount,
+                ambiguous,
+                expectedConflict,
+                liveAlreadyMatched,
+                warningReason));
+    }
+
     private static bool HasPrimaryIdentityAnchor(
         string protocol,
         int score,
@@ -65,3 +122,5 @@ public static class BindingCandidateEligibility
         return score >= GenericScoreThreshold;
     }
 }
+
+public sealed record BindingCandidateDecision(bool IsEligible, string Status);
