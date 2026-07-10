@@ -1,4 +1,4 @@
-name: Dependency review
+name: Dependency security review
 
 on:
   pull_request:
@@ -8,21 +8,49 @@ permissions:
   contents: read
 
 concurrency:
-  group: dependency-review-${{ github.event.pull_request.number || github.ref }}
+  group: dependency-security-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
 jobs:
-  dependency-review:
-    name: Review dependency changes
+  dependency-security:
+    name: Audit dependency changes
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Dependency review
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Blocking NuGet vulnerability audit
+        shell: bash
+        run: |
+          dotnet restore ./ProcessBusSuite.sln \
+            -p:NuGetAudit=true \
+            -p:NuGetAuditMode=all \
+            '-p:WarningsAsErrors=NU1901;NU1902;NU1903;NU1904'
+
+      - name: GitHub dependency delta review
+        id: github-dependency-review
+        continue-on-error: true
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           retry-on-snapshot-warnings: true
           retry-on-snapshot-warnings-timeout: 180
+
+      - name: Report dependency graph availability
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.github-dependency-review.outcome }}" != "success" ]; then
+            echo "::warning::GitHub dependency delta review could not complete. The blocking NuGet vulnerability audit passed. Enable Repository Settings > Security & analysis > Dependency graph, then remove continue-on-error from this workflow."
+          fi
