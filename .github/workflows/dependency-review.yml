@@ -31,12 +31,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Blocking NuGet high/critical vulnerability audit
-        shell: bash
-        run: |
-          dotnet restore ./ProcessBusSuite.sln \
-            -p:NuGetAudit=true \
-            -p:NuGetAuditMode=all \
-            '-p:WarningsAsErrors=NU1903;NU1904'
+        run: dotnet restore ./ProcessBusSuite.sln -p:AuditPipeline=true
 
       - name: GitHub dependency delta review
         id: github-dependency-review
