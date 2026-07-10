@@ -30,8 +30,29 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Blocking NuGet high/critical vulnerability audit
-        run: dotnet restore ./ProcessBusSuite.sln -p:AuditPipeline=true
+      - name: Run NuGet high/critical vulnerability audit
+        id: nuget-audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet restore ./ProcessBusSuite.sln -p:AuditPipeline=true 2>&1 | tee nuget-audit.log
+
+      - name: Upload NuGet audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-audit-${{ github.run_id }}
+          path: nuget-audit.log
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce NuGet audit result
+        if: steps.nuget-audit.outcome != 'success'
+        shell: bash
+        run: |
+          echo "NuGet high/critical vulnerability audit failed. See the uploaded nuget-audit artifact."
+          exit 1
 
       - name: GitHub dependency delta review
         id: github-dependency-review
