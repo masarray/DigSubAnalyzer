@@ -6,7 +6,7 @@ on:
     paths:
       - "src/ProcessBus.Iec61850.Raw/Runtime/**"
       - "src/ProcessBus.Iec61850.Raw/Replay/**"
-      - "tests/ProcessBus.Tests/PcapReplayRuntimeTests.cs"
+      - "tests/ProcessBus.Tests/Pcap*Tests.cs"
       - ".github/workflows/runtime-architecture.yml"
   schedule:
     - cron: "17 3 * * 4"
