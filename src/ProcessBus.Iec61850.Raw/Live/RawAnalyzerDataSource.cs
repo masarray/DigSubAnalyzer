@@ -47,6 +47,11 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         _analyzer.SelectStream(streamId);
     }
 
+    public void SetScopeCycles(int cycles)
+    {
+        _analyzer.SetScopeCycles(cycles);
+    }
+
     public void SetSvChannelMappings(IReadOnlyList<SvChannelMappingProfile> profiles)
     {
         _analyzer.SetSvChannelMappings(profiles);
@@ -172,6 +177,7 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         return Task.FromResult(new AnalyzerSnapshot
         {
             Streams = snapshot.Streams,
+            SelectedStreamId = snapshot.SelectedStreamId,
             SelectedStreamDetails = selectedStreamDetails,
             AnalogValues = snapshot.AnalogValues,
             Waveform = snapshot.Waveform,

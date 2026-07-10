@@ -3,6 +3,7 @@ namespace ProcessBus.Core.Models;
 public sealed class AnalyzerSnapshot
 {
     public IReadOnlyList<SvStreamItem> Streams { get; init; } = Array.Empty<SvStreamItem>();
+    public string? SelectedStreamId { get; init; }
     public StreamDetailsModel? SelectedStreamDetails { get; init; }
     public AnalogValuesSnapshot AnalogValues { get; init; } = new();
     public WaveformSnapshot Waveform { get; init; } = new();

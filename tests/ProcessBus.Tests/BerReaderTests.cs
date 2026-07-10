@@ -23,7 +23,7 @@ public class BerReaderTests
     public void TryReadTlv_LongFormLength_ReadsFullValue()
     {
         var value = new byte[200];
-        var bytes = GoldenFrames.Tlv(0x04, value); // 0x81-prefixed long-form length
+        var bytes = GoldenFrames.Tlv(0x04, value);
         var offset = 0;
 
         Assert.True(BerReader.TryReadTlv(bytes, ref offset, out var tlv));
@@ -34,7 +34,7 @@ public class BerReaderTests
     [Fact]
     public void TryReadTlv_TruncatedValue_ReturnsFalse()
     {
-        var bytes = new byte[] { 0x80, 0x05, 0x41, 0x42 }; // declares 5, provides 2
+        var bytes = new byte[] { 0x80, 0x05, 0x41, 0x42 };
         var offset = 0;
 
         Assert.False(BerReader.TryReadTlv(bytes, ref offset, out _));
@@ -52,13 +52,11 @@ public class BerReaderTests
     [Fact]
     public void TryReadTlv_HostileLengthNearIntMax_ReturnsFalseWithoutThrowing()
     {
-        // Regression: length 0x7FFFFFFF with non-zero offset used to overflow the
-        // "offset + length" validation and reach Slice(), throwing from a Try-method.
         var bytes = new byte[] { 0x30, 0x02, 0x01, 0x00, 0x04, 0x84, 0x7F, 0xFF, 0xFF, 0xFF, 0x00, 0x00 };
         var offset = 0;
 
-        Assert.True(BerReader.TryReadTlv(bytes, ref offset, out _)); // benign leading TLV
-        Assert.False(BerReader.TryReadTlv(bytes, ref offset, out _)); // hostile TLV must fail cleanly
+        Assert.True(BerReader.TryReadTlv(bytes, ref offset, out _));
+        Assert.False(BerReader.TryReadTlv(bytes, ref offset, out _));
     }
 
     [Fact]

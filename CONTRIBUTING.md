@@ -1,36 +1,13 @@
 # Contributing to Process Bus Insight
 
-Thank you for helping improve Process Bus Insight.
+Thank you for helping improve a receive-only IEC 61850 Process Bus engineering tool.
 
-This project is intended to stay receive-only, raw-passive, evidence-focused, and honest about timing confidence.
+## Start here
 
-## Good contribution areas
-
-- SV, GOOSE, and PTP decoder coverage.
-- SCL examples and parser improvements.
-- Validation scenarios for FAT/SAT workflows.
-- UI clarity and evidence wording.
-- Documentation, troubleshooting notes, and field checklists.
-- Automated tests for protocol parsers and edge cases.
-
-## Product boundaries
-
-Please keep these boundaries intact:
-
-- Do not add IEC 61850 control workflows to the product app.
-- Do not make timing claims beyond the timestamp source quality.
-- Do not vendor restricted third-party binaries without license review.
-- Do not add sample captures that expose private customer/project data.
-
-## Pull request checklist
-
-Before opening a pull request:
-
-1. Build the solution in Release mode.
-2. Confirm the app still starts on Windows.
-3. Keep README and docs clear for engineers using the application.
-4. Add or update validation notes when behavior changes.
-5. Avoid committing `bin`, `obj`, `artifacts`, captures, logs, or local settings.
+1. Read [`AGENTS.md`](AGENTS.md) for permanent engineering invariants.
+2. Search existing issues and pull requests.
+3. Use a focused branch and keep changes reviewable.
+4. Remove customer, site, device, capture, SCL, MAC/IP, and project-sensitive information from all evidence.
 
 ## Development setup
 
@@ -39,4 +16,30 @@ git clone https://github.com/masarray/DigSubAnalyzer.git
 cd DigSubAnalyzer
 dotnet restore .\ProcessBusSuite.sln
 dotnet build .\ProcessBusSuite.sln -c Release
+dotnet test .\ProcessBusSuite.sln -c Release
+.\scripts\repository-health.ps1
 ```
+
+## Good contribution areas
+
+- SV, GOOSE, PTP, Ethernet, BER, and SCL parser hardening
+- Per-stream runtime isolation and coherent snapshot behavior
+- Golden-frame, replay, rollover, malformed-input, and multi-stream tests
+- UI clarity that reduces visual noise without hiding evidence
+- Release automation, documentation, and field-validation scenarios
+
+## Product boundaries
+
+Do not add:
+
+- IEC 61850 operate/control workflows
+- protection-action or publisher behavior
+- timing claims beyond the validated timestamp source
+- restricted third-party binaries
+- unsanitized customer/project evidence
+
+## Pull-request expectations
+
+A pull request should explain the engineering problem, source of truth, validation method, compatibility impact, and any remaining uncertainty. Runtime changes should include automated regression coverage where practical and a Windows smoke test.
+
+The pull-request template is the minimum checklist, not a substitute for engineering evidence.

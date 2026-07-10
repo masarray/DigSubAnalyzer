@@ -6,26 +6,39 @@ public static class PcapAdapterCatalog
 {
     public static List<NetworkAdapterInfo> GetAdapters()
     {
+        try
+        {
+            return GetAdaptersCore();
+        }
+        catch (DllNotFoundException ex)
+        {
+            return BuildFallback($"Npcap/wpcap.dll not found: {ex.Message}");
+        }
+        catch (BadImageFormatException ex)
+        {
+            return BuildFallback($"Npcap architecture mismatch: {ex.Message}");
+        }
+        catch (EntryPointNotFoundException ex)
+        {
+            return BuildFallback($"Npcap API entry point unavailable: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return BuildFallback($"Npcap adapter enumeration failed: {ex.Message}");
+        }
+    }
+
+    private static List<NetworkAdapterInfo> GetAdaptersCore()
+    {
         var errbuf = new byte[256];
         var result = FindAllDevices(out var devices, errbuf);
 
         if (result == -1 || devices == IntPtr.Zero)
         {
             var error = ReadAnsiString(errbuf);
-
-            return new List<NetworkAdapterInfo>
-            {
-                new()
-                {
-                    Id = "0",
-                    Index = 0,
-                    Name = "Ethernet",
-                    Description = string.IsNullOrWhiteSpace(error)
-                        ? "Fallback adapter entry"
-                        : $"Fallback adapter entry (Npcap enumerate failed: {error})",
-                    RawDeviceName = "index:0"
-                }
-            };
+            return BuildFallback(string.IsNullOrWhiteSpace(error)
+                ? "Npcap enumerate returned no device list"
+                : $"Npcap enumerate failed: {error}");
         }
 
         try
@@ -55,22 +68,27 @@ public static class PcapAdapterCatalog
 
             return adapters.Count > 0
                 ? adapters
-                : new List<NetworkAdapterInfo>
-                {
-                    new()
-                    {
-                        Id = "0",
-                        Index = 0,
-                        Name = "Ethernet",
-                        Description = "Fallback adapter entry (Npcap returned no devices)",
-                        RawDeviceName = "index:0"
-                    }
-                };
+                : BuildFallback("Npcap returned no devices");
         }
         finally
         {
             PcapFreeAllDevs(devices);
         }
+    }
+
+    private static List<NetworkAdapterInfo> BuildFallback(string reason)
+    {
+        return new List<NetworkAdapterInfo>
+        {
+            new()
+            {
+                Id = "0",
+                Index = 0,
+                Name = "Ethernet",
+                Description = $"Fallback adapter entry ({reason})",
+                RawDeviceName = "index:0"
+            }
+        };
     }
 
     private static int FindAllDevices(out IntPtr devices, byte[] errbuf)

@@ -2,29 +2,33 @@
 
 ## Supported versions
 
-The public beta branch is the active supported line for security reports and responsible disclosure.
+The latest public-beta line and the default `main` branch receive security fixes. Older beta packages may be asked to upgrade before investigation.
 
 ## Reporting a vulnerability
 
-Please open a private security advisory on GitHub when available, or contact the repository owner through the public GitHub profile if private advisories are not enabled.
+Use a private GitHub security advisory:
 
-Do not publish exploit details before the issue has been reviewed.
+`https://github.com/masarray/DigSubAnalyzer/security/advisories/new`
 
-## Scope
+Do not publish exploit details, malicious captures, customer SCL files, or sensitive screenshots in a public issue.
 
-Relevant security concerns include:
+Include the affected version/commit, Windows and Npcap environment, minimal reproduction steps, impact, and sanitized evidence. An initial acknowledgement is targeted within seven days; remediation timing depends on severity and reproducibility.
 
-- Unsafe parsing of crafted SCL or network input.
-- Crashes triggered by malformed SV, GOOSE, PTP, or Ethernet frames.
-- Accidental exposure of local capture files, logs, or project data.
-- Release package integrity issues.
+## In scope
+
+- Unsafe parsing of crafted Ethernet, SV, GOOSE, PTP, BER, MMS, or SCL input
+- Crashes, hangs, excessive allocation, or resource exhaustion from malformed traffic
+- Cross-stream state contamination that can misrepresent engineering evidence
+- Accidental capture, log, configuration, or project-data disclosure
+- Release-package integrity and workflow-permission issues
 
 ## Out of scope
 
-- Certification of timing measurement accuracy.
-- Issues caused by unsupported Npcap/driver installation.
-- Vulnerabilities in third-party software not distributed by this repository.
+- Certification of timing measurement accuracy
+- Unsupported or compromised Npcap/driver installations
+- Vulnerabilities in third-party software not distributed by this repository
+- Social engineering, denial-of-service against public infrastructure, or tests involving customer networks without authorization
 
 ## Data handling
 
-The application is intended for local engineering use. Avoid sharing captures, screenshots, or SCL files that contain customer, site, or project-sensitive information unless they have been sanitized.
+Process Bus Insight is intended for local engineering use. Sanitize captures, SCL files, screenshots, MAC/IP addresses, device names, and project references before sharing them.

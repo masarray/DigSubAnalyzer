@@ -28,6 +28,7 @@ public sealed class RawProcessBusAnalyzer
     private long _ptpPackets;
     private long _decodeErrors;
     private string? _selectedSvKey;
+    private int _requestedScopeCycles = 2;
     private int _svFirstSeenSequence;
     private int _gooseFirstSeenSequence;
     private DateTime _startedUtc = DateTime.UtcNow;
@@ -94,6 +95,7 @@ public sealed class RawProcessBusAnalyzer
             return new AnalyzerSnapshot
             {
                 Streams = streams,
+                SelectedStreamId = selected?.Key,
                 SelectedStreamDetails = selected?.ToDetails(),
                 AnalogValues = selected?.ToAnalogValues() ?? new AnalogValuesSnapshot(),
                 Waveform = selected?.ToWaveform() ?? new WaveformSnapshot
@@ -165,6 +167,20 @@ public sealed class RawProcessBusAnalyzer
             _selectedSvKey = string.IsNullOrWhiteSpace(streamId) ? null : streamId;
     }
 
+    public void SetScopeCycles(int cycles)
+    {
+        var clamped = Math.Clamp(cycles, 1, 8);
+        lock (_gate)
+        {
+            if (_requestedScopeCycles == clamped)
+                return;
+
+            _requestedScopeCycles = clamped;
+            foreach (var stream in _svStreams.Values)
+                stream.SetScopeCycles(clamped);
+        }
+    }
+
     public void SetSvChannelMappings(IReadOnlyList<SvChannelMappingProfile> profiles)
     {
         lock (_gate)
@@ -203,7 +219,7 @@ public sealed class RawProcessBusAnalyzer
 
             if (!_svStreams.TryGetValue(key, out var state))
             {
-                state = new SvStreamState(key, ++_svFirstSeenSequence);
+                state = new SvStreamState(key, ++_svFirstSeenSequence, _requestedScopeCycles);
                 _svStreams[key] = state;
                 AddEvent("Info", $"Raw SV stream detected: {DescribeSv(packet.Frame, asdu)}.");
             }
@@ -744,14 +760,13 @@ public sealed class RawProcessBusAnalyzer
         private const int ReorderBoundary = SampleCounterModulo / 2;
         private const double JitterAlertThresholdMicroseconds = 300.0;
         private const int JitterWindowCapacity = 4000;
-        private const int WaveformSampleCapacity = 640;
-        private const int ScopeCycles = 4;
+        private const int WaveformSampleCapacity = 1024;
+        private int _scopeCycles;
         private const int DefaultSamplesPerCycle = 80;
         private const double WaveformRmsSignatureStep = 0.002;
         private const double WaveformAngleSignatureStepDegrees = 0.2;
         private const double WaveformFrequencySignatureStepHz = 0.01;
-        private const double AngleAttackAlpha = 0.18;
-        private static readonly TimeSpan DisplayHoldAfterSequenceIssue = TimeSpan.FromMilliseconds(650);
+        private const double AngleAttackAlpha = 1.0;
         private static readonly TimeSpan PacketRateWindow = TimeSpan.FromSeconds(1.0);
         private static readonly string[] CurrentChannels = ["Ia", "Ib", "Ic"];
         private static readonly string[] VoltageChannels = ["Ua", "Ub", "Uc"];
@@ -770,23 +785,41 @@ public sealed class RawProcessBusAnalyzer
         private readonly Queue<double> _absJitterWindow = new();
         private readonly Queue<DateTime> _recentJitterExcursions = new();
         private readonly Queue<DateTime> _recentPacketTimes = new();
+        private readonly Queue<ScopeSampleFrame> _scopeFrames = new(WaveformSampleCapacity + 8);
         private readonly Dictionary<string, RollingChannelSamples> _channelSamples = CreateChannelBuffers();
         private readonly Dictionary<string, double?> _displayAngles = CreateAngleState();
+        private long _scopeFrameIndex;
+        private ushort? _lastScopeSampleCounter;
+        private ushort _maxSeenSequenceCounter;
+        private ushort _maxSeenScopeSampleCounter;
+        private WaveformSnapshot? _lastScopeWaveform;
+        private AnalogValuesSnapshot? _lastAnalogValues;
         private double _absJitterWindowTotalMicroseconds;
         private double _totalDeltaMicroseconds;
         private long _deltaCount;
         private ushort? _previousSmpCnt;
         private long? _previousCaptureTicks;
         private string? _pendingJitterEvidence;
-        private string? _lastWaveformSignature;
         private string? _activeMappingSignature;
-        private WaveformSnapshot? _lastReconstructedWaveform;
-        private DateTime _lastSequenceIssueUtc = DateTime.MinValue;
 
-        public SvStreamState(string key, int firstSeenOrder)
+        public SvStreamState(string key, int firstSeenOrder, int scopeCycles)
         {
             Key = key;
             FirstSeenOrder = firstSeenOrder;
+            _scopeCycles = Math.Clamp(scopeCycles, 1, 8);
+        }
+
+        public void SetScopeCycles(int cycles)
+        {
+            var clamped = Math.Clamp(cycles, 1, 8);
+            if (_scopeCycles == clamped)
+                return;
+
+            _scopeCycles = clamped;
+            // Keep captured samples, but force the next snapshot to be generated using
+            // the newly requested timebase. This makes 4/8-cycle display real instead
+            // of just changing the combo-box label.
+            _lastScopeWaveform = null;
         }
 
         public string Key { get; }
@@ -864,8 +897,8 @@ public sealed class RawProcessBusAnalyzer
             var isStale = age > TimeSpan.FromSeconds(2);
             var hasWarning = HasIntegrityIssue || RecentJitterOver300MicrosecondsCount > 0;
             var severityRank = isStale ? 2 : hasWarning ? 1 : 0;
-            var statusText = isStale ? "Stale" : hasWarning ? "Warning" : "Running";
-            var displayStatus = isStale ? "STALE" : hasWarning ? "WARN" : "RAW";
+            var statusText = isStale ? "Stale" : hasWarning ? "Live with warning" : "Live";
+            var displayStatus = isStale ? "STALE" : "LIVE";
             var statusBrush = isStale ? "#F0B533" : hasWarning ? "#F0B533" : "#70D7A7";
             var statusSoftBrush = isStale ? "#3A2B12" : hasWarning ? "#3A2B12" : "#173528";
 
@@ -937,19 +970,38 @@ public sealed class RawProcessBusAnalyzer
 
         public AnalogValuesSnapshot ToAnalogValues()
         {
-            var reference = ResolvePhasorReference();
+            var samplesPerCycle = ResolveSamplesPerCycle();
+            var visibleSamples = Math.Max(samplesPerCycle * 2, DefaultSamplesPerCycle);
+            var analogWindow = BuildCoherentScopeWindow(samplesPerCycle, visibleSamples);
 
-            return new AnalogValuesSnapshot
+            if (analogWindow.Count == 0)
             {
-                Ia = CreateChannelValue("Ia", reference),
-                Ib = CreateChannelValue("Ib", reference),
-                Ic = CreateChannelValue("Ic", reference),
-                In = CreateChannelValue("In", reference),
-                Ua = CreateChannelValue("Ua", reference),
-                Ub = CreateChannelValue("Ub", reference),
-                Uc = CreateChannelValue("Uc", reference),
-                Un = CreateChannelValue("Un", reference)
+                // Do not publish empty/N/A phasor and RMS frames while the triggered scope
+                // is filling or resynchronizing. Returning a fresh empty AnalogValuesSnapshot
+                // makes the UI flicker between valid values and N/A; hold the last coherent
+                // engineering snapshot until a new complete window is available.
+                return _lastAnalogValues ?? new AnalogValuesSnapshot();
+            }
+
+            // Match ARSVIN runtime: recompute phasor/RMS from the latest locked two-cycle
+            // window on every UI refresh. A cache key here made waveform/phasor updates feel
+            // stale when harmonic content changed without a stream/angle selection change.
+            var reference = ResolvePhasorReference(analogWindow, samplesPerCycle);
+
+            var snapshot = new AnalogValuesSnapshot
+            {
+                Ia = CreateChannelValue("Ia", reference, analogWindow, samplesPerCycle),
+                Ib = CreateChannelValue("Ib", reference, analogWindow, samplesPerCycle),
+                Ic = CreateChannelValue("Ic", reference, analogWindow, samplesPerCycle),
+                In = CreateChannelValue("In", reference, analogWindow, samplesPerCycle),
+                Ua = CreateChannelValue("Ua", reference, analogWindow, samplesPerCycle),
+                Ub = CreateChannelValue("Ub", reference, analogWindow, samplesPerCycle),
+                Uc = CreateChannelValue("Uc", reference, analogWindow, samplesPerCycle),
+                Un = CreateChannelValue("Un", reference, analogWindow, samplesPerCycle)
             };
+
+            _lastAnalogValues = snapshot;
+            return snapshot;
         }
 
         public WaveformSnapshot ToWaveform()
@@ -957,42 +1009,75 @@ public sealed class RawProcessBusAnalyzer
             var sampleRate = ResolveWaveformSampleRate();
             var frequency = ResolveNominalFrequency();
             var samplesPerCycle = ResolveSamplesPerCycle();
-            var visibleSamples = Math.Max(samplesPerCycle * ScopeCycles, DefaultSamplesPerCycle);
-            var analog = ToAnalogValues();
-            var signature = BuildWaveformSignature(analog, frequency, visibleSamples);
+            var visibleSamples = Math.Max(samplesPerCycle * _scopeCycles, DefaultSamplesPerCycle);
 
-            if (string.Equals(_lastWaveformSignature, signature, StringComparison.Ordinal) &&
-                _lastReconstructedWaveform is not null)
-                return _lastReconstructedWaveform;
+            // IMPORTANT: draw from one coherent SV sample-point window, not independent per-channel tails.
+            // Waveform, phasor, and RMS must be derived from the same sample-count-aligned snapshot; otherwise
+            // the scope/phasor/RMS will jitter even when the publisher is stable. This mirrors ARSVIN Subscriber.
+            var scopeWindow = BuildCoherentScopeWindow(samplesPerCycle, visibleSamples);
+            if (scopeWindow.Count == 0)
+            {
+                // Do not publish partial/tail windows while the acquisition buffer is filling
+                // or resynchronizing after a counter discontinuity. Showing partial windows is
+                // what makes the trace appear to run left at start-up and after injection
+                // changes. Hold the last complete oscilloscope frame until a full coherent
+                // window is available; if there is no published frame yet, show a pending state.
+                if (_lastScopeWaveform is not null)
+                    return _lastScopeWaveform;
 
-            var voltageSeries = CreateReconstructedWaveformSeries(analog, VoltageChannels, frequency, sampleRate, visibleSamples);
-            var currentSeries = CreateReconstructedWaveformSeries(analog, CurrentChannels, frequency, sampleRate, visibleSamples);
-            var sampleCount = voltageSeries.Concat(currentSeries)
+                return new WaveformSnapshot
+                {
+                    SampleRateHz = sampleRate,
+                    MeasuredFrequencyHz = frequency,
+                    SamplesPerCycle = samplesPerCycle,
+                    StatusText = "Raw waveform waiting for a complete coherent SV cycle window.",
+                    ShapeSeverity = "Unknown",
+                    ShapeStatusText = "Shape pending: waiting for stable scope window",
+                    HasShapeWarning = false,
+                    IsReconstructed = false
+                };
+            }
+
+            // Match ARSVIN runtime: build a fresh snapshot from the latest locked two-cycle
+            // window every refresh. The X phase is stable because BuildCoherentScopeWindow()
+            // is slot-locked; caching the object is what made harmonic/clipping changes appear
+            // late until the user changed SV/angle selection.
+            var voltageSeries = CreateLiveWaveformSeries(VoltageChannels, samplesPerCycle, scopeWindow);
+            var currentSeries = CreateLiveWaveformSeries(CurrentChannels, samplesPerCycle, scopeWindow);
+
+            var allSeries = voltageSeries.Concat(currentSeries).ToArray();
+            var sampleCount = allSeries
                 .Select(series => series.Samples.Count)
                 .DefaultIfEmpty(0)
                 .Max();
+            var shape = BuildWaveformShapeSummary(allSeries);
+            var isReconstructed = allSeries.Length > 0 && allSeries.All(series => string.Equals(series.ShapeSeverity, "Unavailable", StringComparison.OrdinalIgnoreCase));
 
-            var snapshot = new WaveformSnapshot
+            var waveformSnapshot = new WaveformSnapshot
             {
                 VoltageSeries = voltageSeries,
                 CurrentSeries = currentSeries,
                 SampleRateHz = sampleRate,
                 MeasuredFrequencyHz = frequency,
+                SamplesPerCycle = samplesPerCycle,
                 WindowDurationMilliseconds = sampleRate > 0 && sampleCount > 0
                     ? sampleCount * 1000.0 / sampleRate
                     : 0,
                 StatusText = sampleCount > 0
-                    ? $"Raw scope reconstructed from RMS + smpCnt timing ({sampleCount} point(s))."
-                    : "Raw waveform waiting for mapped channel samples."
+                    ? $"Raw scope drawn from decoded SV sample window ({sampleCount} point(s)). {shape.StatusText}"
+                    : "Raw waveform waiting for mapped channel samples.",
+                ShapeSeverity = shape.Severity,
+                ShapeStatusText = shape.StatusText,
+                HasShapeWarning = shape.HasWarning,
+                IsReconstructed = isReconstructed
             };
 
             if (sampleCount > 0)
             {
-                _lastWaveformSignature = signature;
-                _lastReconstructedWaveform = snapshot;
+                _lastScopeWaveform = waveformSnapshot;
             }
 
-            return snapshot;
+            return waveformSnapshot;
         }
 
         private void ObserveSamples(ReadOnlyMemory<byte> samplePayload, ushort? smpCnt, SvChannelMappingProfile? mappingProfile, bool acceptForDisplay)
@@ -1001,6 +1086,7 @@ public sealed class RawProcessBusAnalyzer
             DecodedElementCount = decoded.Count;
             RawValuesText = BuildRawValuesText(decoded);
             ApplyMappingSignature(BuildMappingSignature(mappingProfile, decoded.Count));
+            var displayValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
             if (mappingProfile?.HasRenderableChannels == true)
             {
@@ -1015,7 +1101,10 @@ public sealed class RawProcessBusAnalyzer
                         continue;
 
                     if (acceptForDisplay)
+                    {
                         samples.Add(smpCnt, decoded[element.ElementIndex].Value, ResolveSamplesPerCycle());
+                        displayValues[element.ChannelName] = decoded[element.ElementIndex].Value;
+                    }
 
                     sclMapped.Add($"{element.ChannelName}<-element[{element.ElementIndex}]");
                     sclUsed.Add(element.ElementIndex);
@@ -1023,6 +1112,9 @@ public sealed class RawProcessBusAnalyzer
 
                 if (sclMapped.Count > 0)
                 {
+                    if (acceptForDisplay)
+                        AddScopeFrame(smpCnt, displayValues);
+
                     MappingProfileName = $"{mappingProfile.SourceText} / {mappingProfile.ControlBlockReference}";
                     var displayGateText = acceptForDisplay ? string.Empty : " | display held by SV sequence gate";
                     MappedChannelNamesText = $"{string.Join(", ", sclMapped)} | SCL DataSet {mappingProfile.DataSetReference} | Used elements: {string.Join(", ", sclUsed)}{displayGateText}";
@@ -1046,11 +1138,17 @@ public sealed class RawProcessBusAnalyzer
                     continue;
 
                 if (acceptForDisplay)
+                {
                     _channelSamples[channel].Add(smpCnt, decoded[elementIndex].Value, ResolveSamplesPerCycle());
+                    displayValues[channel] = decoded[elementIndex].Value;
+                }
 
                 mapped.Add(channel);
                 used.Add(elementIndex);
             }
+
+            if (mapped.Count > 0 && acceptForDisplay)
+                AddScopeFrame(smpCnt, displayValues);
 
             MappingProfileName = IsOmicronStream(SvId)
                 ? $"OMICRON raw 4I4V instMag/q profile / {SvId}"
@@ -1090,36 +1188,54 @@ public sealed class RawProcessBusAnalyzer
             foreach (var samples in _channelSamples.Values)
                 samples.Clear();
 
+            ClearScopeAcquisition(clearPublishedSnapshot: true);
+
             foreach (var channel in _displayAngles.Keys.ToArray())
                 _displayAngles[channel] = null;
 
-            _lastWaveformSignature = null;
-            _lastReconstructedWaveform = null;
         }
 
-        private ChannelValueModel CreateChannelValue(string channel, PhasorReference? reference)
+        private void ClearScopeAcquisition(bool clearPublishedSnapshot)
         {
-            var samples = _channelSamples[channel];
-            var instant = samples.LastValue;
+            _scopeFrames.Clear();
+            _scopeFrameIndex = 0;
+            _lastScopeSampleCounter = null;
+            _maxSeenScopeSampleCounter = 0;
+            if (clearPublishedSnapshot)
+            {
+                _lastScopeWaveform = null;
+                _lastAnalogValues = null;
+            }
+        }
+
+        private ChannelValueModel CreateChannelValue(
+            string channel,
+            PhasorReference? reference,
+            IReadOnlyList<ScopeSampleFrame> coherentWindow,
+            int samplesPerCycle)
+        {
             var unit = channel.StartsWith("U", StringComparison.OrdinalIgnoreCase) ? "V" : "A";
-            var angle = ResolveDisplayAngle(channel, samples, reference);
+            var instant = GetLatestScopeValue(channel);
+            var rawAngle = GetFundamentalAngleDegrees(coherentWindow, channel, samplesPerCycle);
+            var rms = GetRms(coherentWindow, channel);
+            var angle = ResolveDisplayAngle(channel, rawAngle, reference);
 
             return new ChannelValueModel(channel)
             {
                 InstantValue = instant,
-                RmsValue = samples.GetDisplayRms(),
+                RmsValue = rms,
                 AngleDegrees = angle,
                 Unit = unit
             };
         }
 
-        private double? ResolveDisplayAngle(string channel, RollingChannelSamples samples, PhasorReference? reference)
+        private double? ResolveDisplayAngle(string channel, double? rawAngle, PhasorReference? reference)
         {
-            if (IsDisplayHoldActive())
-                return _displayAngles[channel] ?? DefaultAngleDegrees(channel);
-
-            var samplesPerCycle = ResolveSamplesPerCycle();
-            var rawAngle = samples.GetFundamentalAngleDegrees(samplesPerCycle);
+            // Match ARSVIN Subscriber behavior: phasors are a live calculation from the
+            // current locked sample window. Sequence/jitter issues are diagnostics; they must
+            // not freeze the vector display. The old display-hold path kept returning the
+            // previous angle after transient sequence warnings, so the phasor diagram only
+            // appeared to refresh after a user clicked SV Explorer and rebuilt the workspace.
             if (!rawAngle.HasValue || reference is null)
                 return _displayAngles[channel] ?? DefaultAngleDegrees(channel);
 
@@ -1127,37 +1243,277 @@ public sealed class RawProcessBusAnalyzer
             var relativeAngle = string.Equals(channel, referenceValue.Channel, StringComparison.OrdinalIgnoreCase)
                 ? 0.0
                 : NormalizeAngleDegrees(rawAngle.Value - referenceValue.AngleDegrees);
-            var current = _displayAngles[channel];
-            if (!current.HasValue)
-            {
-                _displayAngles[channel] = relativeAngle;
-                return relativeAngle;
-            }
 
-            var delta = NormalizeAngleDegrees(relativeAngle - current.Value);
-            var smoothed = NormalizeAngleDegrees(current.Value + (delta * AngleAttackAlpha));
-            _displayAngles[channel] = smoothed;
-            return smoothed;
+            _displayAngles[channel] = relativeAngle;
+            return relativeAngle;
         }
 
-        private bool IsDisplayHoldActive()
+        private PhasorReference? ResolvePhasorReference(IReadOnlyList<ScopeSampleFrame> coherentWindow, int samplesPerCycle)
         {
-            return _lastSequenceIssueUtc != DateTime.MinValue &&
-                   LastSeenUtc - _lastSequenceIssueUtc <= DisplayHoldAfterSequenceIssue;
-        }
-
-        private PhasorReference? ResolvePhasorReference()
-        {
-            var samplesPerCycle = ResolveSamplesPerCycle();
-
             foreach (var channel in new[] { "Ua", "Ia" })
             {
-                var angle = _channelSamples[channel].GetFundamentalAngleDegrees(samplesPerCycle);
+                var angle = GetFundamentalAngleDegrees(coherentWindow, channel, samplesPerCycle);
                 if (angle.HasValue)
                     return new PhasorReference(channel, angle.Value);
             }
 
             return null;
+        }
+
+        private IReadOnlyList<WaveformSeriesModel> CreateLiveWaveformSeries(
+            IReadOnlyList<string> channels,
+            int samplesPerCycle,
+            IReadOnlyList<ScopeSampleFrame> coherentWindow)
+        {
+            var result = new List<WaveformSeriesModel>(channels.Count);
+
+            foreach (var channel in channels)
+            {
+                var scopeWindow = GetChannelSamples(coherentWindow, channel);
+                if (scopeWindow.Count < 2)
+                    continue;
+
+                var lockedShape = AnalyzeWaveformShape(scopeWindow, samplesPerCycle);
+                var fastShape = AnalyzeFastWaveformShape(channel, samplesPerCycle);
+                var shape = PickMoreSevereWaveformShape(lockedShape, fastShape);
+                result.Add(new WaveformSeriesModel
+                {
+                    Name = channel,
+                    Unit = channel.StartsWith("U", StringComparison.OrdinalIgnoreCase) ? "V" : "A",
+                    Samples = scopeWindow,
+                    ShapeSeverity = shape.Severity,
+                    ShapeStatusText = shape.StatusText,
+                    ShapeResidualPercent = shape.ResidualPercent,
+                    CrestFactor = shape.CrestFactor,
+                    HasShapeDistortion = shape.HasDistortion
+                });
+            }
+
+            return result;
+        }
+
+        private WaveformShapeAnalysis AnalyzeFastWaveformShape(string channel, int samplesPerCycle)
+        {
+            if (!_channelSamples.TryGetValue(channel, out var samples))
+                return new WaveformShapeAnalysis("Unknown", "Shape pending: channel samples not available", 0, 0, false);
+
+            // Fast detector: use the latest chronological raw channel tail, independent of
+            // the phase-locked visual window. The visual scope must stay stable, but the
+            // harmonic/clipping verdict must follow the publisher as soon as one complete
+            // cycle has arrived. This mirrors ARSVIN's live runtime philosophy: every UI
+            // snapshot recomputes measurements from the current stream data, not from a
+            // stale visual/cache object.
+            var analysisSamples = samples.GetLatestSamples(samplesPerCycle);
+            if (analysisSamples.Count < samplesPerCycle)
+                return new WaveformShapeAnalysis("Unknown", "Shape pending: waiting for fast shape cycle", 0, 0, false);
+
+            return AnalyzeWaveformShape(analysisSamples, samplesPerCycle, minimumCycles: 1);
+        }
+
+        private static WaveformShapeAnalysis PickMoreSevereWaveformShape(WaveformShapeAnalysis lockedShape, WaveformShapeAnalysis fastShape)
+        {
+            // Shape verdict should describe the latest publisher waveform, not a stale visual
+            // hold. The phase-locked window remains the drawing source, but the fast one-cycle
+            // chronological tail is authoritative as soon as it has a valid answer. This makes
+            // harmonic/clipping ON and OFF follow the live publisher without needing SV Explorer
+            // clicks. Unknown/pending fast results fall back to the locked visual window.
+            if (!string.Equals(fastShape.Severity, "Unknown", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(fastShape.Severity, "Unavailable", StringComparison.OrdinalIgnoreCase))
+                return fastShape;
+
+            return lockedShape;
+        }
+
+        private void AddScopeFrame(ushort? smpCnt, IReadOnlyDictionary<string, double> displayValues)
+        {
+            if (displayValues.Count == 0)
+                return;
+
+            // Unwrap smpCnt into a monotonic 64-bit sample index. SV counters wrap either at
+            // the sample rate (e.g. 3999 -> 0 for 50 Hz / 80 spc) or at 65536 depending on the
+            // publisher; the adaptive wrap base handles both. Without unwrapping, the scope
+            // window phase jumps at every counter rollover (a hard, periodic flicker).
+            if (smpCnt.HasValue)
+            {
+                if (smpCnt.Value > _maxSeenScopeSampleCounter)
+                    _maxSeenScopeSampleCounter = smpCnt.Value;
+
+                if (_lastScopeSampleCounter.HasValue)
+                {
+                    long delta;
+                    if (smpCnt.Value >= _lastScopeSampleCounter.Value)
+                    {
+                        delta = smpCnt.Value - _lastScopeSampleCounter.Value;
+                    }
+                    else
+                    {
+                        var wrapBase = (long)_maxSeenScopeSampleCounter + 1;
+                        delta = smpCnt.Value + wrapBase - _lastScopeSampleCounter.Value;
+                    }
+
+                    if (delta <= 0)
+                        return;
+
+                    if (delta > WaveformSampleCapacity)
+                    {
+                        // Counter reset / large discontinuity. Start acquiring a new stable
+                        // window but keep the last published snapshot on screen until the new
+                        // window is complete. Never stitch old and new publisher states.
+                        ClearScopeAcquisition(clearPublishedSnapshot: false);
+                        _scopeFrameIndex = 1;
+                    }
+                    else
+                    {
+                        _scopeFrameIndex += delta;
+                    }
+                }
+                else
+                {
+                    _scopeFrameIndex++;
+                }
+
+                _lastScopeSampleCounter = smpCnt.Value;
+            }
+            else
+            {
+                _scopeFrameIndex++;
+                _lastScopeSampleCounter = null;
+            }
+
+            _scopeFrames.Enqueue(new ScopeSampleFrame(
+                Index: _scopeFrameIndex,
+                SampleCounter: smpCnt,
+                Ia: TryGetDisplayValue(displayValues, "Ia"),
+                Ib: TryGetDisplayValue(displayValues, "Ib"),
+                Ic: TryGetDisplayValue(displayValues, "Ic"),
+                In: TryGetDisplayValue(displayValues, "In"),
+                Ua: TryGetDisplayValue(displayValues, "Ua"),
+                Ub: TryGetDisplayValue(displayValues, "Ub"),
+                Uc: TryGetDisplayValue(displayValues, "Uc"),
+                Un: TryGetDisplayValue(displayValues, "Un")));
+
+            while (_scopeFrames.Count > WaveformSampleCapacity)
+                _scopeFrames.Dequeue();
+        }
+
+        private static double? TryGetDisplayValue(IReadOnlyDictionary<string, double> values, string channel)
+        {
+            return values.TryGetValue(channel, out var value) ? value : null;
+        }
+
+        private IReadOnlyList<ScopeSampleFrame> BuildCoherentScopeWindow(int samplesPerCycle, int visibleSamples)
+        {
+            // ARSVIN's OscilloscopePlot has an X index per WaveformPoint, so a partially-filled
+            // locked window can still be drawn without horizontal stretching. DigSub's existing
+            // WaveformSeriesModel only carries Y samples and the WPF control spreads whatever
+            // count it receives across the whole plot width. Therefore, a 14/29-point startup
+            // window is visually stretched into a long, slow line. Keep the ARSVIN slot-locking
+            // rule, but publish only when the whole two-cycle slot window is available. Until
+            // then ToWaveform()/ToAnalogValues() hold the last published snapshot.
+            var frames = _scopeFrames.ToArray();
+            if (frames.Length == 0)
+                return Array.Empty<ScopeSampleFrame>();
+
+            var pointsPerCycle = ResolveArsvinPointsPerCycle(samplesPerCycle);
+            if (pointsPerCycle <= 0)
+                return Array.Empty<ScopeSampleFrame>();
+
+            var window = Math.Clamp(pointsPerCycle * _scopeCycles, 32, 640);
+            if (frames.Length < window)
+                return Array.Empty<ScopeSampleFrame>();
+
+            var slots = new ScopeSampleFrame?[window];
+            foreach (var frame in frames)
+            {
+                var slot = frame.SampleCounter.HasValue
+                    ? frame.SampleCounter.Value % window
+                    : (int)(frame.Index % window);
+                slots[slot] = frame;
+            }
+
+            var result = new List<ScopeSampleFrame>(window);
+            for (var slot = 0; slot < slots.Length; slot++)
+            {
+                if (slots[slot] is not { } frame)
+                    return Array.Empty<ScopeSampleFrame>();
+
+                result.Add(frame with { Index = slot });
+            }
+
+            return result.ToArray();
+        }
+
+        private static int ResolveArsvinPointsPerCycle(int samplesPerCycle)
+        {
+            var candidate = samplesPerCycle > 0 ? samplesPerCycle : DefaultSamplesPerCycle;
+            return Math.Clamp(candidate, 16, 256);
+        }
+
+        private static IReadOnlyList<double> GetChannelSamples(IReadOnlyList<ScopeSampleFrame> frames, string channel)
+        {
+            var result = new List<double>(frames.Count);
+            foreach (var frame in frames)
+            {
+                var value = frame.GetValue(channel);
+                if (value.HasValue)
+                    result.Add(value.Value);
+            }
+
+            return result;
+        }
+
+        private double? GetLatestScopeValue(string channel)
+        {
+            foreach (var frame in _scopeFrames.Reverse())
+            {
+                var value = frame.GetValue(channel);
+                if (value.HasValue)
+                    return value.Value;
+            }
+
+            return _channelSamples[channel].LastValue;
+        }
+
+        private static double? GetRms(IReadOnlyList<ScopeSampleFrame> frames, string channel)
+        {
+            var values = GetChannelSamples(frames, channel);
+            if (values.Count == 0)
+                return null;
+
+            var sumSquares = 0.0;
+            var count = 0;
+            foreach (var value in values)
+            {
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                    continue;
+
+                sumSquares += value * value;
+                count++;
+            }
+
+            return count == 0 ? null : Math.Sqrt(Math.Max(0.0, sumSquares / count));
+        }
+
+        private static double? GetFundamentalAngleDegrees(IReadOnlyList<ScopeSampleFrame> frames, string channel, int samplesPerCycle)
+        {
+            var values = GetChannelSamples(frames, channel);
+            if (samplesPerCycle <= 1 || values.Count < samplesPerCycle)
+                return null;
+
+            var sine = 0.0;
+            var cosine = 0.0;
+            var phaseStep = 2.0 * Math.PI / samplesPerCycle;
+            for (var index = 0; index < values.Count; index++)
+            {
+                var angle = phaseStep * index;
+                sine += values[index] * Math.Sin(angle);
+                cosine += values[index] * Math.Cos(angle);
+            }
+
+            if (Math.Abs(sine) < 1e-9 && Math.Abs(cosine) < 1e-9)
+                return null;
+
+            return NormalizeAngleDegrees(Math.Atan2(cosine, sine) * 180.0 / Math.PI);
         }
 
         private static IReadOnlyList<WaveformSeriesModel> CreateReconstructedWaveformSeries(
@@ -1186,7 +1542,12 @@ public sealed class RawProcessBusAnalyzer
                         value.AngleDegrees ?? DefaultAngleDegrees(channel),
                         frequencyHz,
                         sampleRateHz,
-                        visibleSamples)
+                        visibleSamples),
+                    ShapeSeverity = "Unavailable",
+                    ShapeStatusText = "Shape unavailable: reconstructed sine fallback",
+                    ShapeResidualPercent = 0,
+                    CrestFactor = Math.Sqrt(2.0),
+                    HasShapeDistortion = false
                 });
             }
 
@@ -1200,13 +1561,15 @@ public sealed class RawProcessBusAnalyzer
 
             if (_previousSmpCnt.HasValue && _previousCaptureTicks.HasValue)
             {
-                var sequence = AnalyzeSequence(_previousSmpCnt.Value, smpCnt);
+                var sequence = AnalyzeSequence(_previousSmpCnt.Value, smpCnt, ResolveSequenceWrapBase());
                 SequenceStatusText = sequence.StatusText;
                 SequenceErrors += sequence.IsError ? 1 : 0;
                 MissingSamples += sequence.MissingSamples;
                 acceptForDisplay = !sequence.IsError;
                 if (sequence.IsError)
-                    _lastSequenceIssueUtc = captureTimeUtc;
+                {
+                    ClearScopeAcquisition(clearPublishedSnapshot: false);
+                }
 
                 var actualUs = (captureTicks - _previousCaptureTicks.Value) * 1_000_000.0 / Stopwatch.Frequency;
                 CurrentDeltaMicroseconds = actualUs;
@@ -1251,6 +1614,9 @@ public sealed class RawProcessBusAnalyzer
                     JitterStatusText = "Arrival variation pending: sample rate unknown";
                 }
             }
+
+            if (smpCnt > _maxSeenSequenceCounter)
+                _maxSeenSequenceCounter = smpCnt;
 
             _previousSmpCnt = smpCnt;
             _previousCaptureTicks = captureTicks;
@@ -1375,8 +1741,11 @@ public sealed class RawProcessBusAnalyzer
 
             var ubNorm = NormalizeAngleDegrees(ub.Value);
             var ucNorm = NormalizeAngleDegrees(uc.Value);
-            var abcLike = IsNear(ubNorm, 120.0, 35.0) && IsNear(ucNorm, -120.0, 35.0);
-            var acbLike = IsNear(ubNorm, -120.0, 35.0) && IsNear(ucNorm, 120.0, 35.0);
+            // IEC/utility display convention used by ARSVIN: positive-sequence R/S/T is
+            // R = 0°, S = -120°, T = +120°. The previous logic was inverted and showed
+            // phase-S at +120°, which is wrong for an engineering phasor view.
+            var abcLike = IsNear(ubNorm, -120.0, 35.0) && IsNear(ucNorm, 120.0, 35.0);
+            var acbLike = IsNear(ubNorm, 120.0, 35.0) && IsNear(ucNorm, -120.0, 35.0);
 
             if (abcLike)
                 return "Phase order: ABC candidate";
@@ -1463,6 +1832,188 @@ public sealed class RawProcessBusAnalyzer
                 return Math.Max(1, (int)Math.Round(sampleRate / nominalFrequency));
 
             return DefaultSamplesPerCycle;
+        }
+
+        private static WaveformShapeSummary BuildWaveformShapeSummary(IReadOnlyList<WaveformSeriesModel> series)
+        {
+            if (series.Count == 0)
+                return new WaveformShapeSummary("Unknown", "Shape pending", 0, false);
+
+            if (series.All(item => string.Equals(item.ShapeSeverity, "Unavailable", StringComparison.OrdinalIgnoreCase)))
+                return new WaveformShapeSummary("Unavailable", "Shape unavailable: reconstructed sine fallback", 0, false);
+
+            var ranked = series
+                .Select(item => (Item: item, Rank: ShapeSeverityRank(item.ShapeSeverity)))
+                .OrderByDescending(item => item.Rank)
+                .ThenByDescending(item => item.Item.ShapeResidualPercent)
+                .First();
+
+            var selected = ranked.Item;
+            var hasWarning = ranked.Rank >= ShapeSeverityRank("Warning");
+            var statusText = selected.ShapeSeverity switch
+            {
+                "Distorted" => $"Waveform distortion suspected: {selected.Name} residual {selected.ShapeResidualPercent:0.#}%.",
+                "Warning" => $"Waveform shape watch: {selected.Name} residual {selected.ShapeResidualPercent:0.#}%.",
+                "OK" => "Waveform shape OK.",
+                "Low" => "Waveform shape pending: signal too low or flat.",
+                _ => "Waveform shape pending."
+            };
+
+            return new WaveformShapeSummary(selected.ShapeSeverity, statusText, selected.ShapeResidualPercent, hasWarning);
+        }
+
+        private static int ShapeSeverityRank(string? severity)
+        {
+            return severity switch
+            {
+                "Distorted" => 4,
+                "Warning" => 3,
+                "Unknown" => 2,
+                "Unavailable" => 2,
+                "Low" => 1,
+                "OK" => 0,
+                _ => 2
+            };
+        }
+
+        private static WaveformShapeAnalysis AnalyzeWaveformShape(IReadOnlyList<double> samples, int samplesPerCycle, int minimumCycles = 2)
+        {
+            minimumCycles = Math.Clamp(minimumCycles, 1, 4);
+            var minimumSamples = Math.Max(16, samplesPerCycle * minimumCycles);
+            if (samplesPerCycle <= 1 || samples.Count < minimumSamples)
+                return new WaveformShapeAnalysis("Unknown", "Shape pending: insufficient raw samples", 0, 0, false);
+
+            var cycles = Math.Min(4, samples.Count / samplesPerCycle);
+            var usableCount = cycles * samplesPerCycle;
+            if (usableCount < samplesPerCycle * minimumCycles)
+                return new WaveformShapeAnalysis("Unknown", "Shape pending: insufficient coherent cycles", 0, 0, false);
+
+            var start = samples.Count - usableCount;
+            var window = new double[usableCount];
+            var mean = 0.0;
+            for (var i = 0; i < usableCount; i++)
+            {
+                var value = samples[start + i];
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                    value = 0.0;
+                window[i] = value;
+                mean += value;
+            }
+
+            mean /= usableCount;
+
+            var totalSquare = 0.0;
+            var peak = 0.0;
+            for (var i = 0; i < window.Length; i++)
+            {
+                window[i] -= mean;
+                totalSquare += window[i] * window[i];
+                peak = Math.Max(peak, Math.Abs(window[i]));
+            }
+
+            var totalRms = Math.Sqrt(Math.Max(0.0, totalSquare / usableCount));
+            if (totalRms <= 1e-9 || peak <= 1e-9)
+                return new WaveformShapeAnalysis("Low", "Shape pending: signal too low or flat", 0, 0, false);
+
+            var real = 0.0;
+            var imaginary = 0.0;
+            var phaseStep = 2.0 * Math.PI / samplesPerCycle;
+            for (var i = 0; i < window.Length; i++)
+            {
+                var angle = phaseStep * i;
+                real += window[i] * Math.Cos(angle);
+                imaginary += window[i] * Math.Sin(angle);
+            }
+
+            var coefficientScale = 2.0 / usableCount;
+            var cosineCoefficient = coefficientScale * real;
+            var sineCoefficient = coefficientScale * imaginary;
+            var residualSquare = 0.0;
+            var fundamentalSquare = 0.0;
+
+            for (var i = 0; i < window.Length; i++)
+            {
+                var angle = phaseStep * i;
+                var fundamental = (cosineCoefficient * Math.Cos(angle)) + (sineCoefficient * Math.Sin(angle));
+                var residual = window[i] - fundamental;
+                residualSquare += residual * residual;
+                fundamentalSquare += fundamental * fundamental;
+            }
+
+            var fundamentalRms = Math.Sqrt(Math.Max(0.0, fundamentalSquare / usableCount));
+            if (fundamentalRms <= 1e-9)
+                return new WaveformShapeAnalysis("Low", "Shape pending: fundamental component too low", 0, peak / totalRms, false);
+
+            var residualRms = Math.Sqrt(Math.Max(0.0, residualSquare / usableCount));
+            var residualPercent = residualRms * 100.0 / fundamentalRms;
+            var crestFactor = peak / totalRms;
+            var plateauRatio = ResolvePlateauRatio(window, peak);
+
+            var distorted = residualPercent >= 12.0 || plateauRatio >= 0.05 || crestFactor <= 1.15 || crestFactor >= 2.70;
+            var warning = distorted || residualPercent >= 5.0 || plateauRatio >= 0.02 || crestFactor <= 1.24 || crestFactor >= 2.20;
+            if (distorted)
+            {
+                var reason = plateauRatio >= 0.05
+                    ? "flat-top/clipping suspected"
+                    : crestFactor <= 1.15 || crestFactor >= 2.70
+                        ? "abnormal crest factor"
+                        : "harmonic/non-sinus residual high";
+                return new WaveformShapeAnalysis(
+                    "Distorted",
+                    $"Distorted: {reason}, residual {residualPercent:0.#}%",
+                    residualPercent,
+                    crestFactor,
+                    true);
+            }
+
+            if (warning)
+            {
+                var reason = plateauRatio >= 0.02
+                    ? "flat-top watch"
+                    : crestFactor <= 1.24 || crestFactor >= 2.20
+                        ? "crest factor watch"
+                        : "harmonic residual watch";
+                return new WaveformShapeAnalysis(
+                    "Warning",
+                    $"Shape watch: {reason}, residual {residualPercent:0.#}%",
+                    residualPercent,
+                    crestFactor,
+                    true);
+            }
+
+            return new WaveformShapeAnalysis(
+                "OK",
+                $"Shape OK: residual {residualPercent:0.#}%",
+                residualPercent,
+                crestFactor,
+                false);
+        }
+
+        private static double ResolvePlateauRatio(IReadOnlyList<double> samples, double peak)
+        {
+            if (samples.Count < 5 || peak <= 0)
+                return 0.0;
+
+            // A sine wave naturally spends time near its peak. Counting every sample above
+            // 90% peak creates false "flat-top" warnings. Only count points that are both
+            // near the peak AND locally flat, which is the clipping signature we care about.
+            var highThreshold = peak * 0.96;
+            var flatSlopeThreshold = peak * 0.004;
+            var plateauSamples = 0;
+
+            for (var i = 1; i < samples.Count - 1; i++)
+            {
+                var current = samples[i];
+                if (Math.Abs(current) < highThreshold)
+                    continue;
+
+                var previousSlope = Math.Abs(current - samples[i - 1]);
+                var nextSlope = Math.Abs(samples[i + 1] - current);
+                if (previousSlope <= flatSlopeThreshold && nextSlope <= flatSlopeThreshold)
+                    plateauSamples++;
+            }
+
+            return plateauSamples / (double)samples.Count;
         }
 
         private static double[] CreateSineSamples(
@@ -1591,11 +2142,11 @@ public sealed class RawProcessBusAnalyzer
             return channel switch
             {
                 "Ua" => 0.0,
-                "Ub" => 120.0,
-                "Uc" => -120.0,
+                "Ub" => -120.0,
+                "Uc" => 120.0,
                 "Ia" => -30.0,
-                "Ib" => 90.0,
-                "Ic" => -150.0,
+                "Ib" => -150.0,
+                "Ic" => 90.0,
                 _ => 0.0
             };
         }
@@ -1609,18 +2160,39 @@ public sealed class RawProcessBusAnalyzer
             return angle;
         }
 
-        private static SequenceObservation AnalyzeSequence(ushort previous, ushort current)
+        /// <summary>
+        /// Resolves the smpCnt rollover base. IEC 61850-9-2LE publishers wrap the counter at
+        /// the sample rate (e.g. 3999 -> 0 for 50 Hz / 80 spc), NOT at 65536. Treating the
+        /// rate rollover as "out-of-order" flagged a healthy publisher as erroring once per
+        /// second and held the scope display each time - a visible 1 Hz flicker.
+        /// </summary>
+        private int ResolveSequenceWrapBase()
+        {
+            if (SmpRate is > 0)
+                return SmpRate.Value;
+
+            // Adaptive fallback: after one full second of traffic the highest counter seen
+            // is rate-1. Require a plausible floor so early traffic cannot fake a tiny base.
+            return _maxSeenSequenceCounter >= 799 ? _maxSeenSequenceCounter + 1 : 0;
+        }
+
+        private static SequenceObservation AnalyzeSequence(ushort previous, ushort current, int rateWrapBase)
         {
             var expected = (ushort)((previous + 1) % SampleCounterModulo);
 
             if (current == expected)
                 return new SequenceObservation(1, 0, false, "Contiguous");
 
+            if (rateWrapBase > 1 && current == (previous + 1) % rateWrapBase)
+                return new SequenceObservation(1, 0, false, "Contiguous (rate rollover)");
+
             if (current == previous)
                 return new SequenceObservation(1, 0, true, "Duplicate sample counter");
 
-            var forwardStep = (current - previous + SampleCounterModulo) % SampleCounterModulo;
-            if (forwardStep > 0 && forwardStep < ReorderBoundary)
+            var modulo = rateWrapBase > 1 ? rateWrapBase : SampleCounterModulo;
+            var boundary = modulo / 2;
+            var forwardStep = (current - previous + modulo) % modulo;
+            if (forwardStep > 0 && forwardStep < boundary)
                 return new SequenceObservation(forwardStep, forwardStep - 1, true, $"Forward gap: {forwardStep - 1} missing");
 
             return new SequenceObservation(1, 0, true, "Out-of-order sample counter");
@@ -1635,6 +2207,48 @@ public sealed class RawProcessBusAnalyzer
                 _ => smpMod?.ToString() ?? "N/A"
             };
         }
+
+        private readonly record struct ScopeSampleFrame(
+            long Index,
+            ushort? SampleCounter,
+            double? Ia,
+            double? Ib,
+            double? Ic,
+            double? In,
+            double? Ua,
+            double? Ub,
+            double? Uc,
+            double? Un)
+        {
+            public double? GetValue(string channel)
+            {
+                return channel switch
+                {
+                    "Ia" => Ia,
+                    "Ib" => Ib,
+                    "Ic" => Ic,
+                    "In" => In,
+                    "Ua" => Ua,
+                    "Ub" => Ub,
+                    "Uc" => Uc,
+                    "Un" => Un,
+                    _ => null
+                };
+            }
+        }
+
+        private readonly record struct WaveformShapeAnalysis(
+            string Severity,
+            string StatusText,
+            double ResidualPercent,
+            double CrestFactor,
+            bool HasDistortion);
+
+        private readonly record struct WaveformShapeSummary(
+            string Severity,
+            string StatusText,
+            double ResidualPercent,
+            bool HasWarning);
 
         private readonly record struct SequenceObservation(
             int SampleStep,
@@ -1731,6 +2345,15 @@ public sealed class RawProcessBusAnalyzer
             return _samples.ToArray();
         }
 
+        public IReadOnlyList<double> GetLatestSamples(int maxSamples)
+        {
+            var all = _samples.ToArray();
+            if (maxSamples <= 0 || all.Length <= maxSamples)
+                return all;
+
+            return all.Skip(all.Length - maxSamples).ToArray();
+        }
+
         public void Clear()
         {
             _samples.Clear();
@@ -1753,21 +2376,25 @@ public sealed class RawProcessBusAnalyzer
             if (samples.Length < samplesPerCycle)
                 return null;
 
-            var real = 0.0;
-            var imaginary = 0.0;
+            // Match ARSVIN Subscriber phasor convention. For a positive sequence waveform,
+            // relative to Ua/R = 0°, Ub/S must draw at -120° and Uc/T at +120°.
+            // The previous atan2(imaginary, real) - 90° formula inverted the sign and made
+            // phase-S appear at +120°, which is fatal for electrical phase interpretation.
+            var sine = 0.0;
+            var cosine = 0.0;
             var phaseStep = 2.0 * Math.PI / samplesPerCycle;
 
             for (var index = 0; index < samples.Length; index++)
             {
                 var angle = phaseStep * index;
-                real += samples[index] * Math.Cos(angle);
-                imaginary += samples[index] * Math.Sin(angle);
+                sine += samples[index] * Math.Sin(angle);
+                cosine += samples[index] * Math.Cos(angle);
             }
 
-            if (Math.Abs(real) < 1e-9 && Math.Abs(imaginary) < 1e-9)
+            if (Math.Abs(sine) < 1e-9 && Math.Abs(cosine) < 1e-9)
                 return null;
 
-            return NormalizeAngleDegrees((Math.Atan2(imaginary, real) * 180.0 / Math.PI) - 90.0);
+            return NormalizeAngleDegrees(Math.Atan2(cosine, sine) * 180.0 / Math.PI);
         }
 
         private static double NormalizeAngleDegrees(double angle)
@@ -1781,25 +2408,51 @@ public sealed class RawProcessBusAnalyzer
 
         public IReadOnlyList<double> GetScopeWindow(ushort? lastSampleCounter, int samplesPerCycle, int visibleSamples)
         {
-            if (!lastSampleCounter.HasValue || samplesPerCycle <= 0 || visibleSamples <= 0)
+            if (!lastSampleCounter.HasValue || samplesPerCycle <= 0 || visibleSamples <= 0 || _sampleCounters.Count == 0)
                 return GetTail(visibleSamples);
 
-            var latest = lastSampleCounter.Value;
-            var latestPhase = latest % samplesPerCycle;
-            var end = (latest - latestPhase + SampleCounterModulo) % SampleCounterModulo;
-            var start = (end - visibleSamples + 1 + SampleCounterModulo) % SampleCounterModulo;
-            var result = new List<double>(visibleSamples);
+            // ARSVIN-style phase-locked scope:
+            // - Do NOT draw a sliding tail as the primary oscilloscope view. A sliding tail moves the
+            //   waveform horizontally at every refresh and looks glitchy even when SV data is stable.
+            // - Each smpCnt maps to a fixed modulo slot in the visible window, so new samples update
+            //   the same phase position instead of shifting the whole trace.
+            var slotValues = new double?[visibleSamples];
+            var filled = 0;
 
-            for (var i = 0; i < visibleSamples; i++)
+            foreach (var counter in _sampleCounters)
             {
-                var counter = (ushort)((start + i) % SampleCounterModulo);
-                if (_samplesByCounter.TryGetValue(counter, out var value))
-                    result.Add(value);
+                if (!_samplesByCounter.TryGetValue(counter, out var value))
+                    continue;
+
+                var slot = counter % visibleSamples;
+                if (!slotValues[slot].HasValue)
+                    filled++;
+
+                slotValues[slot] = value;
             }
 
-            return result.Count >= Math.Min(samplesPerCycle, visibleSamples / 2)
-                ? result
-                : GetTail(visibleSamples);
+            // Do not forward-fill missing modulo slots. Forward-fill creates artificial flat
+            // segments and visible flicker while the UI samples a partially refreshed ring. ARSVIN
+            // keeps only real decoded SV points in slot order; use a locked window only after it is
+            // mostly populated, otherwise fall back to the latest contiguous tail.
+            var minimumUsefulFill = Math.Max(samplesPerCycle * 2, (int)Math.Ceiling(visibleSamples * 0.85));
+            if (filled < minimumUsefulFill)
+                return GetTail(visibleSamples);
+
+            return BuildStableSlotWindow(slotValues);
+        }
+
+        private static IReadOnlyList<double> BuildStableSlotWindow(IReadOnlyList<double?> slotValues)
+        {
+            var result = new List<double>(slotValues.Count);
+
+            for (var i = 0; i < slotValues.Count; i++)
+            {
+                if (slotValues[i].HasValue)
+                    result.Add(slotValues[i]!.Value);
+            }
+
+            return result.Count == 0 ? Array.Empty<double>() : result.ToArray();
         }
 
         private IReadOnlyList<double> GetTail(int visibleSamples)

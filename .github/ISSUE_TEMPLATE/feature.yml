@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose an evidence-focused improvement within the receive-only product boundary.
+title: "[Feature]: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Engineering problem
+      description: What FAT, SAT, commissioning, interoperability, or troubleshooting problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Validation approach
+      description: Explain how the result can be verified without overclaiming timing accuracy.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Product boundary
+      options:
+        - label: This request keeps the product receive-only and does not add control or command workflows.
+          required: true
+        - label: Any example files or screenshots will be sanitized.
+          required: true

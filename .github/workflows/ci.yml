@@ -2,18 +2,27 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
 jobs:
-  build:
-    name: Restore and build
+  build-test:
+    name: Build, test, and repository health
     runs-on: windows-latest
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -24,23 +33,30 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Repository health gate
+        shell: pwsh
+        run: .\scripts\repository-health.ps1
+
       - name: Restore
         run: dotnet restore .\ProcessBusSuite.sln
 
       - name: Build
         run: dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
 
-      - name: Run tests when present
-        shell: pwsh
-        run: |
-          $testProjects = Get-ChildItem -Path . -Recurse -Filter *.csproj |
-            Where-Object { $_.FullName -match '(Test|Tests)\\|\.(Test|Tests)\.csproj$' }
+      - name: Test with coverage
+        run: >-
+          dotnet test .\ProcessBusSuite.sln
+          -c Release
+          --no-build
+          --logger "trx;LogFileName=tests.trx"
+          --results-directory .\TestResults
+          --collect "XPlat Code Coverage"
 
-          if (-not $testProjects) {
-            Write-Host "No test project found. Build validation completed."
-            exit 0
-          }
-
-          foreach ($project in $testProjects) {
-            dotnet test $project.FullName -c Release --no-build --logger "trx"
-          }
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-evidence-${{ github.run_id }}
+          path: TestResults/**
+          if-no-files-found: warn
+          retention-days: 14

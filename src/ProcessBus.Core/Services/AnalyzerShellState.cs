@@ -79,7 +79,10 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
             Streams.RemoveAt(index);
         }
 
-        foreach (var incoming in snapshot.Streams.OrderBy(stream => stream.FirstSeenOrder))
+        foreach (var incoming in snapshot.Streams
+                     .OrderByDescending(stream => stream.IsActive)
+                     .ThenBy(stream => string.IsNullOrWhiteSpace(stream.SvId) ? stream.StreamName : stream.SvId, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(stream => stream.StreamId, StringComparer.OrdinalIgnoreCase))
         {
             var existing = Streams.FirstOrDefault(stream => string.Equals(stream.StreamId, incoming.StreamId, StringComparison.OrdinalIgnoreCase));
             if (existing is null)
@@ -107,6 +110,8 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
             existing.FirstSeenOrder = incoming.FirstSeenOrder;
         }
 
+        SortStreamsForExplorer();
+
         if (mergeEvents)
             MergeEvents(snapshot.Events);
 
@@ -117,6 +122,25 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
         ProtocolMonitor = snapshot.ProtocolMonitor;
         MergePtpEvents(snapshot.PtpEvents);
         WaveformStatusText = snapshot.Waveform.StatusText;
+    }
+
+
+    private void SortStreamsForExplorer()
+    {
+        var sorted = Streams
+            .Select((stream, index) => new { Stream = stream, Index = index })
+            .OrderByDescending(item => item.Stream.IsActive)
+            .ThenBy(item => string.IsNullOrWhiteSpace(item.Stream.SvId) ? item.Stream.StreamName : item.Stream.SvId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Stream.StreamId, StringComparer.OrdinalIgnoreCase)
+            .Select(item => item.Stream)
+            .ToList();
+
+        for (var targetIndex = 0; targetIndex < sorted.Count; targetIndex++)
+        {
+            var currentIndex = Streams.IndexOf(sorted[targetIndex]);
+            if (currentIndex >= 0 && currentIndex != targetIndex)
+                Streams.Move(currentIndex, targetIndex);
+        }
     }
 
     public void ClearRuntimeData()

@@ -22,7 +22,6 @@ public class ProcessBusFrameParserTests
     [Fact]
     public void TryParse_VlanTaggedSvFrame_ReadsVlanAndDecodesNormally()
     {
-        // PCP=4, DEI=0, VID=100 -> TCI = 0b100_0_000001100100 = 0x8064
         var frame = GoldenFrames.SvFrame(appId: 0x4001, vlanTci: 0x8064);
 
         Assert.True(ProcessBusFrameParser.TryParse(frame, out var parsed));
@@ -44,7 +43,7 @@ public class ProcessBusFrameParserTests
         var apdu = GoldenFrames.SvApdu();
         var payload = GoldenFrames.Concat(
             GoldenFrames.U16(0x4000),
-            GoldenFrames.U16((ushort)(8 + apdu.Length + 500)), // lies about length
+            GoldenFrames.U16((ushort)(8 + apdu.Length + 500)),
             GoldenFrames.U16(0),
             GoldenFrames.U16(0),
             apdu);

@@ -2,7 +2,10 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,27 +19,23 @@ concurrency:
 
 jobs:
   build:
-    name: Build static Pages artifact
+    name: Validate and package site
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify landing page source
+      - name: Verify landing-page sources
         shell: bash
         run: |
           set -euo pipefail
-          echo "Repository: $GITHUB_REPOSITORY"
-          echo "Ref:        $GITHUB_REF"
-          echo "SHA:        $GITHUB_SHA"
           test -f docs/index.html
           test -f docs/styles.css
           test -f docs/app.js
           test -f docs/site.webmanifest
           test -f docs/assets/branding/favicon.ico
           test -f docs/screenshot/analyzer-overview.webp
-          echo "Pages source preview:"
-          find docs -maxdepth 3 -type f | sort | sed 's#^docs/##' | head -120
+          grep -q 'Process Bus Insight' docs/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -47,7 +46,7 @@ jobs:
           path: ./docs
 
   deploy:
-    name: Deploy to GitHub Pages
+    name: Deploy
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
@@ -55,6 +54,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy artifact
+      - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4

@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.2.7",
+    [string]$Version = "1.3.0-beta.1",
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$AppName = "ProcessBusInsight",
@@ -61,7 +61,7 @@ $restoreArgs = @(
 
 dotnet @restoreArgs
 
-# Split "1.2.7" / "1.2.7-public-beta" into a numeric prefix (for AssemblyVersion,
+# Split a stable or prerelease label into a numeric prefix (for AssemblyVersion,
 # which must be four numeric parts) and an optional suffix.
 $versionParts = $Version.Split('-', 2)
 $versionPrefix = $versionParts[0]
@@ -73,6 +73,7 @@ $publishArgs = @(
     "-c", $Configuration,
     "-r", $Runtime,
     "-o", $publishDir,
+    "/p:Version=$Version",
     "/p:VersionPrefix=$versionPrefix",
     "/p:VersionSuffix=$versionSuffix",
     "/p:PackageVersion=$Version",

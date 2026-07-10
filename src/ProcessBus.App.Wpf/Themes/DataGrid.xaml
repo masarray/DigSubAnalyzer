@@ -9,15 +9,15 @@
     <SolidColorBrush x:Key="AppScrollThumbPressedBrush" Color="#0E6AC0"/>
 
     <Style x:Key="MinimalScrollBarThumbStyle" TargetType="Thumb">
-        <Setter Property="MinHeight" Value="32"/>
-        <Setter Property="MinWidth" Value="32"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="MinWidth" Value="28"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
                     <Border x:Name="ThumbBorder"
                             Background="{StaticResource AppScrollThumbBrush}"
-                            CornerRadius="5"
-                            Margin="2"/>
+                            CornerRadius="4"
+                            Margin="2,4"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ThumbBorder" Property="Background" Value="{StaticResource AppScrollThumbHoverBrush}"/>
@@ -32,7 +32,7 @@
     </Style>
 
     <ControlTemplate x:Key="VerticalScrollBarTemplate" TargetType="ScrollBar">
-        <Grid Background="{StaticResource AppScrollTrackBrush}" Width="12">
+        <Grid Background="Transparent" Width="8">
             <Track x:Name="PART_Track" IsDirectionReversed="True">
                 <Track.DecreaseRepeatButton>
                     <RepeatButton Command="ScrollBar.PageUpCommand"
@@ -52,7 +52,7 @@
     </ControlTemplate>
 
     <ControlTemplate x:Key="HorizontalScrollBarTemplate" TargetType="ScrollBar">
-        <Grid Background="{StaticResource AppScrollTrackBrush}" Height="12">
+        <Grid Background="Transparent" Height="8">
             <Track x:Name="PART_Track">
                 <Track.DecreaseRepeatButton>
                     <RepeatButton Command="ScrollBar.PageLeftCommand"
@@ -73,11 +73,11 @@
 
     <Style TargetType="ScrollBar">
         <Setter Property="Background" Value="{StaticResource AppScrollTrackBrush}"/>
-        <Setter Property="Width" Value="12"/>
+        <Setter Property="Width" Value="8"/>
         <Setter Property="Template" Value="{StaticResource VerticalScrollBarTemplate}"/>
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
-                <Setter Property="Height" Value="12"/>
+                <Setter Property="Height" Value="8"/>
                 <Setter Property="Width" Value="Auto"/>
                 <Setter Property="Template" Value="{StaticResource HorizontalScrollBarTemplate}"/>
             </Trigger>
