@@ -1,51 +1,40 @@
 # Roadmap — Process Bus Insight
 
-Process Bus Insight is moving toward a practical field instrument for IEC 61850 Process Bus visibility and FAT/SAT evidence.
+The product is moving from a capable public beta toward a repeatable, evidence-backed field instrument.
 
-## Current focus
+## Release gate: v1.3.x beta
 
-- Strong raw-passive SV, GOOSE, and PTP visibility.
-- Target-aware diagnostics for streams, publishers, timing sources, and capture path.
-- SCL expected-vs-observed validation.
-- Evidence wording that is useful but does not overclaim timing accuracy.
-- Release packaging that lets users try the app without Visual Studio.
+- Deterministic selected-stream ownership without click-triggered refresh
+- Coherent waveform, RMS, and phasor snapshots
+- Verified 2/4/8-cycle timebases
+- Fast harmonic/shape change detection when raw payload changes
+- Multi-stream, rollover, malformed-frame, and publisher-restart regression coverage
+- Repository, CI, security, and release hardening
 
-## Planned improvements
+## Next: runtime architecture
 
-### 1. Diagnostics maturity
+- Extract `SvStreamRuntime`, sequence tracking, waveform windowing, phasor calculation, and shape analysis from the monolithic analyzer
+- Publish immutable per-stream snapshots
+- Add PCAP replay as a first-class test and demonstration path
+- Add memory/CPU soak tests and observable performance budgets
 
-- Traffic Health Navigator for SV, GOOSE, and PTP targets.
-- Clear issue ownership: stream, publisher, timing source, or capture path.
-- Better adapter confidence warnings.
+## Next: protocol and SCL maturity
 
-### 2. Stable instrument rendering
+- Expand multi-vendor SCL namespace and DataSet mapping tests
+- Separate publisher identity, observed traffic, and subscriber expectations throughout the UI
+- Improve GOOSE semantic labels and quality interpretation
+- Extend PTP freshness and grandmaster-change evidence
 
-- Strong stream key selection.
-- More stable waveform/phasor update behavior during bad frames.
-- Better handling of duplicate, out-of-order, and sequence-jump traffic.
+## Next: evidence workflow
 
-### 3. PTP-aware timing interpretation
-
-- Freshness states: never observed, live, stale, lost.
-- Grandmaster/domain change warnings.
-- Clock class interpretation.
-- Clear timestamp source and timing confidence propagation.
-
-### 4. GOOSE inspector maturity
-
-- Better value labels for breaker position, trip, alarm, and interlock signals.
-- More complete quality interpretation.
-- Cleaner event filtering and publisher health state.
-
-### 5. Evidence and reporting
-
-- Exportable FAT/SAT evidence report.
-- Screenshot-friendly diagnostic summaries.
-- Repeatable validation scenarios and sample captures where legally shareable.
+- Export sanitized CSV/JSON/PDF engineering findings
+- Add tested-configuration and known-limit matrices to releases
+- Add reproducible screenshots and short demonstrations generated from sanitized sources
 
 ## Non-goals
 
-- Not a relay test set.
-- Not a control client.
-- Not a PTP grandmaster.
-- Not a certified timing measurement instrument without validated timestamp hardware.
+- Relay test-set replacement
+- IEC 61850 control client
+- SV/GOOSE publisher for protection operation
+- PTP grandmaster
+- Certified timing instrument without validated timestamp hardware

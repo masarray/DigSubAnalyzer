@@ -6,7 +6,7 @@ This matrix explains what the application is intended to validate and what remai
 | --- | --- | --- | --- |
 | SV discovery | Detects observed Sampled Values streams from raw Ethernet frames. | APPID, svID, VLAN, MAC, stream status, counters. | Not a relay test set and not a certified measurement instrument. |
 | SV continuity | Tracks sequence behavior and missing/unstable sample indicators. | Continuity state, missing count, timing excursion context. | Interpretation depends on capture path quality. |
-| SV display | Shows reconstructed waveform, phasor, and metering context. | Visual engineering view for selected stream. | Not a hardware oscilloscope. |
+| SV display | Shows raw decoded sample waveform when channel mapping is available, with RMS, phasor, and shape context for the selected stream. | Coherent selected-stream visual evidence and explicit fallback status when raw rendering is unavailable. | Not a hardware oscilloscope. |
 | GOOSE discovery | Detects observed publishers and important header fields. | APPID, source MAC, DataSet, confRev, stNum, sqNum. | Does not publish or control GOOSE. |
 | GOOSE value decode | Shows typed dataset values where supported. | Changed values and typed item list. | Complex vendor-specific payloads may need more decoder coverage. |
 | PTP context | Detects PTP traffic and timing context where visible. | Transport, message type, domain, GM context where decoded. | Does not discipline clocks or certify time sync. |

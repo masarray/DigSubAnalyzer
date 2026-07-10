@@ -20,7 +20,7 @@ namespace ProcessBus.App.Wpf.ViewModels;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 {
-    private const int LiveWaveformUiFps = 6;
+    private const int LiveWaveformUiFps = 8;
     private const int PassiveUiRefreshMs = 500;
     private const int GlobalStatusRefreshMs = 500;
     private const int GooseHistoryLimit = 400;
@@ -41,13 +41,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private IReadOnlyList<GooseMessageItem> _gooseMessages = Array.Empty<GooseMessageItem>();
     private GooseMonitorSnapshot _gooseSnapshot = new();
     private IReadOnlyList<PhasorDisplayItem> _phasors = Array.Empty<PhasorDisplayItem>();
+    private AnalogValuesSnapshot? _lastPhasorSourceSnapshot;
+    private StreamDetailsModel? _displayedSelectedStreamDetails;
+    private AnalogValuesSnapshot _displayedAnalogValues = new();
     private WaveformSnapshot _displayedWaveform = new();
+    private string? _lastRequestedRawStreamId;
+    private readonly Dictionary<string, StreamWorkspaceCache> _streamWorkspaces = new(StringComparer.OrdinalIgnoreCase);
     private string _waveformShowMode = "Both";
     private string _waveformLayoutMode = "Overlay";
-    private string _waveformTimebase = "4 cycles";
+    private string _waveformTimebase = "2 cycles";
     private string _waveformScopeMode = "Locked";
-    private string _waveformVoltageScale = "Auto";
-    private string _waveformCurrentScale = "Auto";
+    private string _waveformVoltageScale = "Auto Peak Hold";
+    private string _waveformCurrentScale = "Auto Peak Hold";
     private string _debugSvIdText = "N/A";
     private string _debugMappingProfileText = "N/A";
     private string _debugMappedChannelsText = "None";
@@ -640,6 +645,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private static string NormalizeMatchText(string value)
         => (value ?? string.Empty).Trim().Replace("-", ":", StringComparison.Ordinal).Replace("0X", "0x", StringComparison.OrdinalIgnoreCase);
 
+
+    private sealed class StreamWorkspaceCache
+    {
+        public StreamDetailsModel? Details { get; set; }
+        public AnalogValuesSnapshot? AnalogValues { get; set; }
+        public WaveformSnapshot? Waveform { get; set; }
+        public IReadOnlyList<PhasorDisplayItem> Phasors { get; set; } = Array.Empty<PhasorDisplayItem>();
+        public AnalogValuesSnapshot? PhasorSource { get; set; }
+    }
+
     public MainWindowViewModel()
     {
         _dataSource = _rawDataSource;
@@ -713,10 +728,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             BeginWorkspaceTargetTransition();
             _selectedStream = value;
-            _rawDataSource.SelectStream(value?.StreamId);
-            _phasors = Array.Empty<PhasorDisplayItem>();
-            _displayedWaveform = new WaveformSnapshot { StatusText = value is null ? "No SV stream selected." : $"Switching to {value.StreamName}." };
+            RequestRawStreamSelection(value?.StreamId);
+            RestoreSelectedStreamWorkspace(value);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(AnalogValues));
             OnPropertyChanged(nameof(Phasors));
             OnPropertyChanged(nameof(Waveform));
             RaiseDiagnosticScopeProperties();
@@ -914,13 +929,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             var scope = SclFilteredBindingMatrix;
             var matched = scope.Count(x => x.IsMatched);
+            var matchedWarning = scope.Count(x => StatusIs(x, "MATCHED_WITH_WARNING"));
             var missing = scope.Count(x => string.Equals(x.StatusText, "MISSING", StringComparison.OrdinalIgnoreCase));
             var unexpected = scope.Count(x => string.Equals(x.StatusText, "UNEXPECTED", StringComparison.OrdinalIgnoreCase));
             var weak = scope.Count(x => string.Equals(x.StatusText, "WEAK", StringComparison.OrdinalIgnoreCase));
             var mismatch = scope.Count(x => string.Equals(x.StatusText, "MISMATCH", StringComparison.OrdinalIgnoreCase));
             var conflict = scope.Count(x => string.Equals(x.StatusText, "CONFLICT", StringComparison.OrdinalIgnoreCase));
             var ambiguous = scope.Count(x => string.Equals(x.StatusText, "AMBIGUOUS", StringComparison.OrdinalIgnoreCase));
-            return $"Binding: {matched} matched  -  {mismatch} mismatch  -  {conflict} conflict  -  {ambiguous} ambiguous  -  {missing} missing  -  {unexpected} unexpected  -  {weak} weak";
+            return $"Binding: {matched} matched ({matchedWarning} with warning)  -  {mismatch} mismatch  -  {conflict} conflict  -  {ambiguous} ambiguous  -  {missing} missing  -  {unexpected} unexpected  -  {weak} weak";
         }
     }
 
@@ -1011,7 +1027,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (_sclBindingMatrix.Any(x => StatusIs(x, "CONFLICT", "MISMATCH", "MISSING")))
             return "FAIL";
 
-        if (_sclBindingMatrix.Any(x => StatusIs(x, "AMBIGUOUS", "WEAK", "UNEXPECTED")))
+        if (_sclBindingMatrix.Any(x => StatusIs(x, "AMBIGUOUS", "WEAK", "UNEXPECTED", "MATCHED_WITH_WARNING")))
             return "WARNING";
 
         return _sclBindingMatrix.Any(x => x.ExpectedStream is not null && x.IsMatched)
@@ -1026,7 +1042,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             .ToList();
 
         var expected = rows.Count(x => x.ExpectedStream is not null);
-        var matched = rows.Count(x => StatusIs(x, "MATCHED"));
+        var matched = rows.Count(x => StatusIs(x, "MATCHED", "MATCHED_WITH_WARNING"));
+        var matchedWarning = rows.Count(x => StatusIs(x, "MATCHED_WITH_WARNING"));
         var missing = rows.Count(x => StatusIs(x, "MISSING"));
         var mismatch = rows.Count(x => StatusIs(x, "MISMATCH"));
         var conflict = rows.Count(x => StatusIs(x, "CONFLICT", "AMBIGUOUS"));
@@ -1036,7 +1053,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!HasSclProject)
             return $"{protocol}: SCL not loaded - validation UNKNOWN";
 
-        return $"{protocol}: expected {expected} - matched {matched} - missing {missing} - mismatch {mismatch} - conflict/ambiguous {conflict} - unexpected {unexpected} - weak {weak}";
+        return $"{protocol}: expected {expected} - matched {matched} ({matchedWarning} warn) - missing {missing} - mismatch {mismatch} - conflict/ambiguous {conflict} - unexpected {unexpected} - weak {weak}";
     }
 
     private IReadOnlyList<ValidationFindingRow> BuildValidationFindings()
@@ -1102,6 +1119,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         => bindingStatus switch
         {
             "MATCHED" => "PASS",
+            "MATCHED_WITH_WARNING" => "WARNING",
             "MISSING" or "MISMATCH" or "CONFLICT" => "FAIL",
             "WEAK" or "UNEXPECTED" or "AMBIGUOUS" => "WARNING",
             _ => "UNKNOWN"
@@ -1234,12 +1252,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public StreamDetailsModel? SelectedStreamDetails => _state.SelectedStreamDetails;
+    public StreamDetailsModel? SelectedStreamDetails => _displayedSelectedStreamDetails ?? _state.SelectedStreamDetails;
     public string SvMappingSourceText => BuildSvMappingSourceText(SelectedStreamDetails);
     public string SvMappingSourceCompactText => BuildSvMappingSourceCompactText(SelectedStreamDetails);
     public string SvSemanticChannelSummaryText => BuildSvSemanticChannelSummaryText(SelectedStreamDetails);
     public string SvSemanticChannelCompactText => BuildSvSemanticChannelCompactText(SelectedStreamDetails);
-    public AnalogValuesSnapshot AnalogValues => _state.AnalogValues;
+    public AnalogValuesSnapshot AnalogValues => _displayedAnalogValues;
     public string TotalActivePowerText => FormatPower(ComputeThreePhasePower().P, "W");
     public string TotalReactivePowerText => FormatPower(ComputeThreePhasePower().Q, "var");
     public string TotalApparentPowerText => FormatPower(ComputeThreePhasePower().S, "VA");
@@ -1273,6 +1291,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ? $"{Diagnostics.SamplesPerCycleEstimate.Value:0.##} samples/cycle"
         : "Samples/cycle pending";
     public string WaveformHeaderWindowText => $"Window: {WaveformTimebase}";
+    public string WaveformShapeStatusText => string.IsNullOrWhiteSpace(_displayedWaveform.ShapeStatusText)
+        ? "Shape pending"
+        : _displayedWaveform.ShapeStatusText;
     public string WaveformHeaderStatusText => string.IsNullOrWhiteSpace(WaveformStatusText)
         ? "Software timestamp timing  -  reconstructed scope"
         : WaveformStatusText.Replace("Raw scope reconstructed from RMS + smpCnt timing", "Software timestamp timing  -  reconstructed scope", StringComparison.OrdinalIgnoreCase);
@@ -1383,10 +1404,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             if (_waveformTimebase == value) return;
             _waveformTimebase = value;
+            _rawDataSource.SetScopeCycles(ParseWaveformCycles(value));
             OnPropertyChanged();
             OnPropertyChanged(nameof(WaveformHeaderWindowText));
         }
     }
+
+    private static int ParseWaveformCycles(string? value) => value switch
+    {
+        "1 cycle" => 1,
+        "2 cycles" => 2,
+        "4 cycles" => 4,
+        "8 cycles" => 8,
+        _ => 2
+    };
     public string WaveformScopeMode
     {
         get => _waveformScopeMode;
@@ -1421,7 +1452,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     
     public string ModeBannerText => _dataSource switch
     {
-        _ => "Raw Passive SV/GOOSE/PTP Engine"
+        _ => "SV / GOOSE / PTP Engine"
     };
 
     // ===== HEALTH =====
@@ -1623,7 +1654,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string WorkspaceFooterRightText => CurrentWorkspaceTabIndex switch
     {
-        0 => WaveformHeaderStatusText,
+        0 => "SV scope locked to selected stream",
         1 => TimingConfidenceBadgeText,
         2 => GooseFilterSummaryText,
         3 => TimingConfidenceBadgeText,
@@ -1858,6 +1889,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var refreshWatch = Stopwatch.StartNew();
         try
         {
+            // Keep the raw analyzer's selected stream aligned with the UI selection before
+            // taking a snapshot. Without this, the engine may keep publishing the default
+            // first-seen stream while the UI row is on another SV; phasor/RMS then only
+            // appear to update after the user clicks the SV explorer and forces selection.
+            RequestRawStreamSelection(_selectedStream?.StreamId);
+
             var (snapshot, gooseSnapshot) = await CaptureSnapshotsAsync();
             if (ReferenceEquals(_dataSource, _rawDataSource) && _rawDataSource is not null && IsRunning != _rawDataSource.IsRunning)
                 IsRunning = _rawDataSource.IsRunning;
@@ -1934,18 +1971,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _smcCntOk = Diagnostics.LastSampleCount > 0;
             _frequencyStable = Diagnostics.FrequencyEstimateValid;
 
-            if (SelectedStream is null)
-                SelectedStream = Streams.FirstOrDefault();
-            else
-                _selectedStream = Streams.FirstOrDefault(stream => string.Equals(stream.StreamId, SelectedStream.StreamId, StringComparison.OrdinalIgnoreCase)) ?? _selectedStream;
+            SynchronizeSelectedStreamRow();
+            var selectedStreamId = _selectedStream?.StreamId;
+
             if (IsGooseTabActive && SelectedGooseTrafficRow is null && _gooseHistory.Count > 0)
             {
                 SelectedGooseTrafficRow = _gooseHistory[^1];
             }
+
             if (IsAnalyzerTabActive)
             {
-                _phasors = BuildPhasorItems(_state.AnalogValues);
-                _displayedWaveform = _state.Waveform;
+                // ARSVIN-style contract: render the actual runtime stream snapshot that the
+                // raw analyzer selected. Do not hold stale UI state waiting for a match, because
+                // that was the reason phasor/RMS only updated after clicking SV Explorer.
+                // User clicks still win: the SelectedStream setter calls SelectStream(), so the
+                // next snapshot follows that stream.
+                var runtimeSelectedId = string.IsNullOrWhiteSpace(snapshot.SelectedStreamId)
+                    ? selectedStreamId
+                    : snapshot.SelectedStreamId;
+                SyncUiSelectionToRuntimeStream(runtimeSelectedId);
+                UpdateSelectedStreamWorkspaceFromSnapshot(runtimeSelectedId, _state.AnalogValues, _state.Waveform);
             }
 
             _lastRefreshUtc = now;
@@ -1957,6 +2002,134 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         finally
         {
             _refreshInFlight = false;
+        }
+    }
+
+
+    private void RequestRawStreamSelection(string? streamId)
+    {
+        if (!ReferenceEquals(_dataSource, _rawDataSource))
+            return;
+
+        // ARSVIN-style contract: the selected SV workspace is the source of truth.
+        // Do not suppress repeated SelectStream calls; the raw analyzer may have reset,
+        // may not yet have seen the stream on the previous call, or may have auto-selected
+        // first-seen while the UI workspace points elsewhere. Reasserting selection before
+        // each snapshot is cheap and prevents the "phasor updates only after clicking SV" bug.
+        _rawDataSource.SelectStream(streamId);
+        _lastRequestedRawStreamId = streamId;
+    }
+
+    private void SynchronizeSelectedStreamRow()
+    {
+        if (SelectedStream is null)
+        {
+            var first = Streams.FirstOrDefault(stream => stream.IsActive) ?? Streams.FirstOrDefault();
+            if (first is not null)
+                SelectedStream = first;
+            return;
+        }
+
+        var selectedId = SelectedStream.StreamId;
+        var refreshed = Streams.FirstOrDefault(stream => string.Equals(stream.StreamId, selectedId, StringComparison.OrdinalIgnoreCase));
+        if (refreshed is null)
+        {
+            var next = Streams.FirstOrDefault(stream => stream.IsActive) ?? Streams.FirstOrDefault();
+            if (!string.Equals(selectedId, next?.StreamId, StringComparison.OrdinalIgnoreCase))
+                SelectedStream = next;
+            return;
+        }
+
+        if (!ReferenceEquals(_selectedStream, refreshed))
+        {
+            _selectedStream = refreshed;
+            RestoreSelectedStreamWorkspace(refreshed);
+            OnPropertyChanged(nameof(SelectedStream));
+            OnPropertyChanged(nameof(AnalogValues));
+            OnPropertyChanged(nameof(Phasors));
+            OnPropertyChanged(nameof(Waveform));
+        }
+
+        RequestRawStreamSelection(refreshed.StreamId);
+    }
+
+    private static bool SnapshotMatchesSelectedStream(AnalyzerSnapshot snapshot, string? selectedStreamId)
+    {
+        if (string.IsNullOrWhiteSpace(selectedStreamId))
+            return true;
+
+        if (string.IsNullOrWhiteSpace(snapshot.SelectedStreamId))
+            return false;
+
+        return string.Equals(snapshot.SelectedStreamId, selectedStreamId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SyncUiSelectionToRuntimeStream(string? streamId)
+    {
+        if (string.IsNullOrWhiteSpace(streamId))
+            return;
+
+        if (string.Equals(_selectedStream?.StreamId, streamId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var row = Streams.FirstOrDefault(stream => string.Equals(stream.StreamId, streamId, StringComparison.OrdinalIgnoreCase));
+        if (row is null)
+            return;
+
+        _selectedStream = row;
+        OnPropertyChanged(nameof(SelectedStream));
+    }
+
+    private void RestoreSelectedStreamWorkspace(SvStreamItem? stream)
+    {
+        if (stream is not null && _streamWorkspaces.TryGetValue(stream.StreamId, out var workspace))
+        {
+            _displayedSelectedStreamDetails = workspace.Details;
+            _displayedAnalogValues = workspace.AnalogValues ?? new AnalogValuesSnapshot();
+            _displayedWaveform = workspace.Waveform ?? new WaveformSnapshot { StatusText = $"Waiting for {stream.StreamName} coherent SV samples." };
+            _phasors = workspace.Phasors;
+            _lastPhasorSourceSnapshot = workspace.PhasorSource;
+            return;
+        }
+
+        _displayedSelectedStreamDetails = null;
+        _displayedAnalogValues = new AnalogValuesSnapshot();
+        _phasors = Array.Empty<PhasorDisplayItem>();
+        _lastPhasorSourceSnapshot = null;
+        _displayedWaveform = new WaveformSnapshot
+        {
+            StatusText = stream is null ? "No SV stream selected." : $"Waiting for {stream.StreamName} coherent SV samples."
+        };
+    }
+
+    private void UpdateSelectedStreamWorkspaceFromSnapshot(string? selectedStreamId, AnalogValuesSnapshot analogValues, WaveformSnapshot waveform)
+    {
+        _displayedSelectedStreamDetails = _state.SelectedStreamDetails;
+
+        // ARSVIN-style display contract: phasor vectors are derived from the latest
+        // engineering snapshot on every UI refresh. Do not use object-reference caching
+        // here. The raw analyzer may legitimately hold/reuse an AnalogValuesSnapshot while
+        // the SV window is settling, and previous reference caching made the phasor panel
+        // appear frozen until a user click rebuilt the SV workspace. Six vectors are cheap;
+        // correctness and responsiveness are more important than suppressing this tiny
+        // allocation.
+        _displayedAnalogValues = analogValues;
+        _phasors = BuildPhasorItems(_displayedAnalogValues);
+        _lastPhasorSourceSnapshot = _displayedAnalogValues;
+
+        if (!ReferenceEquals(_displayedWaveform, waveform))
+            _displayedWaveform = waveform;
+
+        if (!string.IsNullOrWhiteSpace(selectedStreamId))
+        {
+            _streamWorkspaces[selectedStreamId] = new StreamWorkspaceCache
+            {
+                Details = _displayedSelectedStreamDetails,
+                AnalogValues = _displayedAnalogValues,
+                Waveform = _displayedWaveform,
+                Phasors = _phasors,
+                PhasorSource = _lastPhasorSourceSnapshot
+            };
         }
     }
 
@@ -1975,7 +2148,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var previousKey = SelectedDiagnosticTarget?.TargetKey;
         var rows = new List<TrafficHealthTargetRow>();
 
-        foreach (var stream in Streams.OrderBy(x => x.FirstSeenOrder))
+        foreach (var stream in Streams.OrderByDescending(x => x.IsActive)
+                     .ThenBy(x => string.IsNullOrWhiteSpace(x.SvId) ? x.StreamName : x.SvId, StringComparer.OrdinalIgnoreCase))
         {
             rows.Add(new TrafficHealthTargetRow
             {
@@ -2046,7 +2220,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!ReferenceEquals(_selectedDiagnosticTarget, next))
         {
             _selectedDiagnosticTarget = next;
-            ApplyDiagnosticTargetSelection(next);
+            // Do not auto-drive SelectedStream from diagnostic target rebuild. ARSVIN keeps
+            // the SV Explorer selection stable; diagnostic rows are a view of health, not
+            // the owner of the active waveform/phasor/RMS workspace. User selection through
+            // SelectedDiagnosticTarget still calls ApplyDiagnosticTargetSelection in the setter.
             OnPropertyChanged(nameof(SelectedDiagnosticTarget));
         }
 
@@ -2227,6 +2404,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(WaveformHeaderSamplesPerCycleText));
         OnPropertyChanged(nameof(WaveformHeaderWindowText));
         OnPropertyChanged(nameof(WaveformHeaderStatusText));
+        OnPropertyChanged(nameof(WaveformShapeStatusText));
         OnPropertyChanged(nameof(Phasors));
         OnPropertyChanged(nameof(WaveformVoltageScale));
         OnPropertyChanged(nameof(WaveformCurrentScale));
@@ -2774,6 +2952,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         var expectedRows = _sclStreamCatalog.ToList();
         var expectedConflictReasons = BuildExpectedConflictReasons(expectedRows);
+        var expectedWarningReasons = BuildExpectedWarningReasons(expectedRows);
         var ambiguityReasons = BuildBindingAmbiguityReasons(expectedRows);
         var matchedLiveSvKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var matchedLiveGooseKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2784,20 +2963,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             {
                 var candidates = Streams
                     .Select(live => BuildSvBindingCandidate(expected, live))
+                    .Where(candidate => IsBindingCandidateEligible(expected.Protocol, candidate))
                     .OrderByDescending(x => x.Score)
                     .ThenByDescending(x => x.MatchCount)
                     .ToList();
                 var best = candidates.FirstOrDefault();
 
-                if (best is not null && best.Score >= 35)
+                if (best is not null)
                 {
                     var candidate = ApplyAmbiguityEvidence(best, candidates, ambiguityReasons.GetValueOrDefault(expected.ExpectedKey));
                     var liveAlreadyMatched = matchedLiveSvKeys.Contains(candidate.LiveKey);
-                    var status = ClassifyBindingCandidate(candidate, expectedConflictReasons.ContainsKey(expected.ExpectedKey), liveAlreadyMatched);
+                    var warning = expectedWarningReasons.GetValueOrDefault(expected.ExpectedKey);
+                    var status = ClassifyBindingCandidate(candidate, expectedConflictReasons.ContainsKey(expected.ExpectedKey), liveAlreadyMatched, warning);
                     matchedLiveSvKeys.Add(candidate.LiveKey);
                     var evidence = AppendEvidence(candidate.EvidenceText, expectedConflictReasons.GetValueOrDefault(expected.ExpectedKey));
+                    evidence = AppendEvidence(evidence, warning);
                     if (liveAlreadyMatched)
-                        evidence = AppendEvidence(evidence, $"SCL conflict: live SV {candidate.ObservedName} is already bound to another expected stream.");
+                        evidence = AppendEvidence(evidence, $"Hard binding conflict: live SV {candidate.ObservedName} is already bound to another exact/eligible expected stream.");
                     rows.Add(SclBindingMatrixRow.FromExpected(expected, candidate.ObservedName, candidate.ObservedAppId, candidate.ObservedVlan, status, candidate.Score, evidence, candidate.LiveKey, candidate.ExpectedDetailText, candidate.ObservedDetailText));
                 }
                 else
@@ -2806,7 +2988,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     var status = hasConflict ? "CONFLICT" : "MISSING";
                     var evidence = status == "CONFLICT"
                         ? expectedConflictReasons[expected.ExpectedKey]
-                        : "Expected SV stream from SCL has no live candidate on selected adapter.";
+                        : "Expected SV publisher from SCL has no eligible live identity match on selected adapter. Live SV carries limited semantic data; binding requires svID or APPID+destination MAC, not APPID alone.";
+                    evidence = AppendEvidence(evidence, expectedWarningReasons.GetValueOrDefault(expected.ExpectedKey));
                     rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, status, 0, evidence, string.Empty));
                 }
             }
@@ -2814,20 +2997,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             {
                 var candidates = _gooseMessages
                     .Select(live => BuildGooseBindingCandidate(expected, live))
+                    .Where(candidate => IsBindingCandidateEligible(expected.Protocol, candidate))
                     .OrderByDescending(x => x.Score)
                     .ThenByDescending(x => x.MatchCount)
                     .ToList();
                 var best = candidates.FirstOrDefault();
 
-                if (best is not null && best.Score >= 35)
+                if (best is not null)
                 {
                     var candidate = ApplyAmbiguityEvidence(best, candidates, ambiguityReasons.GetValueOrDefault(expected.ExpectedKey));
                     var liveAlreadyMatched = matchedLiveGooseKeys.Contains(candidate.LiveKey);
-                    var status = ClassifyBindingCandidate(candidate, expectedConflictReasons.ContainsKey(expected.ExpectedKey), liveAlreadyMatched);
+                    var warning = expectedWarningReasons.GetValueOrDefault(expected.ExpectedKey);
+                    var status = ClassifyBindingCandidate(candidate, expectedConflictReasons.ContainsKey(expected.ExpectedKey), liveAlreadyMatched, warning);
                     matchedLiveGooseKeys.Add(candidate.LiveKey);
                     var evidence = AppendEvidence(candidate.EvidenceText, expectedConflictReasons.GetValueOrDefault(expected.ExpectedKey));
+                    evidence = AppendEvidence(evidence, warning);
                     if (liveAlreadyMatched)
-                        evidence = AppendEvidence(evidence, $"SCL conflict: live GOOSE {candidate.ObservedName} is already bound to another expected publisher.");
+                        evidence = AppendEvidence(evidence, $"Hard binding conflict: live GOOSE {candidate.ObservedName} is already bound to another exact/eligible expected publisher.");
                     rows.Add(SclBindingMatrixRow.FromExpected(expected, candidate.ObservedName, candidate.ObservedAppId, candidate.ObservedVlan, status, candidate.Score, evidence, candidate.LiveKey, candidate.ExpectedDetailText, candidate.ObservedDetailText));
                 }
                 else
@@ -2836,20 +3022,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     var status = hasConflict ? "CONFLICT" : "MISSING";
                     var evidence = status == "CONFLICT"
                         ? expectedConflictReasons[expected.ExpectedKey]
-                        : "Expected GOOSE publisher from SCL has no live candidate on selected adapter.";
+                        : "Expected GOOSE publisher from SCL has no eligible live identity match on selected adapter.";
+                    evidence = AppendEvidence(evidence, expectedWarningReasons.GetValueOrDefault(expected.ExpectedKey));
                     rows.Add(SclBindingMatrixRow.FromExpected(expected, "Not observed", expected.AppId, expected.VlanId, status, 0, evidence, string.Empty));
                 }
             }
         }
 
-        foreach (var live in Streams.OrderBy(x => x.FirstSeenOrder))
+        foreach (var live in Streams.OrderByDescending(x => x.IsActive)
+                     .ThenBy(x => string.IsNullOrWhiteSpace(x.SvId) ? x.StreamName : x.SvId, StringComparer.OrdinalIgnoreCase))
         {
             if (matchedLiveSvKeys.Contains(live.StreamId))
                 continue;
 
             var bestScore = expectedRows
                 .Where(x => string.Equals(x.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
-                .Select(expected => ScoreSvBinding(expected, live))
+                .Select(expected => BuildSvBindingCandidate(expected, live))
+                .Where(candidate => IsBindingCandidateEligible("SV", candidate))
+                .Select(candidate => candidate.Score)
                 .DefaultIfEmpty(0)
                 .Max();
 
@@ -2875,7 +3065,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             var bestScore = expectedRows
                 .Where(x => string.Equals(x.Protocol, "GOOSE", StringComparison.OrdinalIgnoreCase))
-                .Select(expected => ScoreGooseBinding(expected, live))
+                .Select(expected => BuildGooseBindingCandidate(expected, live))
+                .Where(candidate => IsBindingCandidateEligible("GOOSE", candidate))
+                .Select(candidate => candidate.Score)
                 .DefaultIfEmpty(0)
                 .Max();
 
@@ -2906,7 +3098,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private Dictionary<string, string> BuildBindingAmbiguityReasons(IReadOnlyList<SclStreamCatalogRow> expectedRows)
     {
-        const int strongScoreThreshold = 65;
         var reasons = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
         void AddReason(string expectedKey, string reason)
@@ -2921,7 +3112,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 list.Add(reason);
         }
 
-        var strongCandidates = new List<(SclStreamCatalogRow Expected, BindingCandidate Candidate)>();
+        var eligibleCandidates = new List<(SclStreamCatalogRow Expected, BindingCandidate Candidate)>();
         foreach (var expected in expectedRows)
         {
             IEnumerable<BindingCandidate> candidates = expected.Protocol switch
@@ -2931,28 +3122,40 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 _ => Array.Empty<BindingCandidate>()
             };
 
-            strongCandidates.AddRange(candidates
-                .Where(candidate => candidate.Score >= strongScoreThreshold)
+            eligibleCandidates.AddRange(candidates
+                .Where(candidate => IsBindingCandidateEligible(expected.Protocol, candidate))
                 .Select(candidate => (expected, candidate)));
         }
 
-        foreach (var group in strongCandidates.GroupBy(x => x.Expected.ExpectedKey, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        foreach (var group in eligibleCandidates.GroupBy(x => x.Expected.ExpectedKey, StringComparer.OrdinalIgnoreCase))
         {
-            var names = group
+            var ordered = group
                 .OrderByDescending(x => x.Candidate.Score)
+                .ThenByDescending(x => x.Candidate.MatchCount)
+                .ToArray();
+            if (ordered.Length < 2 || !IsNearTie(ordered[0].Candidate, ordered[1].Candidate))
+                continue;
+
+            var names = ordered
                 .Take(3)
                 .Select(x => $"{x.Candidate.ObservedName} ({x.Candidate.Score}%)");
-            AddReason(group.Key, $"Ambiguous binding: expected stream has multiple strong live candidates: {string.Join(", ", names)}.");
+            AddReason(group.Key, $"Ambiguous binding: expected publisher has near-tie live candidates: {string.Join(", ", names)}.");
         }
 
-        foreach (var group in strongCandidates.GroupBy(x => x.Candidate.LiveKey, StringComparer.OrdinalIgnoreCase).Where(g => g.Select(x => x.Expected.ExpectedKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1))
+        foreach (var group in eligibleCandidates.GroupBy(x => x.Candidate.LiveKey, StringComparer.OrdinalIgnoreCase))
         {
-            var names = group
+            var ordered = group
                 .OrderByDescending(x => x.Candidate.Score)
+                .ThenByDescending(x => x.Candidate.MatchCount)
+                .ToArray();
+            if (ordered.Length < 2 || !IsNearTie(ordered[0].Candidate, ordered[1].Candidate))
+                continue;
+
+            var names = ordered
                 .Take(3)
                 .Select(x => $"{x.Expected.DisplayName} ({x.Candidate.Score}%)");
-            var reason = $"Ambiguous binding: live stream {group.First().Candidate.ObservedName} strongly matches multiple SCL expectations: {string.Join(", ", names)}.";
-            foreach (var item in group)
+            var reason = $"Ambiguous binding: live stream {ordered[0].Candidate.ObservedName} has near-tie SCL expectations: {string.Join(", ", names)}.";
+            foreach (var item in ordered)
                 AddReason(item.Expected.ExpectedKey, reason);
         }
 
@@ -2960,6 +3163,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             pair => pair.Key,
             pair => string.Join("; ", pair.Value),
             StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsNearTie(BindingCandidate first, BindingCandidate second)
+    {
+        if (first.Score < 65 || second.Score < 65)
+            return false;
+
+        return Math.Abs(first.Score - second.Score) <= 5 ||
+            (first.Score >= 90 && second.Score >= 90 && Math.Abs(first.MatchCount - second.MatchCount) <= 1);
     }
 
     private static BindingCandidate ApplyAmbiguityEvidence(BindingCandidate best, IReadOnlyList<BindingCandidate> candidates, string? existingAmbiguityReason)
@@ -3014,21 +3226,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         foreach (var group in expectedRows
-            .Where(x => !string.IsNullOrWhiteSpace(NormalizeAppId(x.AppId)))
-            .GroupBy(x => $"{x.Protocol}|APPID|{NormalizeAppId(x.AppId)}", StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1))
-        {
-            AddReason(group, $"SCL conflict: duplicate {group.First().Protocol} APPID {ValueOrNa(group.First().AppId)} across {group.Count()} expected streams.");
-        }
-
-        foreach (var group in expectedRows
             .Where(x => !string.IsNullOrWhiteSpace(NormalizeAppId(x.AppId)) &&
                 !string.IsNullOrWhiteSpace(NormalizeComparable(x.DestinationMac, appId: false, mac: true, vlan: false)) &&
                 !string.IsNullOrWhiteSpace(NormalizeVlanValue(x.VlanId)))
             .GroupBy(x => $"{x.Protocol}|TRANSPORT|{NormalizeAppId(x.AppId)}|{NormalizeComparable(x.DestinationMac, appId: false, mac: true, vlan: false)}|{NormalizeVlanValue(x.VlanId)}", StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1))
         {
-            AddReason(group, $"SCL conflict: duplicate transport tuple APPID {ValueOrNa(group.First().AppId)}, destination {ValueOrNa(group.First().DestinationMac)}, VLAN {ValueOrNa(group.First().VlanId)}.");
+            var distinctIdentityCount = group
+                .Select(x => $"{NormalizeMatchText(x.DisplayName)}|{NormalizeMatchText(x.ControlBlockReference)}|{NormalizeMatchText(x.DataSetReference)}|{BuildEntryOrderSignature(x)}")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            if (distinctIdentityCount > 1)
+            {
+                AddReason(group, $"Hard SCL conflict: duplicate transport tuple APPID {ValueOrNa(group.First().AppId)}, destination {ValueOrNa(group.First().DestinationMac)}, VLAN {ValueOrNa(group.First().VlanId)} is assigned to multiple different {group.First().Protocol} publishers.");
+            }
         }
 
         foreach (var group in expectedRows
@@ -3040,14 +3252,53 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var entrySignatureCount = group.Select(BuildEntryOrderSignature).Distinct(StringComparer.OrdinalIgnoreCase).Count();
 
             if (dataSetCount > 1)
-                AddReason(group, $"SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has contradictory DataSet references.");
+                AddReason(group, $"Hard SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has contradictory DataSet references.");
             if (confRevCount > 1)
-                AddReason(group, $"SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has conflicting confRev values.");
+                AddReason(group, $"Hard SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has conflicting confRev values.");
             if (entrySignatureCount > 1)
-                AddReason(group, $"SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has different DataSet entry order.");
+                AddReason(group, $"Hard SCL conflict: control block {ValueOrNa(group.First().ControlBlockReference)} has different DataSet entry order.");
         }
 
         return conflictReasons.ToDictionary(
+            pair => pair.Key,
+            pair => string.Join("; ", pair.Value),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, string> BuildExpectedWarningReasons(IReadOnlyList<SclStreamCatalogRow> expectedRows)
+    {
+        var warningReasons = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        void AddReason(IEnumerable<SclStreamCatalogRow> rows, string reason)
+        {
+            foreach (var row in rows)
+            {
+                if (!warningReasons.TryGetValue(row.ExpectedKey, out var reasons))
+                {
+                    reasons = new List<string>();
+                    warningReasons[row.ExpectedKey] = reasons;
+                }
+
+                if (!reasons.Contains(reason, StringComparer.OrdinalIgnoreCase))
+                    reasons.Add(reason);
+            }
+        }
+
+        foreach (var group in expectedRows
+            .Where(x => !string.IsNullOrWhiteSpace(NormalizeAppId(x.AppId)))
+            .GroupBy(x => $"{x.Protocol}|APPID|{NormalizeAppId(x.AppId)}", StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1))
+        {
+            var transportCount = group
+                .Select(x => $"{NormalizeComparable(x.DestinationMac, appId: false, mac: true, vlan: false)}|{NormalizeVlanValue(x.VlanId)}|{NormalizeVlanValue(x.VlanPriority)}")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            var severity = transportCount > 1 ? "Design warning" : "Design note";
+            AddReason(group, $"{severity}: duplicate {group.First().Protocol} APPID {ValueOrNa(group.First().AppId)} appears in {group.Count()} SCL publisher contexts. APPID alone is not used as a hard binding identity; live binding is anchored by svID/GoCBRef or APPID + destination MAC/VLAN.");
+        }
+
+        return warningReasons.ToDictionary(
             pair => pair.Key,
             pair => string.Join("; ", pair.Value),
             StringComparer.OrdinalIgnoreCase);
@@ -3058,7 +3309,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ? "NO_ENTRIES"
             : string.Join("|", row.Entries.Select(entry => $"{entry.Index}:{NormalizeMatchText(entry.SignalReference)}:{NormalizeMatchText(entry.Fc)}:{NormalizeMatchText(entry.Cdc)}:{NormalizeMatchText(entry.BType)}"));
 
-    private static string ClassifyBindingCandidate(BindingCandidate candidate, bool expectedConflict, bool liveAlreadyMatched)
+    private static string ClassifyBindingCandidate(BindingCandidate candidate, bool expectedConflict, bool liveAlreadyMatched, string? warningReason)
     {
         if (expectedConflict || liveAlreadyMatched)
             return "CONFLICT";
@@ -3069,8 +3320,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (candidate.MismatchCount > 0)
             return "MISMATCH";
 
-        return candidate.Score >= 65 ? "MATCHED" : "WEAK";
+        if (candidate.Score >= 65)
+            return string.IsNullOrWhiteSpace(warningReason) ? "MATCHED" : "MATCHED_WITH_WARNING";
+
+        return "WEAK";
     }
+
+    private static bool IsBindingCandidateEligible(string protocol, BindingCandidate candidate)
+        => BindingCandidateEligibility.IsEligible(
+            protocol,
+            candidate.Score,
+            candidate.MismatchCount,
+            candidate.MatchedFields);
 
     private static BindingCandidate BuildSvBindingCandidate(SclStreamCatalogRow expected, SvStreamItem live)
     {
@@ -3181,6 +3442,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             matches.Length,
             mismatches.Length,
             false,
+            matches,
             $"{string.Join(". ", evidenceParts)}.",
             expectedDetail,
             observedDetail);
@@ -3335,14 +3597,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private string ComputeSvLiveStatus(SclSvStreamModel stream)
     {
-        var match = Streams.Any(s => TextMatches(s.SvId, stream.SvId) || TextMatches(s.AppId, stream.AppId) || TextMatches(s.DestinationMac, stream.DestinationMac));
-        return match ? "Live candidate" : "Expected";
+        var match = Streams.Any(live =>
+            TextMatches(stream.SvId, live.SvId) ||
+            (AppIdMatches(stream.AppId, live.AppId) && TextMatches(stream.DestinationMac, live.DestinationMac)));
+        return match ? "Live identity candidate" : "Expected publisher";
     }
 
     private string ComputeGooseLiveStatus(SclGooseStreamModel stream)
     {
-        var match = _gooseMessages.Any(g => TextMatches(g.GoId, stream.GoId) || TextMatches(g.AppId, stream.AppId) || TextMatches(g.DataSet, stream.DataSetReference));
-        return match ? "Live candidate" : "Expected";
+        var match = _gooseMessages.Any(live =>
+            TextMatches(stream.GoId, live.GoId) ||
+            TextMatches(stream.ControlBlockReference, live.GoCbRef) ||
+            (AppIdMatches(stream.AppId, live.AppId) && TextMatches(stream.DestinationMac, live.DestinationMac)));
+        return match ? "Live identity candidate" : "Expected publisher";
     }
 
     private void RaiseSclSelectionProperties()
@@ -3541,9 +3808,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task SwitchToRawAsync()
     {
-        // Previously sync-over-async (StopAsync().GetAwaiter().GetResult()) on the UI
-        // thread; combined with continuations posted back to the WPF context this could
-        // deadlock the dispatcher. Awaiting keeps the UI responsive during stop.
+        // Avoid sync-over-async on the WPF dispatcher. StopAsync may wait for the
+        // Npcap pump; awaiting keeps the UI responsive during mode switches.
         await _rawDataSource.StopAsync();
         IsRunning = false;
 
@@ -3611,7 +3877,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _selectedGooseTrafficRow = null;
         _selectedStream = null;
         _phasors = Array.Empty<PhasorDisplayItem>();
+        _lastPhasorSourceSnapshot = null;
+        _lastRequestedRawStreamId = null;
+        _displayedSelectedStreamDetails = null;
+        _displayedAnalogValues = _state.AnalogValues;
         _displayedWaveform = _state.Waveform;
+        _streamWorkspaces.Clear();
         _streamStale = true;
         _lastObservedPacketCount = -1;
         _lastPacketAdvanceUtc = DateTime.MinValue;
@@ -4364,7 +4635,8 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
     public string ExpectedKey { get; set; } = string.Empty;
     public SclStreamCatalogRow? ExpectedStream { get; set; }
 
-    public bool IsMatched => string.Equals(StatusText, "MATCHED", StringComparison.OrdinalIgnoreCase);
+    public bool IsMatched => string.Equals(StatusText, "MATCHED", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(StatusText, "MATCHED_WITH_WARNING", StringComparison.OrdinalIgnoreCase);
     public int SortRank => StatusText switch
     {
         "CONFLICT" => 0,
@@ -4373,13 +4645,15 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
         "MISSING" => 3,
         "UNEXPECTED" => 4,
         "WEAK" => 5,
-        "MATCHED" => 6,
+        "MATCHED_WITH_WARNING" => 6,
+        "MATCHED" => 7,
         _ => 6
     };
 
     public string StatusBrush => StatusText switch
     {
         "MATCHED" => "#70D7A7",
+        "MATCHED_WITH_WARNING" => "#F6D781",
         "WEAK" => "#F6D781",
         "MISSING" => "#F0B533",
         "UNEXPECTED" => "#FF8A6A",
@@ -4393,6 +4667,7 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
     public string StatusBackgroundBrush => StatusText switch
     {
         "MATCHED" => "#17382C",
+        "MATCHED_WITH_WARNING" => "#3A3218",
         "WEAK" => "#3A3218",
         "MISSING" => "#3D2D12",
         "UNEXPECTED" => "#3D231B",
@@ -4514,9 +4789,14 @@ internal sealed record BindingCandidate(
     int MatchCount,
     int MismatchCount,
     bool Ambiguous,
+    IReadOnlyList<string> MatchedFields,
     string EvidenceText,
     string ExpectedDetailText,
-    string ObservedDetailText);
+    string ObservedDetailText)
+{
+    public bool HasMatch(string fieldName)
+        => MatchedFields.Any(field => string.Equals(field, fieldName, StringComparison.OrdinalIgnoreCase));
+}
 
 internal sealed record SclSvMappingCandidate(SclSvStreamModel Stream, int Score, int MismatchCount)
 {

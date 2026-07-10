@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a reproducible runtime, protocol, UI, or packaging defect.
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Remove customer/site identifiers before attaching logs, captures, screenshots, or SCL files.
+  - type: input
+    id: version
+    attributes:
+      label: Process Bus Insight version
+      placeholder: 1.3.0-beta.1 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - SV analyzer / waveform / phasor
+        - GOOSE inspector
+        - PTP / timing context
+        - SCL validation
+        - Capture / Npcap / adapter
+        - Packaging / release
+        - Documentation / website
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, Npcap version, adapter type, and capture path.
+      placeholder: Windows 11 x64; Npcap 1.x; Intel NIC via TAP
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start capture...
+        2. Select stream...
+        3. Change publisher setting...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Screenshots, logs, SCL excerpt, or minimal PCAP. Do not include confidential data.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed customer, site, IP, MAC, device, and project-sensitive information.
+          required: true
+        - label: I searched existing issues first.
+          required: true

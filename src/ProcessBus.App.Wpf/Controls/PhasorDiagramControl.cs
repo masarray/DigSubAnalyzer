@@ -1,6 +1,5 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
-using System.Diagnostics;
 using System.Windows.Media;
 using ProcessBus.Core.Models;
 
@@ -12,14 +11,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
     private const double CurrentRadiusFactor = 0.78;
     private const double VoltageLineThickness = 3.2;
     private const double CurrentLineThickness = 2.8;
-    private const double VisualSmoothingMilliseconds = 320.0;
-    private const double VisualRenderFps = 30.0;
-    private readonly Stopwatch _smoothClock = new();
-    private IReadOnlyList<PhasorDisplayItem> _fromItems = Array.Empty<PhasorDisplayItem>();
-    private IReadOnlyList<PhasorDisplayItem> _targetItems = Array.Empty<PhasorDisplayItem>();
     private IReadOnlyList<PhasorDisplayItem> _visualItems = Array.Empty<PhasorDisplayItem>();
-    private TimeSpan _lastVisualRender = TimeSpan.Zero;
-    private bool _renderLoopAttached;
 
     public static readonly DependencyProperty ItemsSourceProperty =
         DependencyProperty.Register(
@@ -60,8 +52,8 @@ public sealed class PhasorDiagramControl : FrameworkElement
 
     public PhasorDiagramControl()
     {
-        Loaded += (_, _) => AttachRenderLoopIfNeeded();
-        Unloaded += (_, _) => DetachRenderLoop();
+        // Deliberately no vector tweening here. Protection/substation phasors must show
+        // the latest computed state immediately; animation hides real state changes.
     }
 
     private static void OnItemsSourceChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)
@@ -70,30 +62,11 @@ public sealed class PhasorDiagramControl : FrameworkElement
             return;
 
         var next = ((IEnumerable<PhasorDisplayItem>?)args.NewValue)?.ToArray() ?? [];
-        if (next.Length == 0)
-        {
-            control._fromItems = Array.Empty<PhasorDisplayItem>();
-            control._targetItems = Array.Empty<PhasorDisplayItem>();
-            control._visualItems = Array.Empty<PhasorDisplayItem>();
-            control.DetachRenderLoop();
-            control.InvalidateVisual();
-            return;
-        }
-
-        if (control._visualItems.Count == 0)
-        {
-            control._visualItems = next;
-            control._fromItems = next;
-            control._targetItems = next;
-            control.InvalidateVisual();
-            return;
-        }
-
-        control._fromItems = control._visualItems;
-        control._targetItems = next;
-        control._smoothClock.Restart();
-        control._lastVisualRender = TimeSpan.Zero;
-        control.AttachRenderLoopIfNeeded();
+        // ARSVIN-style receiver behavior: phasor vectors are not animated/tweened.
+        // The view renders the latest computed RMS/angle snapshot directly, so a publisher
+        // phase/state change is visible on the next UI tick instead of taking seconds to settle.
+        control._visualItems = next;
+        control.InvalidateVisual();
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -150,109 +123,6 @@ public sealed class PhasorDiagramControl : FrameworkElement
         foreach (var item in validItems)
             DrawPhasor(dc, center, radius, item, voltageMax, currentMax);
 
-    }
-
-    private void AttachRenderLoopIfNeeded()
-    {
-        if (_renderLoopAttached || !IsLoaded)
-            return;
-
-        CompositionTarget.Rendering += OnCompositionRendering;
-        _renderLoopAttached = true;
-    }
-
-    private void DetachRenderLoop()
-    {
-        if (!_renderLoopAttached)
-            return;
-
-        CompositionTarget.Rendering -= OnCompositionRendering;
-        _renderLoopAttached = false;
-    }
-
-    private void OnCompositionRendering(object? sender, EventArgs e)
-    {
-        if (_targetItems.Count == 0)
-        {
-            DetachRenderLoop();
-            return;
-        }
-
-        var elapsed = _smoothClock.Elapsed;
-        if (elapsed - _lastVisualRender < TimeSpan.FromMilliseconds(1000.0 / VisualRenderFps))
-            return;
-
-        _lastVisualRender = elapsed;
-        var progress = Math.Clamp(elapsed.TotalMilliseconds / VisualSmoothingMilliseconds, 0.0, 1.0);
-        var eased = EaseOutCubic(progress);
-        _visualItems = progress >= 1.0
-            ? _targetItems
-            : InterpolateItems(_fromItems, _targetItems, eased);
-
-        InvalidateVisual();
-
-        if (progress >= 1.0)
-            DetachRenderLoop();
-    }
-
-    private static IReadOnlyList<PhasorDisplayItem> InterpolateItems(
-        IReadOnlyList<PhasorDisplayItem> fromItems,
-        IReadOnlyList<PhasorDisplayItem> toItems,
-        double amount)
-    {
-        if (toItems.Count == 0)
-            return Array.Empty<PhasorDisplayItem>();
-
-        var fromByName = fromItems.ToDictionary(item => item.Name, StringComparer.OrdinalIgnoreCase);
-        var result = new PhasorDisplayItem[toItems.Count];
-        for (var i = 0; i < toItems.Count; i++)
-        {
-            var target = toItems[i];
-            if (!target.HasValue || !fromByName.TryGetValue(target.Name, out var source) || !source.HasValue)
-            {
-                result[i] = target;
-                continue;
-            }
-
-            result[i] = new PhasorDisplayItem
-            {
-                Name = target.Name,
-                Family = target.Family,
-                Magnitude = Lerp(source.Magnitude!.Value, target.Magnitude!.Value, amount),
-                AngleDegrees = LerpAngle(source.AngleDegrees!.Value, target.AngleDegrees!.Value, amount),
-                Unit = target.Unit
-            };
-        }
-
-        return result;
-    }
-
-    private static double Lerp(double from, double to, double amount)
-    {
-        return from + ((to - from) * amount);
-    }
-
-    private static double LerpAngle(double fromDegrees, double toDegrees, double amount)
-    {
-        var delta = NormalizeAngle(toDegrees - fromDegrees);
-        return NormalizeAngle(fromDegrees + (delta * amount));
-    }
-
-    private static double NormalizeAngle(double degrees)
-    {
-        var normalized = degrees % 360.0;
-        if (normalized > 180.0)
-            normalized -= 360.0;
-        else if (normalized < -180.0)
-            normalized += 360.0;
-
-        return normalized;
-    }
-
-    private static double EaseOutCubic(double amount)
-    {
-        var inverse = 1.0 - Math.Clamp(amount, 0.0, 1.0);
-        return 1.0 - (inverse * inverse * inverse);
     }
 
     private static void DrawGrid(DrawingContext dc, Point center, double radius)

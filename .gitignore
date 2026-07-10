@@ -1,8 +1,4 @@
-################################################################################
-# Source repository hygiene
-################################################################################
-
-# IDE / editor state
+# IDE and editor state
 .vs/
 .vscode/
 .idea/
@@ -24,42 +20,31 @@ artifacts/
 installer/
 publish/
 release/
-
-# .NET local state and packages
-.dotnet/
-.dotnet-cli/
-.dotnet-home/
-.dotnet-home-build/
-*.nupkg
-*.snupkg
 TestResults/
 coverage/
 coverage.*
 *.trx
+*.nupkg
+*.snupkg
 
-# Native / Visual C++ generated files
+# Native/generated runtime outputs
+*.dll
+*.exe
+*.pdb
 *.ipch
 *.iobj
 *.ipdb
-*.pdb
 *.ilk
 *.idb
 *.tlog
 *.lastbuildstate
 *.recipe
-Browse.VC.db*
-Solution.VC.db*
-UpgradeLog*.htm
-
-# Runtime binaries and generated app outputs
-*.dll
-*.exe
 *.deps.json
 *.runtimeconfig.json
 *.cache
 *.log
 
-# Local configuration / secrets
+# Local configuration and secrets
 .env
 .env.*
 *.pfx
@@ -67,8 +52,7 @@ UpgradeLog*.htm
 secrets.json
 appsettings.Development.json
 
-# Local capture/runtime state
-*.last_interface.txt
+# Capture and local engineering evidence
 *.pcap
 *.pcapng
 *.etl
@@ -77,22 +61,25 @@ logs/
 temp/
 tmp/
 
-# Local generated reports/media
-*.pdf
-!docs/QUICK_START.pdf
-!docs/USER_MANUAL.pdf
+# Local generated media/reports
 *.gif
-docs/screenshot/*.png
 docs/pdf_renders/
 docs/_renders/
+docs/screenshot/*.png
 
-# Node/web outputs if a future site toolchain is added
+# Tool state
+.dotnet/
+.dotnet-cli/
+.dotnet-home/
+.codex/
+.playwright/
 node_modules/
 dist/
 build/
 .parcel-cache/
 .vite/
 
-# Local automation/browser state
-.codex/
-.playwright/
+# PDFs are ignored by default; these two are intentionally versioned release docs
+*.pdf
+!docs/QUICK_START.pdf
+!docs/USER_MANUAL.pdf

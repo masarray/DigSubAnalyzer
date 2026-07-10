@@ -1,0 +1,5 @@
+* @masarray
+/.github/ @masarray
+/src/ProcessBus.Iec61850.Raw/ @masarray
+/src/ProcessBus.App.Wpf/ @masarray
+/docs/ @masarray

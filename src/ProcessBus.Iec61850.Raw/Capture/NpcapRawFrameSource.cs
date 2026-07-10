@@ -63,7 +63,7 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
 
         // Every wpcap call that dereferences _handle happens under _handleGate. Dispose
         // acquires the same gate before pcap_close, so a blocked/racing PcapNextEx can
-        // never observe a freed handle (previously a native AV window on stop timeout).
+        // never observe a freed handle.
         lock (_handleGate)
         {
             if (_disposed || _handle == IntPtr.Zero)

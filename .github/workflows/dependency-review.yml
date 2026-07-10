@@ -1,0 +1,71 @@
+name: Dependency security review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  nuget-audit:
+    name: NuGet vulnerability audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run high/critical vulnerability audit
+        id: nuget-audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet restore ./ProcessBusSuite.sln \
+            -p:AuditPipeline=true \
+            -p:EnableWindowsTargeting=true \
+            2>&1 | tee nuget-audit.log
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-audit-${{ github.run_id }}
+          path: nuget-audit.log
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce audit result
+        if: steps.nuget-audit.outcome != 'success'
+        shell: bash
+        run: |
+          echo "NuGet high/critical vulnerability audit failed. See the uploaded nuget-audit artifact."
+          exit 1
+
+  github-dependency-review:
+    name: GitHub dependency delta review
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          retry-on-snapshot-warnings: true
+          retry-on-snapshot-warnings-timeout: 180

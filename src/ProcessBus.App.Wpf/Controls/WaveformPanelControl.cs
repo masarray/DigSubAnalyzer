@@ -15,6 +15,10 @@ public sealed class WaveformPanelControl : FrameworkElement
     private static readonly Brush TitleBrush = CreateBrush("#2B9CFF");
     private static readonly Brush LabelBrush = CreateBrush("#A7B8CB");
     private static readonly Brush MutedBrush = CreateBrush("#71869D");
+    private static readonly Brush ShapeOkBrush = CreateBrush("#70D7A7");
+    private static readonly Brush ShapeWarningBrush = CreateBrush("#F0B533");
+    private static readonly Brush ShapeAlertBrush = CreateBrush("#FF6B6B");
+    private static readonly Brush ShapeUnknownBrush = CreateBrush("#71869D");
     private static readonly Brush UaBrush = CreateBrush("#FF2945");
     private static readonly Brush UbBrush = CreateBrush("#F5B400");
     private static readonly Brush UcBrush = CreateBrush("#1878E8");
@@ -47,16 +51,20 @@ public sealed class WaveformPanelControl : FrameworkElement
 
     private const double AutoScaleHeadroom = 1.28;
     private const double AutoScaleSmoothing = 0.18;
+    // Steady-state deadband: the observed window peak jitters a little every cycle, and an
+    // EMA with no deadband keeps micro-rescaling the axis, which reads as vertical
+    // "breathing" of the whole trace. Inside the deadband the axis is frozen.
+    private const double AutoScaleDeadband = 0.02;
     private const double PeakHoldSeconds = 6.0;
     private const double SamplesPerPixel = 0.8;
-    private const double VisualSmoothingMilliseconds = 300.0;
+    private const double VisualSmoothingMilliseconds = 120.0;
     private const double VisualRenderFps = 30.0;
 
     public WaveformPanelControl()
     {
         Focusable = true;
         Cursor = Cursors.Cross;
-        Loaded += (_, _) => AttachRenderLoopIfNeeded();
+        // Raw SV scope renders atomically on Snapshot changes; no CompositionTarget animation loop.
         Unloaded += (_, _) => DetachRenderLoop();
     }
 
@@ -134,21 +142,14 @@ public sealed class WaveformPanelControl : FrameworkElement
             return;
         }
 
-        var previousVisual = control._visualSnapshot ?? args.OldValue as WaveformSnapshot;
-        if (previousVisual is null || !HasAnySeries(previousVisual))
-        {
-            control._visualSnapshot = next;
-            control._targetSnapshot = next;
-            control._fromSnapshot = next;
-            control.InvalidateVisual();
-            return;
-        }
-
-        control._fromSnapshot = previousVisual;
+        // Raw SV scope must not tween/interpolate between snapshots. Interpolation makes a
+        // stable phase-locked waveform crawl and creates fake transient shapes between two
+        // real SV sample windows. Render the latest snapshot atomically, ARSVIN-style.
+        control.DetachRenderLoop();
+        control._fromSnapshot = null;
         control._targetSnapshot = next;
-        control._smoothClock.Restart();
-        control._lastVisualRender = TimeSpan.Zero;
-        control.AttachRenderLoopIfNeeded();
+        control._visualSnapshot = next;
+        control.InvalidateVisual();
     }
 
     public string ShowMode
@@ -294,7 +295,12 @@ public sealed class WaveformPanelControl : FrameworkElement
             SampleRateHz = Lerp(from.SampleRateHz, to.SampleRateHz, amount),
             MeasuredFrequencyHz = Lerp(from.MeasuredFrequencyHz, to.MeasuredFrequencyHz, amount),
             WindowDurationMilliseconds = Lerp(from.WindowDurationMilliseconds, to.WindowDurationMilliseconds, amount),
-            StatusText = to.StatusText
+            StatusText = to.StatusText,
+            ShapeSeverity = to.ShapeSeverity,
+            ShapeStatusText = to.ShapeStatusText,
+            HasShapeWarning = to.HasShapeWarning,
+            SamplesPerCycle = to.SamplesPerCycle,
+            IsReconstructed = to.IsReconstructed
         };
     }
 
@@ -329,7 +335,12 @@ public sealed class WaveformPanelControl : FrameworkElement
             {
                 Name = target.Name,
                 Unit = target.Unit,
-                Samples = samples
+                Samples = samples,
+                ShapeSeverity = target.ShapeSeverity,
+                ShapeStatusText = target.ShapeStatusText,
+                ShapeResidualPercent = target.ShapeResidualPercent,
+                CrestFactor = target.CrestFactor,
+                HasShapeDistortion = target.HasShapeDistortion
             };
         }
 
@@ -378,6 +389,8 @@ public sealed class WaveformPanelControl : FrameworkElement
         var amplitudeMax = ResolveLaneAmplitudeMax(lane, laneSeries);
 
         dc.DrawText(CreateText(lane.Title, 13, TitleBrush, TitleTypeface), new Point(rect.Left + 12, rect.Top + 7));
+        // Shape quality is reported once in the main scope header. Repeating it inside
+        // both lanes and the footer created visual noise during harmonic tests.
         dc.DrawText(
             CreateText($"+/-{amplitudeMax:0.#} {lane.Unit}", 11, LabelBrush, LabelTypeface),
             new Point(rect.Right - 104, rect.Top + 8));
@@ -424,7 +437,12 @@ public sealed class WaveformPanelControl : FrameworkElement
                 {
                     Name = item.Name,
                     Unit = item.Unit,
-                    Samples = samples
+                    Samples = samples,
+                    ShapeSeverity = item.ShapeSeverity,
+                    ShapeStatusText = item.ShapeStatusText,
+                    ShapeResidualPercent = item.ShapeResidualPercent,
+                    CrestFactor = item.CrestFactor,
+                    HasShapeDistortion = item.HasShapeDistortion
                 };
             })
             .Where(item => item.Samples.Count >= 2)
@@ -437,11 +455,15 @@ public sealed class WaveformPanelControl : FrameworkElement
         if (sourceCount <= 0)
             return Array.Empty<double>();
 
+        // Show the newest part of the scope window. The old implementation always started at index 0,
+        // so short timebase modes could display stale samples after an SV magnitude change.
+        var sourceOffset = Math.Max(0, source.Count - sourceCount);
+
         if (sourceCount <= maxDisplaySamples)
         {
             var direct = new double[sourceCount];
             for (var i = 0; i < sourceCount; i++)
-                direct[i] = source[i];
+                direct[i] = source[sourceOffset + i];
 
             return direct;
         }
@@ -464,7 +486,8 @@ public sealed class WaveformPanelControl : FrameworkElement
 
             for (var i = start; i < end; i++)
             {
-                var sample = source[i];
+                var absoluteIndex = sourceOffset + i;
+                var sample = source[absoluteIndex];
                 if (double.IsNaN(sample) || double.IsInfinity(sample))
                     sample = 0.0;
 
@@ -570,15 +593,17 @@ public sealed class WaveformPanelControl : FrameworkElement
         {
             if (_voltageAutoPeak <= 0)
                 _voltageAutoPeak = targetPeak;
+            else if (Math.Abs(targetPeak - _voltageAutoPeak) / Math.Max(_voltageAutoPeak, 1e-9) >= AutoScaleDeadband)
+                _voltageAutoPeak = (_voltageAutoPeak * (1.0 - AutoScaleSmoothing)) + (targetPeak * AutoScaleSmoothing);
 
-            _voltageAutoPeak = (_voltageAutoPeak * (1.0 - AutoScaleSmoothing)) + (targetPeak * AutoScaleSmoothing);
             return Math.Max(_voltageAutoPeak, 1.0);
         }
 
         if (_currentAutoPeak <= 0)
             _currentAutoPeak = targetPeak;
+        else if (Math.Abs(targetPeak - _currentAutoPeak) / Math.Max(_currentAutoPeak, 1e-9) >= AutoScaleDeadband)
+            _currentAutoPeak = (_currentAutoPeak * (1.0 - AutoScaleSmoothing)) + (targetPeak * AutoScaleSmoothing);
 
-        _currentAutoPeak = (_currentAutoPeak * (1.0 - AutoScaleSmoothing)) + (targetPeak * AutoScaleSmoothing);
         return Math.Max(_currentAutoPeak, 1.0);
     }
 
@@ -593,10 +618,9 @@ public sealed class WaveformPanelControl : FrameworkElement
                 _voltageAutoPeak = targetPeak;
                 _voltagePeakUpdatedUtc = now;
             }
-            else
-            {
-                _voltageAutoPeak = Math.Max(targetPeak, _voltageAutoPeak * 0.992);
-            }
+            // Peak-hold must not decay a little on every render; that slow decay is
+            // perceived as vertical waveform movement after an injection change. Hold the
+            // axis steady until the hold timeout expires, then jump to the current target.
 
             return Math.Max(_voltageAutoPeak, 1.0);
         }
@@ -606,11 +630,10 @@ public sealed class WaveformPanelControl : FrameworkElement
             _currentAutoPeak = targetPeak;
             _currentPeakUpdatedUtc = now;
         }
-        else
-        {
-            _currentAutoPeak = Math.Max(targetPeak, _currentAutoPeak * 0.992);
-        }
 
+        // Peak-hold must not decay a little on every render; that slow decay is
+        // perceived as vertical waveform movement after an injection change. Hold the
+        // axis steady until the hold timeout expires, then jump to the current target.
         return Math.Max(_currentAutoPeak, 1.0);
     }
 
@@ -747,7 +770,12 @@ public sealed class WaveformPanelControl : FrameworkElement
             _ => 4
         };
 
-        const int samplesPerCycle = 80;
+        var samplesPerCycle = snapshot.SamplesPerCycle > 0
+            ? snapshot.SamplesPerCycle
+            : snapshot.SampleRateHz > 0 && snapshot.MeasuredFrequencyHz > 0
+                ? Math.Max(1, (int)Math.Round(snapshot.SampleRateHz / snapshot.MeasuredFrequencyHz))
+                : 80;
+
         return samplesPerCycle * cycles;
     }
 
@@ -852,8 +880,70 @@ public sealed class WaveformPanelControl : FrameworkElement
         var labelText = CreateText(series.Name, 11, brush, TitleTypeface);
         var badge = new Rect(rect.Right - 43, labelY - 3, 38, labelText.Height + 6);
 
-        dc.DrawRoundedRectangle(CloneBrushOpacity(brush, 0.12), null, badge, 7, 7);
+        dc.DrawRoundedRectangle(CloneBrushOpacity(brush, series.HasShapeDistortion ? 0.24 : 0.12), null, badge, 7, 7);
         dc.DrawText(labelText, new Point(badge.Left + 8, badge.Top + 3));
+
+        if (series.HasShapeDistortion)
+        {
+            var marker = new Rect(badge.Left - 18, badge.Top + 1, 14, 14);
+            dc.DrawRoundedRectangle(CloneBrushOpacity(ShapeAlertBrush, 0.24), null, marker, 7, 7);
+            dc.DrawText(CreateText("!", 10.5, ShapeAlertBrush, TitleTypeface), new Point(marker.Left + 4.2, marker.Top - 0.5));
+        }
+    }
+
+    private static void DrawLaneShapeBadge(DrawingContext dc, Rect rect, IReadOnlyList<WaveformSeriesModel> series)
+    {
+        var quality = ResolveLaneShape(series);
+        var brush = ResolveShapeBrush(quality.Severity);
+        var text = CreateText(quality.Text, 10.2, brush, LabelTypeface);
+        var badge = new Rect(rect.Left + 74, rect.Top + 6, Math.Min(230, text.Width + 18), 18);
+        dc.DrawRoundedRectangle(CloneBrushOpacity(brush, 0.13), null, badge, 8, 8);
+        dc.DrawText(text, new Point(badge.Left + 9, badge.Top + 2));
+    }
+
+    private static (string Severity, string Text) ResolveLaneShape(IReadOnlyList<WaveformSeriesModel> series)
+    {
+        if (series.Count == 0)
+            return ("Unknown", "Shape pending");
+
+        var ranked = series
+            .Select(item => (Item: item, Rank: ShapeRank(item.ShapeSeverity)))
+            .OrderByDescending(item => item.Rank)
+            .ThenByDescending(item => item.Item.ShapeResidualPercent)
+            .First();
+
+        var selected = ranked.Item;
+        return selected.ShapeSeverity switch
+        {
+            "Distorted" => ("Distorted", $"Distorted · {selected.Name} {selected.ShapeResidualPercent:0.#}%"),
+            "Warning" => ("Warning", $"Shape watch · {selected.Name} {selected.ShapeResidualPercent:0.#}%"),
+            "OK" => ("OK", "Shape OK"),
+            "Low" => ("Low", "Low signal"),
+            _ => ("Unknown", "Shape pending")
+        };
+    }
+
+    private static int ShapeRank(string? severity)
+    {
+        return severity switch
+        {
+            "Distorted" => 4,
+            "Warning" => 3,
+            "Low" => 1,
+            "OK" => 0,
+            _ => 2
+        };
+    }
+
+    private static Brush ResolveShapeBrush(string? severity)
+    {
+        return severity switch
+        {
+            "OK" => ShapeOkBrush,
+            "Warning" => ShapeWarningBrush,
+            "Distorted" => ShapeAlertBrush,
+            _ => ShapeUnknownBrush
+        };
     }
 
     private static SolidColorBrush CloneBrushOpacity(Brush brush, double opacity)
