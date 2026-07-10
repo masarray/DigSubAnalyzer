@@ -6,10 +6,34 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ### Planned
 
-- Golden PCAP replay corpus with sanitized multi-stream scenarios
+- Sanitized golden PCAP/PCAPNG replay corpus with broader multi-vendor scenarios
 - Further decomposition of the analyzer runtime and WPF workspace
 - Expanded SCL multi-vendor validation
 - Evidence export for FAT/SAT reports
+
+## [1.4.0-beta.1] - 2026-07-11
+
+### Added
+
+- Immutable selected-stream runtime generations with copied waveform, analog, identity, and diagnostic evidence
+- Atomic runtime snapshot publisher for coherent consumer reads
+- Classic Ethernet PCAP replay through the same raw decoder/analyzer path used by live Npcap capture
+- Microsecond and nanosecond PCAP timestamp variants in little-endian and big-endian formats
+- Bounded rejection for unsupported link types, invalid headers, oversized records, and truncated captures
+- Deterministic runtime-architecture tests covering replay timing, snapshot immutability, and three-stream isolation
+- Dedicated Runtime Architecture GitHub Actions gate with downloadable TRX evidence
+- Release-candidate packaging support for `architecture/*` branches
+
+### Changed
+
+- Release and documentation versioning use `1.4.0-beta.1`
+- Runtime architecture now exposes a coherent publication boundary instead of requiring consumers to retain mutable analyzer display models
+- Offline replay is explicitly treated as a reproducibility path, not a separate decoder or a traffic publisher
+
+### Limitations
+
+- PCAPNG is not yet supported by the first replay reader
+- The internal analyzer remains partly monolithic; complete per-stream runtime extraction and live UI migration continue in later v1.4 builds
 
 ## [1.3.0-beta.2] - 2026-07-10
 
@@ -58,6 +82,7 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 - Hardened BER parsing, Npcap lifecycle, release version propagation, and public-repository packaging.
 
-[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.2...HEAD
+[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.0-beta.1...HEAD
+[1.4.0-beta.1]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.2...v1.4.0-beta.1
 [1.3.0-beta.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.1...v1.3.0-beta.2
 [1.3.0-beta.1]: https://github.com/masarray/DigSubAnalyzer/releases/tag/v1.3.0-beta.1
