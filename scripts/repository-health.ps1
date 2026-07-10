@@ -28,6 +28,7 @@ $required = @(
     ".github/CODEOWNERS",
     ".github/workflows/ci.yml",
     ".github/workflows/runtime-stability.yml",
+    ".github/workflows/candidate-package.yml",
     ".github/workflows/codeql.yml",
     ".github/workflows/dependency-review.yml",
     ".github/workflows/pages.yml",
