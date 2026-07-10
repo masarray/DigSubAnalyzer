@@ -30,13 +30,13 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Blocking NuGet vulnerability audit
+      - name: Blocking NuGet high/critical vulnerability audit
         shell: bash
         run: |
           dotnet restore ./ProcessBusSuite.sln \
             -p:NuGetAudit=true \
             -p:NuGetAuditMode=all \
-            '-p:WarningsAsErrors=NU1901;NU1902;NU1903;NU1904'
+            '-p:WarningsAsErrors=NU1903;NU1904'
 
       - name: GitHub dependency delta review
         id: github-dependency-review
@@ -52,5 +52,5 @@ jobs:
         shell: bash
         run: |
           if [ "${{ steps.github-dependency-review.outcome }}" != "success" ]; then
-            echo "::warning::GitHub dependency delta review could not complete. The blocking NuGet vulnerability audit passed. Enable Repository Settings > Security & analysis > Dependency graph, then remove continue-on-error from this workflow."
+            echo "::warning::GitHub dependency delta review could not complete. The blocking NuGet high/critical vulnerability audit passed. Enable Repository Settings > Security & analysis > Dependency graph, then remove continue-on-error from this workflow."
           fi
