@@ -24,6 +24,8 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ### Changed
 
+- SCL candidates with a valid primary identity anchor remain eligible when transport or configuration fields mismatch, preserving a precise `MISMATCH` result instead of splitting evidence into `MISSING` and `UNEXPECTED` rows
+- Dependency Review uses the current Node 24 action generation and retries while dependency snapshots are still being submitted
 - SV explorer prioritizes live streams and sorts by SV name
 - Live streams use `LIVE` state with health color rather than ambiguous warning-only labels
 - Metering and waveform layouts reduce repeated status/noise text

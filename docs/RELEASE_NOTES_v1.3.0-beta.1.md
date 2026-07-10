@@ -10,7 +10,7 @@ This public beta consolidates SV runtime stability work and raises the repositor
 - Faster waveform shape/distortion response while keeping visual scope stability
 - Live-stream ordering and cleaner status/noise presentation
 - Hardened BER parsing and Npcap lifecycle behavior
-- SCL expected-vs-observed binding improvements
+- SCL expected-vs-observed binding improvements, including anchored mismatch preservation
 
 ## Repository and supply-chain improvements
 

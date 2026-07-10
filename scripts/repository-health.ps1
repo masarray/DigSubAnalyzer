@@ -41,6 +41,11 @@ $forbiddenPatterns = @(
     '(^|/)(bin|obj|artifacts|TestResults|captures|logs|temp|tmp)(/|$)',
     '(^|/)ProcessBusAnalyzer\.RnD\.sln$',
     '(^|/)DigSubAnalyzer/DigSubAnalyzer(/|$)',
+    '(^|/)TOP_GLOBAL_UPGRADE\.md$',
+    '(^|/)repair-.*\.ps1$',
+    '(^|/)scripts/push-top-global\.ps1$',
+    '^index\.html$',
+    '^\.nojekyll$',
     '\.(pcap|pcapng|etl|exe|dll|pdb|log)$'
 )
 

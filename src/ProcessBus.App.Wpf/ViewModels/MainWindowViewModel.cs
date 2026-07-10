@@ -3327,36 +3327,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private static bool IsBindingCandidateEligible(string protocol, BindingCandidate candidate)
-    {
-        if (candidate.MismatchCount > 0)
-            return candidate.Score >= 80 && HasPrimaryIdentityAnchor(protocol, candidate);
-
-        return protocol.ToUpperInvariant() switch
-        {
-            "SV" => HasPrimaryIdentityAnchor(protocol, candidate) && candidate.Score >= 45,
-            "GOOSE" => HasPrimaryIdentityAnchor(protocol, candidate) && candidate.Score >= 45,
-            _ => candidate.Score >= 65
-        };
-    }
-
-    private static bool HasPrimaryIdentityAnchor(string protocol, BindingCandidate candidate)
-    {
-        if (string.Equals(protocol, "SV", StringComparison.OrdinalIgnoreCase))
-        {
-            return candidate.HasMatch("svID") ||
-                (candidate.HasMatch("APPID") && candidate.HasMatch("Dst MAC")) ||
-                (candidate.HasMatch("APPID") && candidate.HasMatch("DataSet") && candidate.HasMatch("confRev"));
-        }
-
-        if (string.Equals(protocol, "GOOSE", StringComparison.OrdinalIgnoreCase))
-        {
-            return candidate.HasMatch("GoCBRef") ||
-                (candidate.HasMatch("APPID") && candidate.HasMatch("Dst MAC")) ||
-                (candidate.HasMatch("goID") && candidate.HasMatch("DataSet"));
-        }
-
-        return candidate.Score >= 65;
-    }
+        => BindingCandidateEligibility.IsEligible(
+            protocol,
+            candidate.Score,
+            candidate.MismatchCount,
+            candidate.MatchedFields);
 
     private static BindingCandidate BuildSvBindingCandidate(SclStreamCatalogRow expected, SvStreamItem live)
     {
