@@ -100,7 +100,7 @@ jobs:
           $manifest | ConvertTo-Json | Set-Content .\artifacts\release\candidate-manifest.json -Encoding utf8
 
       - name: Upload verified candidate
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-candidate-${{ github.run_number }}
           path: |
