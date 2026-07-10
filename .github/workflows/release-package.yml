@@ -136,7 +136,9 @@ jobs:
           $releaseArgs = @('release', 'create', $tag, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
           $isDraft = '${{ github.event.inputs.draft }}'
           $isPrerelease = '${{ github.event.inputs.prerelease }}'
-          if ('${{ github.event_name }}' -eq 'push') { $isPrerelease = 'false' }
+          if ('${{ github.event_name }}' -eq 'push') {
+            $isPrerelease = if ($version -match '-') { 'true' } else { 'false' }
+          }
           if ($isDraft -eq 'true') { $releaseArgs += '--draft' }
           if ($isPrerelease -eq 'true') { $releaseArgs += '--prerelease' }
 
