@@ -1,0 +1,112 @@
+name: Release candidate package
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "Directory.Build.props"
+      - "src/**"
+      - "tests/**"
+      - "scripts/publish-windows-portable.ps1"
+      - "scripts/verify-release-package.ps1"
+      - "scripts/repository-health.ps1"
+      - "docs/RELEASE_NOTES_v*.md"
+      - ".github/workflows/candidate-package.yml"
+      - ".github/workflows/release-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  candidate:
+    name: Build verified Windows x64 candidate
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/')
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve repository version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$props = Get-Content .\Directory.Build.props -Raw
+          $prefixNode = $props.SelectSingleNode('/Project/PropertyGroup/VersionPrefix')
+          $suffixNode = $props.SelectSingleNode('/Project/PropertyGroup/VersionSuffix')
+          if ($null -eq $prefixNode) { throw 'VersionPrefix is missing.' }
+
+          $prefix = $prefixNode.InnerText.Trim()
+          $suffix = if ($null -eq $suffixNode) { '' } else { $suffixNode.InnerText.Trim() }
+          $version = if ([string]::IsNullOrWhiteSpace($suffix)) { $prefix } else { "$prefix-$suffix" }
+          if ([string]::IsNullOrWhiteSpace($version)) { throw 'Unable to resolve repository version.' }
+
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Candidate version: $version"
+
+      - name: Repository health gate
+        shell: pwsh
+        run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
+
+      - name: Restore
+        run: dotnet restore .\ProcessBusSuite.sln
+
+      - name: Build
+        run: dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test .\ProcessBusSuite.sln -c Release --no-build --logger "trx;LogFileName=candidate-tests.trx" --results-directory .\TestResults
+
+      - name: Publish portable package
+        shell: pwsh
+        run: .\scripts\publish-windows-portable.ps1 -Version '${{ steps.version.outputs.value }}' -Configuration Release -Runtime win-x64
+
+      - name: Verify portable package
+        shell: pwsh
+        run: |
+          $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
+          .\scripts\verify-release-package.ps1 -PackageZip $zip
+
+      - name: Create candidate manifest
+        shell: pwsh
+        run: |
+          $manifest = [ordered]@{
+            product = 'Process Bus Insight'
+            version = '${{ steps.version.outputs.value }}'
+            candidate = $true
+            commit = '${{ github.event.pull_request.head.sha || github.sha }}'
+            sourceRef = '${{ github.head_ref || github.ref_name }}'
+            runtime = 'win-x64'
+            framework = 'net8.0-windows'
+            timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
+          }
+          $manifest | ConvertTo-Json | Set-Content .\artifacts\release\candidate-manifest.json -Encoding utf8
+
+      - name: Upload verified candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-candidate-${{ github.run_number }}
+          path: |
+            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
+            artifacts/release/SHA256SUMS.txt
+            artifacts/release/candidate-manifest.json
+            TestResults/**
+          if-no-files-found: error
+          retention-days: 14

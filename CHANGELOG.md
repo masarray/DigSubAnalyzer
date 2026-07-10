@@ -11,6 +11,25 @@ All notable changes are documented here. The project follows Semantic Versioning
 - Expanded SCL multi-vendor validation
 - Evidence export for FAT/SAT reports
 
+## [1.3.0-beta.2] - 2026-07-10
+
+### Added
+
+- Deterministic eight-stream selected-stream isolation regression coverage
+- Exact 2/4/8-cycle scope-window regression coverage
+- Explicit 65536 sample-counter rollover coverage
+- Duplicate and forward-gap evidence checks that preserve the last coherent scope window
+- Waveform/RMS same-window coherence checks
+- Concurrent frame-observation and snapshot-read stress coverage
+- Repeated Runtime Stability GitHub Actions gate with downloadable TRX evidence
+- Standardized sanitized field-evidence record for live capture and replay validation
+
+### Changed
+
+- Release and documentation versioning use `1.3.0-beta.2`
+- Runtime validation now separates deterministic automated stress evidence from maintained 30–60 minute live/replay soak evidence
+- Public documentation exposes a dedicated Runtime Stability workflow and test filter
+
 ## [1.3.0-beta.1] - 2026-07-10
 
 ### Added
@@ -39,5 +58,6 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 - Hardened BER parsing, Npcap lifecycle, release version propagation, and public-repository packaging.
 
-[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.1...HEAD
+[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.2...HEAD
+[1.3.0-beta.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.1...v1.3.0-beta.2
 [1.3.0-beta.1]: https://github.com/masarray/DigSubAnalyzer/releases/tag/v1.3.0-beta.1

@@ -39,9 +39,9 @@ git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
 ## Local packaging
 
 ```powershell
-.\scripts\repository-health.ps1 -ExpectedVersion "1.3.0-beta.1"
-.\scripts\publish-windows-portable.ps1 -Version "1.3.0-beta.1"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.3.0-beta.1-win-x64-portable.zip"
+.\scripts\repository-health.ps1 -ExpectedVersion "1.3.0-beta.2"
+.\scripts\publish-windows-portable.ps1 -Version "1.3.0-beta.2"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.3.0-beta.2-win-x64-portable.zip"
 ```
 
 ## GitHub workflow
@@ -58,4 +58,4 @@ Manual inputs:
 
 ## Packaging design notes
 
-The publish script performs a runtime-specific restore and then publishes with `--no-restore`. It splits prerelease versions into numeric assembly/file version and informational/package version so a label such as `1.3.0-beta.1` remains valid while Windows assembly versions stay numeric.
+The publish script performs a runtime-specific restore and then publishes with `--no-restore`. It splits prerelease versions into numeric assembly/file version and informational/package version so a label such as `1.3.0-beta.2` remains valid while Windows assembly versions stay numeric.
