@@ -40,11 +40,13 @@ $required = @(
     "docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md",
     "docs/development/RELEASE_CHECKLIST.md",
     "src/ProcessBus.Iec61850.Raw/Runtime/SvRuntimeSnapshot.cs",
+    "src/ProcessBus.Iec61850.Raw/Runtime/AnalyzerRuntimeSnapshotSource.cs",
     "src/ProcessBus.Iec61850.Raw/Replay/PcapReplayReader.cs",
     "src/ProcessBus.Iec61850.Raw/Replay/ProcessBusReplaySession.cs",
     "tests/ProcessBus.Tests/RuntimeStabilityTests.cs",
     "tests/ProcessBus.Tests/PcapReplayRuntimeTests.cs",
-    "tests/ProcessBus.Tests/PcapFormatVariantTests.cs"
+    "tests/ProcessBus.Tests/PcapFormatVariantTests.cs",
+    "tests/ProcessBus.Tests/AnalyzerRuntimeSnapshotSourceTests.cs"
 )
 $required | ForEach-Object { Assert-Path $_ }
 
