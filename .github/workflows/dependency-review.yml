@@ -58,18 +58,8 @@ jobs:
           exit 1
 
       - name: GitHub dependency delta review
-        id: github-dependency-review
-        continue-on-error: true
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           retry-on-snapshot-warnings: true
           retry-on-snapshot-warnings-timeout: 180
-
-      - name: Report dependency graph availability
-        if: always()
-        shell: bash
-        run: |
-          if [ "${{ steps.github-dependency-review.outcome }}" != "success" ]; then
-            echo "::warning::GitHub dependency delta review could not complete. The blocking NuGet high/critical vulnerability audit passed. Enable Repository Settings > Security & analysis > Dependency graph, then remove continue-on-error from this workflow."
-          fi
