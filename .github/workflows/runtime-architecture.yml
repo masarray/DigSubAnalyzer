@@ -7,6 +7,7 @@ on:
       - "src/ProcessBus.Iec61850.Raw/Runtime/**"
       - "src/ProcessBus.Iec61850.Raw/Replay/**"
       - "tests/ProcessBus.Tests/Pcap*Tests.cs"
+      - "tests/ProcessBus.Tests/AnalyzerRuntimeSnapshotSourceTests.cs"
       - ".github/workflows/runtime-architecture.yml"
   schedule:
     - cron: "17 3 * * 4"
