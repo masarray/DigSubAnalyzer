@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible runtime, protocol, UI, or packaging defect.
+description: Report a reproducible runtime, protocol, UI, replay, or packaging defect.
 title: "[Bug]: "
 labels: [bug, triage]
 body:
@@ -11,7 +11,7 @@ body:
     id: version
     attributes:
       label: Process Bus Insight version
-      placeholder: 1.3.0-beta.2 or commit SHA
+      placeholder: 1.4.0-beta.1 or commit SHA
     validations:
       required: true
   - type: dropdown
@@ -20,6 +20,7 @@ body:
       label: Area
       options:
         - SV analyzer / waveform / phasor
+        - PCAP replay / runtime snapshot
         - GOOSE inspector
         - PTP / timing context
         - SCL validation
@@ -33,8 +34,8 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Windows version, Npcap version, adapter type, and capture path.
-      placeholder: Windows 11 x64; Npcap 1.x; Intel NIC via TAP
+      description: Windows version, Npcap version, adapter type, and capture/replay path.
+      placeholder: Windows 11 x64; Npcap 1.x; Intel NIC via TAP or sanitized PCAP replay
     validations:
       required: true
   - type: textarea
@@ -42,9 +43,9 @@ body:
     attributes:
       label: Reproduction steps
       placeholder: |
-        1. Start capture...
+        1. Start capture or replay...
         2. Select stream...
-        3. Change publisher setting...
+        3. Change publisher setting or replay the sanitized file...
     validations:
       required: true
   - type: textarea

@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Process Bus Insight - IEC 61850 SV, GOOSE, PTP and SCL Analyzer for Windows</title>
-  <meta name="description" content="Download Process Bus Insight, a free open-source Windows IEC 61850 Process Bus analyzer for Sampled Values, GOOSE, PTP timing context, and SCL validation during FAT, SAT, commissioning, and digital substation troubleshooting." />
-  <meta name="keywords" content="IEC 61850 analyzer, Process Bus analyzer, Sampled Values analyzer, SV analyzer, GOOSE inspector, PTP analyzer, SCL validation, digital substation software, substation automation engineering, FAT SAT commissioning" />
+  <meta name="description" content="Download Process Bus Insight, a free open-source Windows IEC 61850 Process Bus analyzer for Sampled Values, GOOSE, PTP timing context, SCL validation, and reproducible PCAP replay during FAT, SAT, commissioning, and digital substation troubleshooting." />
+  <meta name="keywords" content="IEC 61850 analyzer, Process Bus analyzer, Sampled Values analyzer, SV analyzer, GOOSE inspector, PTP analyzer, SCL validation, PCAP replay, digital substation software, substation automation engineering, FAT SAT commissioning" />
   <meta name="author" content="Mas Ari / Tutorial Mas Ari" />
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="https://masarray.github.io/DigSubAnalyzer/" />
@@ -19,14 +19,14 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Process Bus Insight" />
   <meta property="og:title" content="Process Bus Insight - Free IEC 61850 Process Bus Analyzer" />
-  <meta property="og:description" content="Download a Windows tool for IEC 61850 Sampled Values, GOOSE, PTP context, and SCL expected-vs-observed validation." />
+  <meta property="og:description" content="Download a Windows tool for IEC 61850 Sampled Values, GOOSE, PTP context, SCL expected-vs-observed validation, and reproducible PCAP replay." />
   <meta property="og:url" content="https://masarray.github.io/DigSubAnalyzer/" />
   <meta property="og:image" content="https://masarray.github.io/DigSubAnalyzer/screenshot/analyzer-overview.webp" />
   <meta property="og:image:alt" content="Process Bus Insight analyzer dashboard for IEC 61850 Process Bus traffic" />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Process Bus Insight - IEC 61850 SV, GOOSE, PTP and SCL Analyzer" />
-  <meta name="twitter:description" content="Free open-source Windows tool for Process Bus visibility, SCL validation, and IEC 61850 troubleshooting." />
+  <meta name="twitter:description" content="Free open-source Windows tool for Process Bus visibility, SCL validation, PCAP replay, and IEC 61850 troubleshooting." />
   <meta name="twitter:image" content="https://masarray.github.io/DigSubAnalyzer/screenshot/analyzer-overview.webp" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -42,7 +42,7 @@
     "alternateName": "DigSubAnalyzer",
     "applicationCategory": "EngineeringApplication",
     "operatingSystem": "Windows 10, Windows 11",
-    "softwareVersion": "1.3.0-beta.2",
+    "softwareVersion": "1.4.0-beta.1",
     "license": "https://www.apache.org/licenses/LICENSE-2.0",
     "isAccessibleForFree": true,
     "url": "https://masarray.github.io/DigSubAnalyzer/",
@@ -54,9 +54,10 @@
       "GOOSE publisher inspection",
       "PTP timing context",
       "SCL expected-vs-observed validation",
+      "Classic Ethernet PCAP replay",
       "Windows portable EXE package"
     ],
-    "description": "Free open-source Windows analyzer for IEC 61850 Process Bus SV, GOOSE, PTP timing context, and SCL validation during FAT, SAT, commissioning, and troubleshooting."
+    "description": "Free open-source Windows analyzer for IEC 61850 Process Bus SV, GOOSE, PTP timing context, SCL validation, and reproducible PCAP replay during FAT, SAT, commissioning, and troubleshooting."
   }
   </script>
   <script type="application/ld+json">
@@ -72,7 +73,7 @@
       {
         "@type": "Question",
         "name": "Can I use it during FAT, SAT, or commissioning?",
-        "acceptedAnswer": {"@type": "Answer", "text": "Yes. The application is intended for visibility, troubleshooting, and engineering evidence during FAT, SAT, commissioning, and lab validation workflows."}
+        "acceptedAnswer": {"@type": "Answer", "text": "Yes. The application is intended for visibility, troubleshooting, reproducible capture analysis, and engineering evidence during FAT, SAT, commissioning, and lab validation workflows."}
       },
       {
         "@type": "Question",
@@ -154,7 +155,7 @@
       <div class="hero-copy" data-reveal>
         <span class="eyebrow"><span class="material-symbols-rounded">verified</span> Free open-source Windows tool</span>
         <h1>IEC 61850 Process Bus visibility for engineers who need answers fast.</h1>
-        <p class="lead">Download a focused Windows analyzer for Sampled Values, GOOSE, PTP timing context, and SCL expected-vs-observed validation. Built for FAT, SAT, commissioning, and real digital substation troubleshooting.</p>
+        <p class="lead">Analyze live Sampled Values, GOOSE, PTP timing context, and SCL expected-vs-observed evidence, then reproduce sanitized classic PCAP captures through the same decoder path. Built for FAT, SAT, commissioning, and real digital substation troubleshooting.</p>
 
         <div class="hero-actions">
           <a class="button pill primary large" href="https://github.com/masarray/DigSubAnalyzer/releases">
@@ -169,7 +170,7 @@
 
         <div class="quick-facts" aria-label="Product quick facts">
           <span><i class="material-symbols-rounded">desktop_windows</i> Windows 10/11</span>
-          <span><i class="material-symbols-rounded">lock_open</i> No license key</span>
+          <span><i class="material-symbols-rounded">replay</i> PCAP replay</span>
           <span><i class="material-symbols-rounded">visibility</i> Receive-only</span>
         </div>
       </div>
@@ -221,7 +222,7 @@
       <div class="section-head" data-reveal>
         <span class="section-label"><span class="material-symbols-rounded">auto_awesome</span> Product capabilities</span>
         <h2>Focused features for substation automation engineers.</h2>
-        <p>The interface shortens the path from live packet capture to usable engineering evidence. It keeps capture limitations visible and avoids pretending that Windows software capture is certified metrology.</p>
+        <p>The interface shortens the path from packet capture to usable engineering evidence. It keeps capture limitations visible and avoids pretending that Windows software capture is certified metrology.</p>
       </div>
 
       <div class="feature-grid">
@@ -246,14 +247,14 @@
           <p>Load SCD, ICD, or CID files to compare APPID, VLAN, MAC, DataSet, confRev, and stream identity against live traffic.</p>
         </article>
         <article class="feature-card interactive" data-reveal data-delay="70">
-          <span class="material-symbols-rounded card-icon">assignment_turned_in</span>
-          <h3>Engineering findings</h3>
-          <p>Capture clearer findings for FAT, SAT, commissioning review, and practical troubleshooting discussion.</p>
+          <span class="material-symbols-rounded card-icon">replay</span>
+          <h3>Reproducible PCAP replay</h3>
+          <p>Feed sanitized classic Ethernet PCAP frames through the same raw analyzer path used by live capture for repeatable regression and troubleshooting.</p>
         </article>
         <article class="feature-card interactive" data-reveal data-delay="140">
           <span class="material-symbols-rounded card-icon">shield</span>
           <h3>Receive-only boundary</h3>
-          <p>The application listens and decodes. It does not publish GOOSE/SV traffic and does not send control commands.</p>
+          <p>The application listens, decodes, and replays files internally. It does not publish GOOSE/SV traffic and does not send control commands.</p>
         </article>
       </div>
     </section>
@@ -277,8 +278,8 @@
           </article>
           <article class="workflow-item interactive" data-reveal data-delay="140">
             <span>03</span>
-            <strong>Load SCL when available</strong>
-            <p>Move from traffic exists to traffic matches engineering expectation with expected-vs-observed checks.</p>
+            <strong>Load SCL or replay sanitized evidence</strong>
+            <p>Compare traffic with engineering expectations or reproduce the same decoder/runtime behavior away from site.</p>
           </article>
           <article class="workflow-item interactive" data-reveal data-delay="210">
             <span>04</span>
@@ -353,7 +354,7 @@
         </details>
         <details class="interactive" data-reveal data-delay="50">
           <summary><span class="material-symbols-rounded">science</span> Can I use it during FAT, SAT, or commissioning?</summary>
-          <p>Yes. It is designed for visibility, troubleshooting, and engineering evidence during lab validation, FAT, SAT, and commissioning. It helps explain what is observed on the network.</p>
+          <p>Yes. It is designed for visibility, troubleshooting, reproducible capture analysis, and engineering evidence during lab validation, FAT, SAT, and commissioning.</p>
         </details>
         <details class="interactive" data-reveal data-delay="100">
           <summary><span class="material-symbols-rounded">security</span> Does it control relays, merging units, or bay controllers?</summary>
@@ -364,12 +365,12 @@
           <p>No for live visibility. Yes for deeper expected-vs-observed validation. Loading SCD, ICD, or CID files allows the app to compare live traffic against engineering configuration.</p>
         </details>
         <details class="interactive" data-reveal data-delay="200">
-          <summary><span class="material-symbols-rounded">network_check</span> Why can I see no traffic?</summary>
-          <p>Most cases are capture-path issues: wrong adapter, missing Npcap, switch port not mirrored, VLAN not forwarded, or the PC is connected to the wrong network segment.</p>
+          <summary><span class="material-symbols-rounded">replay</span> Which capture files can be replayed?</summary>
+          <p>v1.4.0-beta.1 supports classic PCAP 2.4 with Ethernet link type 1. PCAPNG and non-Ethernet link types are not yet claimed.</p>
         </details>
         <details class="interactive" data-reveal data-delay="250">
           <summary><span class="material-symbols-rounded">timer</span> Can it prove certified timing performance?</summary>
-          <p>No. Windows software timestamps are useful for screening and troubleshooting, but certification-grade timing proof needs validated test equipment and hardware timestamping.</p>
+          <p>No. Windows software and replay timestamps are useful for screening and troubleshooting, but certification-grade timing proof needs validated test equipment and hardware timestamping.</p>
         </details>
         <details class="interactive" data-reveal data-delay="300">
           <summary><span class="material-symbols-rounded">workspace_premium</span> Is it free for professional use?</summary>

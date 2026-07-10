@@ -1,0 +1,90 @@
+name: Runtime architecture
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/ProcessBus.Iec61850.Raw/Runtime/**"
+      - "src/ProcessBus.Iec61850.Raw/Replay/**"
+      - "tests/ProcessBus.Tests/Pcap*Tests.cs"
+      - "tests/ProcessBus.Tests/AnalyzerRuntimeSnapshotSourceTests.cs"
+      - ".github/workflows/runtime-architecture.yml"
+  schedule:
+    - cron: "17 3 * * 4"
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: Number of deterministic architecture passes
+        required: true
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-architecture-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  architecture:
+    name: Immutable snapshot and PCAP replay gate
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore .\ProcessBusSuite.sln
+
+      - name: Build
+        run: dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Repeat runtime architecture suite
+        shell: pwsh
+        run: |
+          $requested = '${{ github.event.inputs.iterations }}'
+          $iterations = 3
+          if (-not [string]::IsNullOrWhiteSpace($requested)) {
+              $parsed = 0
+              if (-not [int]::TryParse($requested, [ref]$parsed)) {
+                  throw "Invalid iterations value: $requested"
+              }
+              $iterations = [Math]::Clamp($parsed, 1, 20)
+          }
+
+          New-Item -ItemType Directory -Path .\TestResults\RuntimeArchitecture -Force | Out-Null
+          Write-Host "Runtime architecture iterations: $iterations"
+
+          for ($iteration = 1; $iteration -le $iterations; $iteration++) {
+              Write-Host "=== Runtime architecture pass $iteration/$iterations ==="
+              dotnet test .\tests\ProcessBus.Tests\ProcessBus.Tests.csproj `
+                  -c Release `
+                  --no-build `
+                  --filter "Category=RuntimeArchitecture" `
+                  --logger "trx;LogFileName=runtime-architecture-$iteration.trx" `
+                  --results-directory .\TestResults\RuntimeArchitecture
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Runtime architecture pass $iteration failed."
+              }
+          }
+
+      - name: Upload runtime architecture evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-architecture-${{ github.run_id }}
+          path: TestResults/RuntimeArchitecture/**
+          if-no-files-found: error
+          retention-days: 30
