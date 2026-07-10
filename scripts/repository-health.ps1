@@ -43,7 +43,8 @@ $required = @(
     "src/ProcessBus.Iec61850.Raw/Replay/PcapReplayReader.cs",
     "src/ProcessBus.Iec61850.Raw/Replay/ProcessBusReplaySession.cs",
     "tests/ProcessBus.Tests/RuntimeStabilityTests.cs",
-    "tests/ProcessBus.Tests/PcapReplayRuntimeTests.cs"
+    "tests/ProcessBus.Tests/PcapReplayRuntimeTests.cs",
+    "tests/ProcessBus.Tests/PcapFormatVariantTests.cs"
 )
 $required | ForEach-Object { Assert-Path $_ }
 
