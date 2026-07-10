@@ -28,16 +28,22 @@ $required = @(
     ".github/CODEOWNERS",
     ".github/workflows/ci.yml",
     ".github/workflows/runtime-stability.yml",
+    ".github/workflows/runtime-architecture.yml",
     ".github/workflows/candidate-package.yml",
     ".github/workflows/codeql.yml",
     ".github/workflows/dependency-review.yml",
     ".github/workflows/pages.yml",
     ".github/workflows/release-package.yml",
     "docs/architecture/STREAM_RUNTIME.md",
+    "docs/architecture/RUNTIME_SNAPSHOT_AND_REPLAY.md",
     "docs/validation/TESTED_CONFIGURATIONS.md",
     "docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md",
     "docs/development/RELEASE_CHECKLIST.md",
-    "tests/ProcessBus.Tests/RuntimeStabilityTests.cs"
+    "src/ProcessBus.Iec61850.Raw/Runtime/SvRuntimeSnapshot.cs",
+    "src/ProcessBus.Iec61850.Raw/Replay/PcapReplayReader.cs",
+    "src/ProcessBus.Iec61850.Raw/Replay/ProcessBusReplaySession.cs",
+    "tests/ProcessBus.Tests/RuntimeStabilityTests.cs",
+    "tests/ProcessBus.Tests/PcapReplayRuntimeTests.cs"
 )
 $required | ForEach-Object { Assert-Path $_ }
 
@@ -108,6 +114,9 @@ if ($site -notmatch ('"softwareVersion"\s*:\s*"' + [regex]::Escape($version) + '
 $readme = Get-Content (Join-Path $repoRoot "README.md") -Raw
 if ($readme -notmatch [regex]::Escape("ProcessBusInsight-v$version-win-x64-portable.zip")) {
     throw "README package example is not synchronized with version $version."
+}
+if ($readme -notmatch 'Category=RuntimeArchitecture') {
+    throw "README does not document the RuntimeArchitecture validation filter."
 }
 
 $releaseNotesPath = "docs/RELEASE_NOTES_v$version.md"
