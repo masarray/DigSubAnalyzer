@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.3.0-beta.1",
+    [string]$Version = "1.4.0-beta.2",
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$AppName = "ProcessBusInsight",
@@ -10,25 +10,25 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
-
-if ([string]::IsNullOrWhiteSpace($Version)) {
-    throw "Version cannot be empty."
-}
-
+if ([string]::IsNullOrWhiteSpace($Version)) { throw "Version cannot be empty." }
 
 $requiredReleaseDocs = @(
-    "docs/QUICK_START.pdf",
-    "docs/USER_MANUAL.pdf"
+    "docs/QUICK_START.pdf", "docs/USER_MANUAL.pdf", "LICENSE", "NOTICE",
+    "COMMERCIAL-LICENSE.md", "COPYRIGHT.md", "TRADEMARK.md",
+    "THIRD_PARTY_NOTICES.md", "docs/LICENSING.md"
 )
-
 foreach ($doc in $requiredReleaseDocs) {
-    $docPath = Join-Path $repoRoot $doc
-    if (-not (Test-Path $docPath)) {
-        throw "Release documentation is missing: $doc. These PDF files must be committed to the repository before running the release workflow. If you just copied the repo upgrade files locally, run: git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf"
-    }
+    if (-not (Test-Path (Join-Path $repoRoot $doc))) { throw "Required release document is missing: $doc" }
+}
+
+$licenseText = Get-Content (Join-Path $repoRoot "LICENSE") -Raw
+if ($licenseText -notmatch 'GNU GENERAL PUBLIC LICENSE' -or $licenseText -notmatch 'Version 3, 29 June 2007') {
+    throw "Current root LICENSE is not GNU GPL version 3."
+}
+if (Test-Path (Join-Path $repoRoot "LICENSE-APACHE-2.0")) {
+    throw "Historical Apache license must not be staged as a current release license."
 }
 
 $portableName = "$AppName-v$Version-$Runtime-portable"
@@ -41,133 +41,93 @@ $selfContained = -not $FrameworkDependent.IsPresent
 $singleFile = -not $MultiFile.IsPresent
 
 Write-Host "Publishing $AppName $Version for $Runtime"
-Write-Host "Self-contained: $selfContained"
-Write-Host "Single-file EXE: $singleFile"
-
+Write-Host "Community license: GPL-3.0-or-later"
 Remove-Item -LiteralPath $publishDir -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $publishDir, $stageDir, $releaseDir | Out-Null
 
 $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
+dotnet restore $resolvedProjectPath -r $Runtime /p:ContinuousIntegrationBuild=true
+if ($LASTEXITCODE -ne 0) { throw "Runtime-specific restore failed." }
 
-# Runtime-specific restore is done explicitly, then publish runs with --no-restore.
-# Do not pass /p:AssemblyName from the command line. MSBuild global properties flow
-# into project references too and can trigger NuGet ambiguous project-name errors.
-$restoreArgs = @(
-    "restore", $resolvedProjectPath,
-    "-r", $Runtime,
-    "/p:ContinuousIntegrationBuild=true"
-)
-
-dotnet @restoreArgs
-
-# Split a stable or prerelease label into a numeric prefix (for AssemblyVersion,
-# which must be four numeric parts) and an optional suffix.
 $versionParts = $Version.Split('-', 2)
 $versionPrefix = $versionParts[0]
 $versionSuffix = if ($versionParts.Length -gt 1) { $versionParts[1] } else { '' }
-
 $publishArgs = @(
-    "publish", $resolvedProjectPath,
-    "--no-restore",
-    "-c", $Configuration,
-    "-r", $Runtime,
-    "-o", $publishDir,
-    "/p:Version=$Version",
-    "/p:VersionPrefix=$versionPrefix",
-    "/p:VersionSuffix=$versionSuffix",
-    "/p:PackageVersion=$Version",
-    "/p:AssemblyVersion=$versionPrefix.0",
-    "/p:FileVersion=$versionPrefix.0",
-    "/p:InformationalVersion=$Version",
+    "publish", $resolvedProjectPath, "--no-restore", "-c", $Configuration,
+    "-r", $Runtime, "-o", $publishDir,
+    "/p:Version=$Version", "/p:VersionPrefix=$versionPrefix", "/p:VersionSuffix=$versionSuffix",
+    "/p:PackageVersion=$Version", "/p:AssemblyVersion=$versionPrefix.0",
+    "/p:FileVersion=$versionPrefix.0", "/p:InformationalVersion=$Version",
     "/p:PublishSingleFile=$($singleFile.ToString().ToLowerInvariant())",
-    "/p:IncludeNativeLibrariesForSelfExtract=true",
-    "/p:EnableCompressionInSingleFile=true",
-    "/p:PublishTrimmed=false",
-    "/p:DebugType=None",
-    "/p:DebugSymbols=false",
-    "/p:ErrorOnDuplicatePublishOutputFiles=true"
+    "/p:IncludeNativeLibrariesForSelfExtract=true", "/p:EnableCompressionInSingleFile=true",
+    "/p:PublishTrimmed=false", "/p:DebugType=None", "/p:DebugSymbols=false",
+    "/p:ErrorOnDuplicatePublishOutputFiles=true", "--self-contained", $selfContained.ToString().ToLowerInvariant()
 )
-
-if ($selfContained) {
-    $publishArgs += "--self-contained"
-    $publishArgs += "true"
-}
-else {
-    $publishArgs += "--self-contained"
-    $publishArgs += "false"
-}
-
 dotnet @publishArgs
+if ($LASTEXITCODE -ne 0) { throw "Publish failed." }
 
 $publishedExe = Join-Path $publishDir "$AppName.exe"
 if (-not (Test-Path $publishedExe)) {
     $fallbackExe = Get-ChildItem -Path $publishDir -Filter "*.exe" -File | Select-Object -First 1
-    if ($fallbackExe) {
-        $publishedExe = $fallbackExe.FullName
-    }
+    if ($fallbackExe) { $publishedExe = $fallbackExe.FullName }
 }
-
 if ($singleFile) {
-    if (-not (Test-Path $publishedExe)) {
-        throw "Single-file publish did not produce an executable in: $publishDir"
-    }
-    Copy-Item -Path $publishedExe -Destination (Join-Path $stageDir "$AppName.exe") -Force
-}
-else {
+    if (-not (Test-Path $publishedExe)) { throw "Single-file publish did not produce an executable in: $publishDir" }
+    Copy-Item $publishedExe (Join-Path $stageDir "$AppName.exe") -Force
+} else {
     $appStageDir = Join-Path $stageDir "app"
     New-Item -ItemType Directory -Path $appStageDir | Out-Null
-    Copy-Item -Path (Join-Path $publishDir "*") -Destination $appStageDir -Recurse -Force
+    Copy-Item (Join-Path $publishDir "*") $appStageDir -Recurse -Force
 }
 
 $packageReadme = @"
 Process Bus Insight / DigSubAnalyzer
 Windows portable package
 Version: $Version
+Community license: GPL-3.0-or-later
 
-How to run:
-1. Install Npcap on the Windows machine that will capture IEC 61850 Process Bus traffic.
-2. Extract this ZIP to a local folder, for example C:\Tools\ProcessBusInsight.
+1. Install Npcap separately when live raw Ethernet capture is required.
+2. Extract this ZIP to a local folder.
 3. Run $AppName.exe.
-4. Select a real physical Ethernet adapter connected to a TAP, mirror port, or isolated test network.
-5. Start capture and review SV, GOOSE, PTP, diagnostics, and SCL binding views.
+4. Use an authorized TAP, mirror port, or isolated engineering test network.
 
-Included documents:
-- Quick Start.pdf
-- User Manual.pdf
+Included legal documents:
+LICENSE.txt, NOTICE.txt, COMMERCIAL-LICENSE.md, COPYRIGHT.md, TRADEMARK.md,
+THIRD_PARTY_NOTICES.md, and Licensing.md.
 
-Timing note:
-Normal Windows/Npcap timestamps are software based. Use timing findings as screening evidence unless the capture path is validated with hardware timestamping, TAP, or trusted timing equipment.
+Proprietary, OEM, white-label, closed-source redistribution, private-branch, or contractual service rights require a separate negotiated agreement. The commercial notice grants no additional rights by itself.
 
-Project page:
+Windows/Npcap timestamps are screening evidence unless independently validated. The software does not prove external IED acceptance or process action.
+
 https://github.com/masarray/DigSubAnalyzer
 "@
-Set-Content -Path (Join-Path $stageDir "README.txt") -Value $packageReadme -Encoding UTF8
+Set-Content (Join-Path $stageDir "README.txt") $packageReadme -Encoding UTF8
 
 $copyMap = @(
-    @{ Source = "LICENSE"; Destination = "LICENSE.txt"; Required = $true },
-    @{ Source = "NOTICE"; Destination = "NOTICE.txt"; Required = $false },
-    @{ Source = "THIRD_PARTY_NOTICES.md"; Destination = "THIRD_PARTY_NOTICES.md"; Required = $false },
-    @{ Source = "docs/QUICK_START.pdf"; Destination = "Quick Start.pdf"; Required = $true },
-    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf"; Required = $true }
+    @{ Source = "LICENSE"; Destination = "LICENSE.txt" },
+    @{ Source = "NOTICE"; Destination = "NOTICE.txt" },
+    @{ Source = "COMMERCIAL-LICENSE.md"; Destination = "COMMERCIAL-LICENSE.md" },
+    @{ Source = "COPYRIGHT.md"; Destination = "COPYRIGHT.md" },
+    @{ Source = "TRADEMARK.md"; Destination = "TRADEMARK.md" },
+    @{ Source = "THIRD_PARTY_NOTICES.md"; Destination = "THIRD_PARTY_NOTICES.md" },
+    @{ Source = "docs/LICENSING.md"; Destination = "Licensing.md" },
+    @{ Source = "docs/QUICK_START.pdf"; Destination = "Quick Start.pdf" },
+    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf" }
 )
-
 foreach ($item in $copyMap) {
     $source = Join-Path $repoRoot $item.Source
-    if (Test-Path $source) {
-        Copy-Item $source -Destination (Join-Path $stageDir $item.Destination) -Force
-    }
-    elseif ($item.Required) {
-        throw "Required package file missing: $($item.Source). For release documentation PDFs, make sure they are committed with: git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf"
-    }
+    if (-not (Test-Path $source)) { throw "Required package file missing: $($item.Source)" }
+    Copy-Item $source (Join-Path $stageDir $item.Destination) -Force
 }
 
-Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+if (Test-Path (Join-Path $stageDir "LICENSE-APACHE-2.0")) {
+    throw "Historical Apache license must not appear in a current GPL package."
+}
+
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $stageDir "*") -DestinationPath $zipPath -Force
-
-$hash = Get-FileHash -Path $zipPath -Algorithm SHA256
-$shaLine = "$($hash.Hash.ToLowerInvariant())  $(Split-Path $zipPath -Leaf)"
-Set-Content -Path $shaPath -Value $shaLine -Encoding ASCII
-
+$hash = Get-FileHash $zipPath -Algorithm SHA256
+Set-Content $shaPath "$($hash.Hash.ToLowerInvariant())  $(Split-Path $zipPath -Leaf)" -Encoding ASCII
 Write-Host "Created: $zipPath"
 Write-Host "Created: $shaPath"

@@ -5,6 +5,13 @@ on:
     branches: [main]
     paths:
       - "Directory.Build.props"
+      - "LICENSE"
+      - "NOTICE"
+      - "COMMERCIAL-LICENSE.md"
+      - "COPYRIGHT.md"
+      - "TRADEMARK.md"
+      - "THIRD_PARTY_NOTICES.md"
+      - "docs/LICENSING.md"
       - "src/**"
       - "tests/**"
       - "scripts/publish-windows-portable.ps1"
@@ -29,7 +36,7 @@ env:
 jobs:
   candidate:
     name: Build verified Windows x64 candidate
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/') || startsWith(github.head_ref, 'architecture/')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/') || startsWith(github.head_ref, 'architecture/') || startsWith(github.head_ref, 'legal/')
     runs-on: windows-latest
     timeout-minutes: 35
 
@@ -52,12 +59,10 @@ jobs:
           $prefixNode = $props.SelectSingleNode('/Project/PropertyGroup/VersionPrefix')
           $suffixNode = $props.SelectSingleNode('/Project/PropertyGroup/VersionSuffix')
           if ($null -eq $prefixNode) { throw 'VersionPrefix is missing.' }
-
           $prefix = $prefixNode.InnerText.Trim()
           $suffix = if ($null -eq $suffixNode) { '' } else { $suffixNode.InnerText.Trim() }
           $version = if ([string]::IsNullOrWhiteSpace($suffix)) { $prefix } else { "$prefix-$suffix" }
           if ([string]::IsNullOrWhiteSpace($version)) { throw 'Unable to resolve repository version.' }
-
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Candidate version: $version"
 
@@ -95,6 +100,8 @@ jobs:
             sourceRef = '${{ github.head_ref || github.ref_name }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
+            communityLicense = 'GPL-3.0-or-later'
+            historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
           }
           $manifest | ConvertTo-Json | Set-Content .\artifacts\release\candidate-manifest.json -Encoding utf8

@@ -1,9 +1,9 @@
 <Project>
   <PropertyGroup>
-    <Authors>Process Bus Insight Contributors</Authors>
-    <Company>Process Bus Insight Contributors</Company>
-    <Copyright>Copyright 2026 Process Bus Insight Contributors</Copyright>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <Authors>Ari Sulistiono; Process Bus Insight Contributors</Authors>
+    <Company>Process Bus Insight</Company>
+    <Copyright>Copyright 2026 Ari Sulistiono and Process Bus Insight Contributors</Copyright>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/masarray/DigSubAnalyzer</RepositoryUrl>
     <PackageProjectUrl>https://masarray.github.io/DigSubAnalyzer/</PackageProjectUrl>
@@ -11,7 +11,7 @@
 
     <!-- Public beta version. Release builds may override these properties from the tag. -->
     <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.4.0</VersionPrefix>
-    <VersionSuffix Condition="'$(VersionSuffix)' == ''">beta.1</VersionSuffix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">beta.2</VersionSuffix>
     <Version Condition="'$(Version)' == ''">$(VersionPrefix)-$(VersionSuffix)</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(VersionPrefix).0</AssemblyVersion>
@@ -23,7 +23,6 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
 
-    <!-- Repository-wide NuGet audit policy. High and critical findings block only the dedicated audit pipeline. -->
     <NuGetAudit>true</NuGetAudit>
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAuditLevel>high</NuGetAuditLevel>
