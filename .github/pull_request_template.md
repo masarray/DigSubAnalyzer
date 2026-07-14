@@ -13,14 +13,26 @@ Describe the FAT/SAT, commissioning, interoperability, troubleshooting, or repos
 - [ ] `dotnet test .\ProcessBusSuite.sln -c Release --no-build`
 - [ ] `pwsh .\scripts\repository-health.ps1`
 - [ ] Runtime smoke test on Windows, when runtime behavior changed
-- [ ] Documentation/screenshots updated when user-visible behavior changed
+- [ ] Documentation/screenshots updated when user-visible behavior or claims changed
+- [ ] Portable package verification completed when packaging or legal content changed
 
-## Safety and evidence
+## Product, claim, and evidence boundary
 
 - [ ] Receive-only product boundary is preserved
 - [ ] Timing language matches timestamp-source confidence
-- [ ] No customer, site, device, MAC/IP, capture, SCL, or project-sensitive data is included
+- [ ] Expected configuration, observed traffic, software interpretation, and external-device behavior remain distinct
+- [ ] No claim implies formal conformance, calibration, deterministic timing, functional safety, cybersecurity approval, universal interoperability, switching authority, or IED acceptance proof
+- [ ] No customer, employer, station, device, credential, MAC/IP, capture, SCL, or project-sensitive data is included
+- [ ] Any fixture or screenshot is synthetic, contributor-owned, or documented as authorized and sanitized
+- [ ] No unrelated proprietary code, tests, wording, screenshot, report, asset, or UI design was copied or mechanically translated
 - [ ] No `bin`, `obj`, `artifacts`, logs, captures, or local settings are committed
+
+## Contribution licensing
+
+- [ ] I have read and affirmatively accept `CONTRIBUTOR-LICENSE-AGREEMENT.md`
+- [ ] I have the legal right and any required employer or organizational authorization to submit this contribution
+- [ ] Every commit includes `Signed-off-by: Name <email>` under the DCO
+- [ ] Any third-party material is identified with its license and provenance
 
 ## Compatibility / migration notes
 

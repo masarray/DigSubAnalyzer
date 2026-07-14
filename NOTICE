@@ -1,6 +1,16 @@
 Process Bus Insight / DigSubAnalyzer
-Copyright 2026 Process Bus Insight Contributors
+Copyright 2026 Ari Sulistiono and Process Bus Insight Contributors
 
-This product includes source code licensed under the Apache License, Version 2.0.
+Current community revisions and current public release packages are licensed under GPL-3.0-or-later.
 
-Npcap is a runtime prerequisite for raw packet capture on Windows. Npcap is not vendored in this repository and must be installed separately by the user.
+The final active Apache-2.0 revision is commit:
+85d43a0fe58a5888a9e8008c168ab76d2333ea87
+
+That historical revision is preserved on:
+archive/apache-2.0-final
+
+Historical Apache-2.0 grants remain effective for the revisions to which they applied. They are not a current alternative license for later revisions or current binaries.
+
+A separate commercial licensing path is described in COMMERCIAL-LICENSE.md. That notice is not itself a license and grants no additional rights.
+
+Npcap is a separately installed runtime prerequisite for raw packet capture on Windows and is not vendored or silently bundled. Third-party components retain their applicable licenses and notices.

@@ -6,10 +6,34 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ### Planned
 
-- Sanitized golden PCAP/PCAPNG replay corpus with broader multi-vendor scenarios
+- Sanitized golden PCAP/PCAPNG replay corpus with broader interoperability scenarios
 - Further decomposition of the analyzer runtime and WPF workspace
-- Expanded SCL multi-vendor validation
+- Expanded SCL validation
 - Evidence export for FAT/SAT reports
+
+## [1.4.0-beta.2] - 2026-07-15
+
+### Added
+
+- GPL-3.0-or-later current community licensing model
+- Separate negotiated commercial licensing path
+- Historical Apache-2.0 preservation branch at `archive/apache-2.0-final`
+- Copyright, trademark, CLA, DCO, transition, provenance, and public-claim records
+- GPL and package legal-content verification in the repository-health gate
+- Candidate-package validation for `legal/*` branches
+
+### Changed
+
+- Version advanced to `1.4.0-beta.2` so post-transition packages are not confused with historical Apache-licensed v1.4.0-beta.1 artifacts
+- README, landing-page structured data, FAQ, manifest, contribution guidance, package scripts, release workflow, and release documentation now reflect GPL and commercial boundaries
+- Current portable packages include GPL, commercial, copyright, trademark, third-party, and licensing-summary documents
+- Release manifests record the community license and historical boundary
+
+### Security and provenance
+
+- External implementation material is limited to lawful black-box interoperability use unless documented incorporation rights exist
+- Real captures, SCL, screenshots, and diagnostics require documented authorization and sanitization
+- Public wording separates configured expectations, observed traffic, software interpretation, and external-device behavior
 
 ## [1.4.0-beta.1] - 2026-07-11
 
@@ -17,7 +41,7 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 - Immutable selected-stream runtime generations with copied waveform, analog, identity, and diagnostic evidence
 - Atomic runtime snapshot publisher for coherent consumer reads
-- Classic Ethernet PCAP replay through the same raw decoder/analyzer path used by live Npcap capture
+- Classic PCAP replay through the same raw decoder/analyzer path used by live Npcap capture
 - Microsecond and nanosecond PCAP timestamp variants in little-endian and big-endian formats
 - Bounded rejection for unsupported link types, invalid headers, oversized records, and truncated captures
 - Deterministic runtime-architecture tests covering replay timing, snapshot immutability, and three-stream isolation
@@ -27,8 +51,8 @@ All notable changes are documented here. The project follows Semantic Versioning
 ### Changed
 
 - Release and documentation versioning use `1.4.0-beta.1`
-- Runtime architecture now exposes a coherent publication boundary instead of requiring consumers to retain mutable analyzer display models
-- Offline replay is explicitly treated as a reproducibility path, not a separate decoder or a traffic publisher
+- Runtime architecture exposes a coherent publication boundary instead of requiring consumers to retain mutable analyzer display models
+- Offline replay is treated as a reproducibility path, not a separate decoder or traffic publisher
 
 ### Limitations
 
@@ -51,8 +75,7 @@ All notable changes are documented here. The project follows Semantic Versioning
 ### Changed
 
 - Release and documentation versioning use `1.3.0-beta.2`
-- Runtime validation now separates deterministic automated stress evidence from maintained 30–60 minute live/replay soak evidence
-- Public documentation exposes a dedicated Runtime Stability workflow and test filter
+- Runtime validation separates deterministic automated stress evidence from maintained live/replay soak evidence
 
 ## [1.3.0-beta.1] - 2026-07-10
 
@@ -67,12 +90,9 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ### Changed
 
-- SCL candidates with a valid primary identity anchor remain eligible when transport or configuration fields mismatch, preserving a precise `MISMATCH` result instead of splitting evidence into `MISSING` and `UNEXPECTED` rows
-- Dependency Review uses the current Node 24 action generation and retries while dependency snapshots are still being submitted
+- SCL candidates with a valid primary identity anchor remain eligible when transport or configuration fields mismatch
 - SV explorer prioritizes live streams and sorts by SV name
-- Live streams use `LIVE` state with health color rather than ambiguous warning-only labels
-- Metering and waveform layouts reduce repeated status/noise text
-- Release and documentation versioning use `1.3.0-beta.1`
+- Metering and waveform layouts reduce repeated status text
 
 ### Security
 
@@ -82,7 +102,8 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 - Hardened BER parsing, Npcap lifecycle, release version propagation, and public-repository packaging.
 
-[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.0-beta.1...HEAD
+[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.0-beta.2...HEAD
+[1.4.0-beta.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.0-beta.1...v1.4.0-beta.2
 [1.4.0-beta.1]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.2...v1.4.0-beta.1
 [1.3.0-beta.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.1...v1.3.0-beta.2
 [1.3.0-beta.1]: https://github.com/masarray/DigSubAnalyzer/releases/tag/v1.3.0-beta.1

@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version label, for example 1.4.0-beta.1
+        description: Version label, for example 1.4.0-beta.2
         required: true
-        default: 1.4.0-beta.1
+        default: 1.4.0-beta.2
       publish_release:
         description: Create or update a GitHub Release
         required: true
@@ -18,14 +18,14 @@ on:
         default: true
         type: boolean
       draft:
-        description: Create GitHub Release as draft
+        description: Create a draft release
         required: true
         default: false
         type: boolean
       release_notes_file:
         description: Markdown file used as release body
         required: true
-        default: docs/RELEASE_NOTES_v1.4.0-beta.1.md
+        default: docs/RELEASE_NOTES_v1.4.0-beta.2.md
   push:
     tags:
       - "v*"
@@ -102,6 +102,8 @@ jobs:
             commit = '${{ github.sha }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
+            communityLicense = 'GPL-3.0-or-later'
+            historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
           }
           $manifest | ConvertTo-Json | Set-Content .\artifacts\release\release-manifest.json -Encoding utf8
@@ -130,7 +132,7 @@ jobs:
           $sha = "artifacts/release/SHA256SUMS.txt"
           $manifest = "artifacts/release/release-manifest.json"
           $notesFile = '${{ github.event.inputs.release_notes_file }}'
-          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.0-beta.1.md' }
+          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.0-beta.2.md' }
           if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
 
           $releaseArgs = @('release', 'create', $tag, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')

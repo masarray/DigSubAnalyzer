@@ -1,11 +1,16 @@
 # Release Checklist
 
-## Source and repository
+## Source, licensing, and repository
 
 - [ ] `main` is clean and protected by pull-request review where practical
 - [ ] Repository health script passes
+- [ ] Root `LICENSE` is GNU GPL version 3 and project metadata declares `GPL-3.0-or-later`
+- [ ] Current source and package wording do not present Apache-2.0 as an active alternative license
+- [ ] Historical boundary commit `85d43a0fe58a5888a9e8008c168ab76d2333ea87` and `archive/apache-2.0-final` are documented
+- [ ] Commercial notice states that it is not itself a license and grants no additional rights
+- [ ] Copyright, trademark, CLA, DCO, third-party, provenance, and public-claim documents are current
 - [ ] No nested repo, RnD solution, build output, logs, captures, or local settings are tracked
-- [ ] Version matches `Directory.Build.props`, README, landing page, release workflow, and release notes
+- [ ] Version matches `Directory.Build.props`, README, landing page, release workflow, release notes, and package script
 - [ ] Changelog, architecture notes, and tested-configuration notes are updated
 
 ## Automated validation
@@ -14,9 +19,7 @@
 - [ ] Release build succeeds
 - [ ] All tests pass
 - [ ] Runtime Stability workflow passes all repeated `Category=RuntimeStability` iterations
-- [ ] Runtime Stability TRX artifact is retained with the release evidence
 - [ ] Runtime Architecture workflow passes all repeated `Category=RuntimeArchitecture` iterations
-- [ ] Runtime Architecture TRX artifact is retained with the release evidence
 - [ ] Classic PCAP little/big-endian and micro/nanosecond variants pass
 - [ ] Truncated, unsupported-link-type, invalid-timestamp, and oversized-record cases are rejected
 - [ ] CodeQL completes
@@ -26,7 +29,7 @@
 
 ## Runtime smoke test
 
-- [ ] Application starts without Npcap crash handling regressions
+- [ ] Application starts without Npcap crash-handling regressions
 - [ ] Physical/known adapter can start and stop cleanly
 - [ ] Multiple SV streams remain isolated
 - [ ] Initial selected stream updates without user click
@@ -37,7 +40,6 @@
 - [ ] Duplicate, forward-gap, and publisher-restart behavior is exercised
 - [ ] GOOSE, PTP, and SCL workspaces open and update
 - [ ] 30–60 minute soak test shows no material memory growth or UI freeze
-- [ ] Maintained live evidence remains available in `docs/validation/V1.3.0_BETA2_FIELD_EVIDENCE.md`
 
 ## Replay and immutable snapshot checks
 
@@ -49,15 +51,24 @@
 - [ ] Replay is file-input only and does not open a transmit path
 - [ ] PCAPNG is listed as unsupported until implemented and validated
 
-## Claims and evidence
+## Claims, data, and provenance
 
 - [ ] Timing wording remains screening-level unless hardware evidence exists
 - [ ] Replay is not described as recreating NIC, switch, or hardware timestamp behavior
-- [ ] Automated deterministic stress is not described as a replacement for live/replay soak validation
-- [ ] Full internal analyzer decomposition is not claimed before it is complete
+- [ ] Expected configuration, observed traffic, software interpretation, and external-device behavior remain distinct
+- [ ] No formal conformance, calibration, deterministic timing, functional-safety, cybersecurity, universal interoperability, switching-authority, or IED-acceptance claim is implied
 - [ ] Screenshots match the released UI
-- [ ] No customer or project-sensitive evidence is included
+- [ ] No customer, employer, station, credential, project-sensitive, or unlawfully shared evidence is included
+- [ ] Every non-synthetic fixture has documented authorization, sanitization, and provenance
 - [ ] Known limitations are listed in release notes
+
+## Package legal content
+
+- [ ] ZIP contains `LICENSE.txt`, `NOTICE.txt`, `COMMERCIAL-LICENSE.md`, `COPYRIGHT.md`, `TRADEMARK.md`, `THIRD_PARTY_NOTICES.md`, and `Licensing.md`
+- [ ] `LICENSE.txt` contains GNU GPL version 3
+- [ ] No historical Apache license file is presented as the current package license
+- [ ] Commercial notice non-grant wording is intact
+- [ ] Release manifest identifies `GPL-3.0-or-later` and the historical boundary
 
 ## Release
 
@@ -65,3 +76,4 @@
 - [ ] Publish portable ZIP, `SHA256SUMS.txt`, and `release-manifest.json`
 - [ ] Mark beta releases as prerelease
 - [ ] Confirm GitHub Pages and download links
+- [ ] Do not replace a historical Apache release asset with a post-transition GPL binary under the same tag; use the new version `v1.4.0-beta.2` or later
