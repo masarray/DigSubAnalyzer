@@ -18,17 +18,17 @@ env:
 jobs:
   nuget-audit:
     name: NuGet vulnerability audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 8.0.4xx
 
       - name: Run high/critical vulnerability audit
         id: nuget-audit
@@ -43,7 +43,7 @@ jobs:
 
       - name: Upload audit evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nuget-audit-${{ github.run_id }}
           path: nuget-audit.log
@@ -59,7 +59,7 @@ jobs:
 
   github-dependency-review:
     name: GitHub dependency delta review
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 6
 
     steps:
