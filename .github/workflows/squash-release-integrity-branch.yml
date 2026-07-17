@@ -1,0 +1,42 @@
+name: Squash release integrity branch
+
+on:
+  push:
+    branches: [hardening/release-integrity]
+    paths:
+      - ".github/workflows/squash-release-integrity-branch.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  squash:
+    if: github.actor == 'masarray'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout hardening branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: hardening/release-integrity
+          fetch-depth: 0
+
+      - name: Validate repository before squashing
+        run: |
+          python -m pip install --disable-pip-version-check reportlab==4.4.9 pypdf==6.4.1
+          python scripts/generate-release-pdfs.py --check
+          python scripts/validate-public-content.py
+          pwsh -NoLogo -NoProfile -File scripts/repository-health.ps1
+
+      - name: Replace branch history with one signed-off commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          rm -f .github/workflows/squash-release-integrity-branch.yml
+          git reset --soft origin/main
+          git add -A
+          git config user.name "Ari Sulistiono"
+          git config user.email "admin@arisulistiono.com"
+          git commit -s -m "Harden release integrity, licensing, and provenance"
+          git push --force-with-lease origin HEAD:hardening/release-integrity
