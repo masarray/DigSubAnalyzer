@@ -20,18 +20,29 @@ env:
 
 jobs:
   build-test:
-    name: Build, test, and repository health
-    runs-on: windows-latest
-    timeout-minutes: 25
+    name: Build, test, documents, and repository health
+    runs-on: windows-2025
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 8.0.4xx
+
+      - name: Install deterministic document dependencies
+        run: python -m pip install --disable-pip-version-check reportlab==4.4.9 pypdf==6.4.1
+
+      - name: Verify generated release PDFs
+        run: python .\scripts\generate-release-pdfs.py --check
+
+      - name: Validate public licensing and wording
+        run: python .\scripts\validate-public-content.py
 
       - name: Repository health gate
         shell: pwsh
@@ -54,7 +65,7 @@ jobs:
 
       - name: Upload test evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-evidence-${{ github.run_id }}
           path: TestResults/**
