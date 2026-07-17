@@ -8,7 +8,7 @@ on:
         required: true
         default: 1.4.0-beta.2
       publish_release:
-        description: Create or update a GitHub Release
+        description: Create a new GitHub Release
         required: true
         default: false
         type: boolean
@@ -32,6 +32,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -43,23 +45,26 @@ env:
 
 jobs:
   package:
-    name: Validate and package Windows x64
-    runs-on: windows-latest
-    timeout-minutes: 35
+    name: Validate, sign, attest, and package Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout exact release ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 8.0.4xx
 
-      - name: Resolve release version
-        id: version
+      - name: Install document validation dependencies
+        run: python -m pip install --disable-pip-version-check reportlab==4.4.9 pypdf==6.4.1
+
+      - name: Resolve and validate release identity
+        id: identity
         shell: pwsh
         run: |
           $version = '${{ github.event.inputs.version }}'
@@ -67,86 +72,128 @@ jobs:
           $version = $version.Trim()
           if ($version.StartsWith('v')) { $version = $version.Substring(1) }
           if ([string]::IsNullOrWhiteSpace($version)) { throw 'Unable to resolve release version.' }
-          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "Release version: $version"
+          $builtCommit = (git rev-parse HEAD).Trim()
+          $mainCommit = (git rev-parse origin/main).Trim()
+          git merge-base --is-ancestor $builtCommit $mainCommit
+          if ($LASTEXITCODE -ne 0) { throw "Release commit $builtCommit is not on main." }
+          if ('${{ github.event_name }}' -eq 'push' -and '${{ github.ref_name }}' -ne "v$version") {
+            throw "Tag/version mismatch: tag=${{ github.ref_name }}, version=$version"
+          }
+          "version=$version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "built_commit=$builtCommit" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Require signing secret for a public release
+        if: ${{ github.event_name == 'push' || github.event.inputs.publish_release == 'true' }}
+        shell: pwsh
+        env:
+          SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT) -or [string]::IsNullOrWhiteSpace($env:SIGNING_PASSWORD)) {
+            throw 'Public release publishing is blocked until WINDOWS_SIGNING_CERTIFICATE_BASE64 and WINDOWS_SIGNING_CERTIFICATE_PASSWORD are configured.'
+          }
+
+      - name: Verify generated PDFs and public wording
+        run: |
+          python .\scripts\generate-release-pdfs.py --check
+          python .\scripts\validate-public-content.py
 
       - name: Repository health gate
         shell: pwsh
-        run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
+        run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.identity.outputs.version }}'
 
-      - name: Restore
-        run: dotnet restore .\ProcessBusSuite.sln
-
-      - name: Build
-        run: dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
-
-      - name: Test
-        run: dotnet test .\ProcessBusSuite.sln -c Release --no-build --logger "trx;LogFileName=release-tests.trx" --results-directory .\TestResults
+      - name: Restore, build, and test
+        shell: pwsh
+        run: |
+          dotnet restore .\ProcessBusSuite.sln
+          dotnet build .\ProcessBusSuite.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+          dotnet test .\ProcessBusSuite.sln -c Release --no-build --logger "trx;LogFileName=release-tests.trx" --results-directory .\TestResults
 
       - name: Publish portable package
         shell: pwsh
-        run: .\scripts\publish-windows-portable.ps1 -Version '${{ steps.version.outputs.value }}' -Configuration Release -Runtime win-x64
+        env:
+          SOURCE_HEAD_COMMIT: ${{ steps.identity.outputs.built_commit }}
+          TESTED_MERGE_COMMIT: ${{ steps.identity.outputs.built_commit }}
+          SOURCE_REF: ${{ github.ref_name }}
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+        run: .\scripts\publish-windows-portable.ps1 -Version '${{ steps.identity.outputs.version }}' -Configuration Release -Runtime win-x64
 
-      - name: Verify portable package
+      - name: Verify package and signature boundary
         shell: pwsh
         run: |
-          $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
-          .\scripts\verify-release-package.ps1 -PackageZip $zip
+          $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.identity.outputs.version }}-win-x64-portable.zip"
+          $requireSignature = '${{ github.event_name }}' -eq 'push' -or '${{ github.event.inputs.publish_release }}' -eq 'true'
+          if ($requireSignature) {
+            .\scripts\verify-release-package.ps1 -PackageZip $zip -ExpectedVersion '${{ steps.identity.outputs.version }}' -RequireAuthenticode
+          } else {
+            .\scripts\verify-release-package.ps1 -PackageZip $zip -ExpectedVersion '${{ steps.identity.outputs.version }}'
+          }
 
       - name: Create release manifest
         shell: pwsh
         run: |
+          $zip = "artifacts/release/ProcessBusInsight-v${{ steps.identity.outputs.version }}-win-x64-portable.zip"
+          $sbom = 'artifacts/release/ProcessBusInsight-SBOM.cdx.json'
+          $source = 'artifacts/release/SOURCE.md'
           $manifest = [ordered]@{
             product = 'Process Bus Insight'
-            version = '${{ steps.version.outputs.value }}'
-            commit = '${{ github.sha }}'
+            version = '${{ steps.identity.outputs.version }}'
+            builtCommit = '${{ steps.identity.outputs.built_commit }}'
+            sourceHeadCommit = '${{ steps.identity.outputs.built_commit }}'
+            testedMergeCommit = '${{ steps.identity.outputs.built_commit }}'
+            sourceRef = '${{ github.ref_name }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
             communityLicense = 'GPL-3.0-or-later'
             historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
+            sourceArchive = "https://github.com/masarray/DigSubAnalyzer/archive/${{ steps.identity.outputs.built_commit }}.zip"
+            packageSha256 = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+            sbomSha256 = (Get-FileHash $sbom -Algorithm SHA256).Hash.ToLowerInvariant()
+            sourceOfferSha256 = (Get-FileHash $source -Algorithm SHA256).Hash.ToLowerInvariant()
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
           }
           $manifest | ConvertTo-Json | Set-Content .\artifacts\release\release-manifest.json -Encoding utf8
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+      - name: Attest release package provenance
+        id: attest-package
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
-          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable
+          subject-path: artifacts/release/ProcessBusInsight-v${{ steps.identity.outputs.version }}-win-x64-portable.zip
+
+      - name: Attest SBOM provenance
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
+        with:
+          subject-path: artifacts/release/ProcessBusInsight-SBOM.cdx.json
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ProcessBusInsight-v${{ steps.identity.outputs.version }}-win-x64-portable
           path: |
-            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
+            artifacts/release/ProcessBusInsight-v${{ steps.identity.outputs.version }}-win-x64-portable.zip
             artifacts/release/SHA256SUMS.txt
+            artifacts/release/SOURCE.md
+            artifacts/release/ProcessBusInsight-SBOM.cdx.json
             artifacts/release/release-manifest.json
             TestResults/**
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release
+      - name: Publish new GitHub Release
         if: ${{ github.event_name == 'push' || github.event.inputs.publish_release == 'true' }}
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $version = '${{ steps.version.outputs.value }}'
-          $tag = "v$version"
-          $zip = "artifacts/release/ProcessBusInsight-v$version-win-x64-portable.zip"
-          $sha = "artifacts/release/SHA256SUMS.txt"
-          $manifest = "artifacts/release/release-manifest.json"
-          $notesFile = '${{ github.event.inputs.release_notes_file }}'
-          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.0-beta.2.md' }
-          if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
-
-          $releaseArgs = @('release', 'create', $tag, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
-          $isDraft = '${{ github.event.inputs.draft }}'
-          $isPrerelease = '${{ github.event.inputs.prerelease }}'
-          if ('${{ github.event_name }}' -eq 'push') {
-            $isPrerelease = if ($version -match '-') { 'true' } else { 'false' }
-          }
-          if ($isDraft -eq 'true') { $releaseArgs += '--draft' }
-          if ($isPrerelease -eq 'true') { $releaseArgs += '--prerelease' }
-
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $zip $sha $manifest --clobber
-          } else {
-            gh @releaseArgs
-          }
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: v${{ steps.identity.outputs.version }}
+          target_commitish: ${{ steps.identity.outputs.built_commit }}
+          name: Process Bus Insight v${{ steps.identity.outputs.version }}
+          body_path: ${{ github.event.inputs.release_notes_file || 'docs/RELEASE_NOTES_v1.4.0-beta.2.md' }}
+          draft: ${{ github.event.inputs.draft || false }}
+          prerelease: ${{ github.event_name == 'push' && contains(steps.identity.outputs.version, '-') || github.event.inputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/release/ProcessBusInsight-v${{ steps.identity.outputs.version }}-win-x64-portable.zip
+            artifacts/release/SHA256SUMS.txt
+            artifacts/release/SOURCE.md
+            artifacts/release/ProcessBusInsight-SBOM.cdx.json
+            artifacts/release/release-manifest.json
