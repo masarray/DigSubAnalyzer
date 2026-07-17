@@ -1,0 +1,55 @@
+name: Finalize deterministic release PDFs
+
+on:
+  push:
+    branches: [hardening/release-integrity]
+    paths:
+      - ".github/workflows/finalize-pdf-determinism.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor == 'masarray'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout hardening branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: hardening/release-integrity
+          fetch-depth: 0
+
+      - name: Make ReportLab output invariant
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('scripts/generate-release-pdfs.py')
+          text = path.read_text(encoding='utf-8')
+          if 'from reportlab.pdfgen import canvas' not in text:
+              text = text.replace('from reportlab.pdfbase.pdfmetrics import stringWidth\n', 'from reportlab.pdfbase.pdfmetrics import stringWidth\nfrom reportlab.pdfgen import canvas\n')
+          marker = '\ndef footer(canvas, doc):\n'
+          function = "\ndef invariant_canvas(*args, **kwargs):\n    kwargs['invariant'] = 1\n    return canvas.Canvas(*args, **kwargs)\n"
+          if 'def invariant_canvas(' not in text:
+              text = text.replace(marker, function + marker)
+          text = text.replace('doc.build(story, onFirstPage=footer, onLaterPages=footer)', 'doc.build(story, onFirstPage=footer, onLaterPages=footer, canvasmaker=invariant_canvas)')
+          path.write_text(text, encoding='utf-8')
+
+      - name: Regenerate and verify PDFs
+        run: |
+          python -m pip install --disable-pip-version-check reportlab==4.4.9 pypdf==6.4.1
+          python scripts/generate-release-pdfs.py
+          python scripts/generate-release-pdfs.py --check
+          python scripts/validate-public-content.py
+
+      - name: Remove one-time workflow and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/finalize-pdf-determinism.yml
+          git config user.name "Ari Sulistiono"
+          git config user.email "admin@arisulistiono.com"
+          git add -A
+          git commit -s -m "Make release PDF generation deterministic"
+          git push origin HEAD:hardening/release-integrity
