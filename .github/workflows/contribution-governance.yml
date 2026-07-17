@@ -1,0 +1,28 @@
+name: Contribution governance
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: contribution-governance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cla-dco:
+    name: CLA affirmation and DCO sign-off
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout trusted default-branch policy
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify pull-request governance
+        run: python3 scripts/verify-contribution-governance.py
