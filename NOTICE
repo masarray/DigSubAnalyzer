@@ -1,7 +1,7 @@
 Process Bus Insight / DigSubAnalyzer
 Copyright 2026 Ari Sulistiono and Process Bus Insight Contributors
 
-Current community revisions and current public release packages are licensed under GPL-3.0-or-later.
+Revisions after the historical boundary and release packages built from those revisions are licensed under GPL-3.0-or-later.
 
 The final active Apache-2.0 revision is commit:
 85d43a0fe58a5888a9e8008c168ab76d2333ea87
@@ -9,7 +9,7 @@ The final active Apache-2.0 revision is commit:
 That historical revision is preserved on:
 archive/apache-2.0-final
 
-Historical Apache-2.0 grants remain effective for the revisions to which they applied. They are not a current alternative license for later revisions or current binaries.
+Historical Apache-2.0 grants remain effective for the revisions and artifacts to which they applied. They are not a current alternative license for later revisions or post-transition binaries.
 
 A separate commercial licensing path is described in COMMERCIAL-LICENSE.md. That notice is not itself a license and grants no additional rights.
 
