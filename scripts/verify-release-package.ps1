@@ -1,10 +1,14 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
     [string]$PackageZip,
-    [string]$AppName = "ProcessBusInsight"
+    [string]$AppName = "ProcessBusInsight",
+    [string]$ExpectedVersion = "1.4.0-beta.2",
+    [switch]$RequireAuthenticode
 )
 
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 if (-not (Test-Path $PackageZip)) { throw "Package ZIP not found: $PackageZip" }
 
 $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("ProcessBusInsightVerify_" + [Guid]::NewGuid().ToString("N"))
@@ -24,7 +28,10 @@ try {
         "COPYRIGHT.md",
         "TRADEMARK.md",
         "THIRD_PARTY_NOTICES.md",
-        "Licensing.md"
+        "Licensing.md",
+        "Asset Provenance.md",
+        "SOURCE.md",
+        "sbom.cdx.json"
     )
     foreach ($relative in $required) {
         if (-not (Test-Path (Join-Path $temp $relative))) {
@@ -50,10 +57,32 @@ try {
     }
 
     $licensing = Get-Content (Join-Path $temp "Licensing.md") -Raw
-    foreach ($marker in @('GPL-3.0-or-later', '85d43a0fe58a5888a9e8008c168ab76d2333ea87', 'archive/apache-2.0-final')) {
+    foreach ($marker in @('GPL-3.0-or-later', '85d43a0fe58a5888a9e8008c168ab76d2333ea87', 'archive/apache-2.0-final', 'SOURCE.md', 'sbom.cdx.json')) {
         if ($licensing -notmatch [regex]::Escape($marker)) {
             throw "Package verification failed. Licensing.md is missing: $marker"
         }
+    }
+
+    $source = Get-Content (Join-Path $temp "SOURCE.md") -Raw
+    foreach ($marker in @('Built commit:', 'Source-head commit:', 'Tested merge commit:', 'Immutable source archive', 'GPL-3.0-or-later')) {
+        if ($source -notmatch [regex]::Escape($marker)) {
+            throw "Package verification failed. SOURCE.md is missing: $marker"
+        }
+    }
+    if ($source -notmatch 'https://github\.com/masarray/DigSubAnalyzer/archive/[0-9a-f]{40}\.zip') {
+        throw "Package verification failed. SOURCE.md does not contain an immutable commit archive URL."
+    }
+
+    $sbom = Get-Content (Join-Path $temp "sbom.cdx.json") -Raw | ConvertFrom-Json -Depth 100
+    if ($sbom.bomFormat -ne 'CycloneDX' -or $sbom.specVersion -ne '1.5') {
+        throw "Package verification failed. sbom.cdx.json is not CycloneDX 1.5."
+    }
+    if ($sbom.metadata.component.name -ne 'Process Bus Insight' -or $sbom.metadata.component.version -ne $ExpectedVersion) {
+        throw "Package verification failed. SBOM product/version mismatch."
+    }
+    $sbomLicense = $sbom.metadata.component.licenses[0].license.id
+    if ($sbomLicense -ne 'GPL-3.0-or-later') {
+        throw "Package verification failed. SBOM does not identify GPL-3.0-or-later."
     }
 
     $batFiles = Get-ChildItem -Path $temp -Recurse -File -Filter "*.bat"
@@ -68,12 +97,46 @@ try {
         throw "Package verification failed. Expected exactly one root EXE: $AppName.exe. Found: $names"
     }
 
-    $size = (Get-Item (Join-Path $temp "$AppName.exe")).Length
+    $exePath = Join-Path $temp "$AppName.exe"
+    $size = (Get-Item $exePath).Length
     if ($size -lt 1024) { throw "Package verification failed. Executable looks too small: $size bytes" }
+
+    $versionInfo = (Get-Item $exePath).VersionInfo
+    if ($versionInfo.ProductVersion -notmatch [regex]::Escape($ExpectedVersion)) {
+        throw "Package verification failed. EXE ProductVersion '$($versionInfo.ProductVersion)' does not contain $ExpectedVersion."
+    }
+
+    $signature = Get-AuthenticodeSignature -FilePath $exePath
+    if ($RequireAuthenticode -and $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+        throw "Package verification failed. A valid Authenticode signature is required; status=$($signature.Status)."
+    }
+    Write-Host "Authenticode status: $($signature.Status)"
+
+    $binaryBytes = [System.IO.File]::ReadAllBytes($exePath)
+    $binaryAscii = [System.Text.Encoding]::ASCII.GetString($binaryBytes)
+    $binaryUnicode = [System.Text.Encoding]::Unicode.GetString($binaryBytes)
+    $binaryText = $binaryAscii + "`n" + $binaryUnicode
+    foreach ($forbidden in @('Source code is licensed under Apache-2.0', 'Text="Apache-2.0"', 'Version 1.0.0', 'Build 2026.04', 'oscilloscope-level')) {
+        if ($binaryText.IndexOf($forbidden, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            throw "Package verification failed. EXE contains stale public wording: $forbidden"
+        }
+    }
+    foreach ($requiredBinaryMarker in @('GPL-3.0-or-later', 'Separate negotiated and executed agreement')) {
+        if ($binaryText.IndexOf($requiredBinaryMarker, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+            throw "Package verification failed. EXE is missing expected embedded wording: $requiredBinaryMarker"
+        }
+    }
 
     foreach ($pdfName in @("Quick Start.pdf", "User Manual.pdf")) {
         if ((Get-Item (Join-Path $temp $pdfName)).Length -lt 2048) {
             throw "Package verification failed. PDF document looks too small: $pdfName"
+        }
+    }
+
+    $readme = Get-Content (Join-Path $temp "README.txt") -Raw
+    foreach ($marker in @($ExpectedVersion, 'GPL-3.0-or-later', 'SOURCE.md', 'sbom.cdx.json')) {
+        if ($readme -notmatch [regex]::Escape($marker)) {
+            throw "Package verification failed. README.txt is missing: $marker"
         }
     }
 
