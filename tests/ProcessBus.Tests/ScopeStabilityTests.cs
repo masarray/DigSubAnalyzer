@@ -63,6 +63,49 @@ public class ScopeStabilityTests
         return ua!.Samples;
     }
 
+
+    [Fact]
+    public void Scope_ArstackPrimaryWithOptionalRateOmitted_RecoversWaveAnd50HzWithoutScl()
+    {
+        // Synthetic 64-byte 4I4V instMag/q frames model the operator's October
+        // ESP32-P4 PCAP: svID ARSTACK_SV01, APPID 0x4000, no ASDU smpRate,
+        // observed 4000 fps and smpCnt 3999 -> 0. No customer packet is committed.
+        var analyzer = new RawProcessBusAnalyzer();
+        var started = new DateTime(2026, 10, 16, 0, 0, 0, DateTimeKind.Utc);
+        for (var i = 0; i < 4200; i++)
+        {
+            var absoluteIndex = 1108 + i;
+            analyzer.ObserveFrame(
+                GoldenFrames.SvFrameWithChannelSamples(
+                    (ushort)(absoluteIndex % 4000),
+                    ChannelValuesAt(absoluteIndex, Math.Sin),
+                    "ARSTACK_SV01", 0x4000),
+                started.AddTicks(i * TimeSpan.TicksPerSecond / 4000),
+                i * System.Diagnostics.Stopwatch.Frequency / 4000);
+        }
+
+        var snapshot = analyzer.GetAnalyzerSnapshot();
+        Assert.Equal(0, snapshot.Diagnostics.SequenceErrors);
+        Assert.Equal(0, snapshot.Diagnostics.MissingSamples);
+        Assert.NotEmpty(snapshot.Waveform.VoltageSeries);
+        Assert.NotEmpty(snapshot.Waveform.CurrentSeries);
+        Assert.Equal(4000, snapshot.Waveform.SampleRateHz);
+        Assert.Equal(50.0, snapshot.Waveform.MeasuredFrequencyHz);
+        Assert.Contains("estimated", snapshot.SelectedStreamDetails!.SmpRateText,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Raw 4I4V", snapshot.SelectedStreamDetails.SampleValueMappingText);
+    }
+
+    [Fact]
+    public void Scope_OptionalRateAbsentAndNoCounterWrap_StaysUnverified()
+    {
+        var analyzer = FeedSine(SamplesPerCycle * 10);
+        var snapshot = analyzer.GetAnalyzerSnapshot();
+        Assert.Equal(0, snapshot.Waveform.SampleRateHz);
+        Assert.Contains("awaiting verified wrap", snapshot.SelectedStreamDetails!.SmpRateText);
+        Assert.NotEmpty(snapshot.Waveform.VoltageSeries); // raw samples still usable without SCL
+    }
+
     [Fact]
     public void Scope_WindowIsPhaseLocked_AcrossWholeCycleAdvances()
     {

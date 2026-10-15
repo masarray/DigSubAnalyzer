@@ -798,6 +798,7 @@ public sealed class RawProcessBusAnalyzer
         private double _totalDeltaMicroseconds;
         private long _deltaCount;
         private ushort? _previousSmpCnt;
+        private int _counterVerifiedSampleRateHz; // never advertised as an on-wire smpRate
         private long? _previousCaptureTicks;
         private string? _pendingJitterEvidence;
         private string? _activeMappingSignature;
@@ -952,7 +953,10 @@ public sealed class RawProcessBusAnalyzer
                 SourceMac = SourceMac,
                 DestinationMac = DestinationMac,
                 VlanText = VlanText,
-                SmpRateText = SmpRate.HasValue ? $"{SmpRate} ({ResolveSmpModText(SmpMod)})" : "N/A",
+                SmpRateText = SmpRate.HasValue ? $"{SmpRate} ({ResolveSmpModText(SmpMod)})"
+                    : _counterVerifiedSampleRateHz > 0
+                        ? $"{_counterVerifiedSampleRateHz} (estimated: smpCnt wrap + host arrival rate, not on-wire)"
+                        : "N/A (optional smpRate absent; awaiting verified wrap)",
                 ConfRevText = ConfRev?.ToString() ?? "N/A",
                 SampleValueMappingText = MappingProfileName,
                 SampleValueCountText = DecodedElementCount > 0 ? $"{DecodedElementCount} element(s)" : "0",
@@ -1568,7 +1572,16 @@ public sealed class RawProcessBusAnalyzer
                 acceptForDisplay = !sequence.IsError;
                 if (sequence.IsError)
                 {
+                    // A gap invalidates the evidence used for a prior rate estimate.
+                    _counterVerifiedSampleRateHz = 0;
                     ClearScopeAcquisition(clearPublishedSnapshot: false);
+                }
+                else if (!SmpRate.HasValue && SmpCntWrapIsSupportedRate(_previousSmpCnt.Value, smpCnt, RecentPacketRatePps))
+                {
+                    // Only after a full counter rollover AND independent host-rate screening.
+                    // No SCL is needed and neither counter nor arrival timestamp is
+                    // represented as certified synchronization/timing accuracy.
+                    _counterVerifiedSampleRateHz = _previousSmpCnt.Value + 1;
                 }
 
                 var actualUs = (captureTicks - _previousCaptureTicks.Value) * 1_000_000.0 / Stopwatch.Frequency;
@@ -1632,10 +1645,20 @@ public sealed class RawProcessBusAnalyzer
 
         private double? ResolveExpectedDeltaUs(int sampleStep)
         {
-            if (SmpRate is > 0 && SmpMod == 1)
-                return sampleStep * 1_000_000.0 / SmpRate.Value;
+            var rate = ResolveWaveformSampleRate();
+            return rate > 0 ? sampleStep * 1_000_000.0 / rate : null;
+        }
 
-            return null;
+        // smpRate/smpMod are optional fields in real IEC 61850-9-2LE ASDU streams.
+        // The observed rollover alone is not a clock measurement. Gate narrowly on
+        // two supported nominal modes plus a rolling host-arrival packet-rate check.
+        private static bool SmpCntWrapIsSupportedRate(ushort previous, ushort current, double? observedFps)
+        {
+            if (current != 0 || (previous != 3999 && previous != 4799) ||
+                !observedFps.HasValue || !double.IsFinite(observedFps.Value))
+                return false;
+            var expected = previous + 1;
+            return Math.Abs(observedFps.Value - expected) <= expected * 0.10;
         }
 
         private void AddJitter(double absJitterUs)
@@ -1814,13 +1837,15 @@ public sealed class RawProcessBusAnalyzer
             if (SmpRate is > 0 && SmpMod == 1)
                 return SmpRate.Value;
 
-            return 0;
+            return _counterVerifiedSampleRateHz;
         }
 
         private double ResolveNominalFrequency()
         {
             var sampleRate = ResolveWaveformSampleRate();
-            return sampleRate >= 4000 ? 50.0 : 0;
+            if (sampleRate == 4000) return 50.0;
+            if (sampleRate == 4800) return 60.0;
+            return 0;
         }
 
         private int ResolveSamplesPerCycle()
