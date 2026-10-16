@@ -1470,9 +1470,12 @@ public sealed class RawProcessBusAnalyzer
             var slots = new ScopeSampleFrame?[window];
             foreach (var frame in frames)
             {
-                var slot = frame.SampleCounter.HasValue
-                    ? frame.SampleCounter.Value % window
-                    : (int)(frame.Index % window);
+                // Use the monotonic unwrapped sample index, not the on-wire
+                // UInt16 smpCnt. A diagnostic stream may wrap 65535 -> 0,
+                // which is not a multiple of the 2-cycle window (160 @ 50 Hz).
+                // Using raw smpCnt here splices two different phases together
+                // for one window and appears as a periodic scope flicker.
+                var slot = (int)(frame.Index % window);
                 slots[slot] = frame;
             }
 
