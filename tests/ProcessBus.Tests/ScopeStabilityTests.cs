@@ -1,3 +1,4 @@
+using ProcessBus.Core.Models;
 using ProcessBus.Iec61850.Raw.Analysis;
 using Xunit;
 

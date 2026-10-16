@@ -2065,6 +2065,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // first-seen while the UI workspace points elsewhere. Reasserting selection before
         // each snapshot is cheap and prevents the "phasor updates only after clicking SV" bug.
         _rawDataSource.SelectStream(streamId);
+        // Re-assert operator-owned scale after a capture reset/reconnect too.
+        // This is an idempotent per-stream configuration, not a per-packet action.
+        ApplySelectedStreamScale(streamId);
         _lastRequestedRawStreamId = streamId;
     }
 
