@@ -199,6 +199,46 @@ public class ScopeStabilityTests
     }
 
     [Fact]
+    public void Scope_UnknownRateRolloverAfterMissingTail_DoesNotHideGapOrPublishSplice()
+    {
+        // Only the last 3998 samples are seen. The canonical stream then jumps
+        // from 3998 to 0, with 3999 missing and smpRate absent. Inferring
+        // maxSeen+1=3999 would falsely call this a valid rollover.
+        var analyzer = new RawProcessBusAnalyzer();
+        const int start = 3999 - 319;
+        for (var i = 0; i < 319; i++)
+        {
+            var absolute = start + i;
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+                (ushort)absolute, ChannelValuesAt(absolute, Math.Sin),
+                "ARSTACK_SV01", 0x4000));
+        }
+
+        var before = UaSamples(analyzer).ToArray();
+        Assert.Equal(160, before.Length);
+
+        // Missing sample 3999. The analyzer must reject this discontinuity,
+        // holding its last complete window rather than silently compressing
+        // time by a sample on the unwrapped timeline.
+        analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+            0, ChannelValuesAt(4000, Math.Sin), "ARSTACK_SV01", 0x4000));
+        var after = analyzer.GetAnalyzerSnapshot();
+        Assert.Equal(1, after.Diagnostics.SequenceErrors);
+        Assert.Equal(before, after.Waveform.VoltageSeries.Single(
+            x => x.Name == "Ua").Samples.ToArray());
+
+        // Reacquire from subsequent valid samples; never stitch a partial
+        // pre-gap view together with a post-gap view.
+        for (var i = 1; i <= 180; i++)
+        {
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+                (ushort)i, ChannelValuesAt(4000 + i, Math.Sin),
+                "ARSTACK_SV01", 0x4000));
+        }
+        Assert.Equal(160, UaSamples(analyzer).Count);
+    }
+
+    [Fact]
     public void Scope_DiagnosticMirror16BitSmpCntWrap_DoesNotSplicePhase()
     {
         // The capture mirror intentionally uses a continuously incrementing 16-bit

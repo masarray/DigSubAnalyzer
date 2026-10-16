@@ -2240,9 +2240,19 @@ public sealed class RawProcessBusAnalyzer
             if (SmpRate is > 0)
                 return SmpRate.Value;
 
-            // Adaptive fallback: after one full second of traffic the highest counter seen
-            // is rate-1. Require a plausible floor so early traffic cannot fake a tiny base.
-            return _maxSeenSequenceCounter >= 799 ? _maxSeenSequenceCounter + 1 : 0;
+            // A highest *observed* counter is not a verified wrap modulus.
+            // Missing the last packet(s) of a second makes maxSeen+1 one or
+            // more counts too small and falsely classifies a gap as contiguous.
+            // Only accept the supported nominal 50/60 Hz wrap boundaries if
+            // their final counter was actually observed. Unknown rollovers
+            // invalidate scope acquisition instead of silently shifting phase.
+            return _maxSeenSequenceCounter switch
+            {
+                3999 => 4000,
+                4799 => 4800,
+                65535 => 65536,
+                _ => 0
+            };
         }
 
         private static SequenceObservation AnalyzeSequence(ushort previous, ushort current, int rateWrapBase)
