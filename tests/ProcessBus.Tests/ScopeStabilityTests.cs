@@ -199,6 +199,80 @@ public class ScopeStabilityTests
     }
 
     [Fact]
+    public void Scope_UnknownRateRolloverAfterMissingTail_DoesNotHideGapOrPublishSplice()
+    {
+        // Only the last 3998 samples are seen. The canonical stream then jumps
+        // from 3998 to 0, with 3999 missing and smpRate absent. Inferring
+        // maxSeen+1=3999 would falsely call this a valid rollover.
+        var analyzer = new RawProcessBusAnalyzer();
+        const int start = 3999 - 319;
+        for (var i = 0; i < 319; i++)
+        {
+            var absolute = start + i;
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+                (ushort)absolute, ChannelValuesAt(absolute, Math.Sin),
+                "ARSTACK_SV01", 0x4000));
+        }
+
+        var before = UaSamples(analyzer).ToArray();
+        Assert.Equal(160, before.Length);
+
+        // Missing sample 3999. The analyzer must reject this discontinuity,
+        // holding its last complete window rather than silently compressing
+        // time by a sample on the unwrapped timeline.
+        analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+            0, ChannelValuesAt(4000, Math.Sin), "ARSTACK_SV01", 0x4000));
+        var after = analyzer.GetAnalyzerSnapshot();
+        Assert.Equal(1, after.Diagnostics.SequenceErrors);
+        Assert.Equal(before, after.Waveform.VoltageSeries.Single(
+            x => x.Name == "Ua").Samples.ToArray());
+
+        // Reacquire from subsequent valid samples; never stitch a partial
+        // pre-gap view together with a post-gap view.
+        for (var i = 1; i <= 180; i++)
+        {
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+                (ushort)i, ChannelValuesAt(4000 + i, Math.Sin),
+                "ARSTACK_SV01", 0x4000));
+        }
+        Assert.Equal(160, UaSamples(analyzer).Count);
+    }
+
+    [Fact]
+    public void Scope_DiagnosticMirror16BitSmpCntWrap_DoesNotSplicePhase()
+    {
+        // The capture mirror intentionally uses a continuously incrementing 16-bit
+        // smpCnt, unlike canonical 4000-count rollover. At 65535->0, the old
+        // raw-smpCnt % 160 slotting overwrote slot 0 with a sample belonging
+        // to a different phase, despite zero actual sample loss.
+        var analyzer = new RawProcessBusAnalyzer();
+        const int start = 65536 - 320;
+        for (var i = 0; i < 320; i++)
+        {
+            var absolute = start + i;
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+                (ushort)(absolute % 65536),
+                ChannelValuesAt(absolute, Math.Sin),
+                "AR_DIAG_SV1", 0x4F01));
+        }
+
+        var before = UaSamples(analyzer).ToArray();
+        Assert.Equal(160, before.Length);
+
+        // Exactly one sample after rollover; the stable 80 samples/cycle signal
+        // has identical values at the same unwrapped scope slots.
+        analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples(
+            0, ChannelValuesAt(start + 320, Math.Sin),
+            "AR_DIAG_SV1", 0x4F01));
+        var snapshot = analyzer.GetAnalyzerSnapshot();
+        var after = snapshot.Waveform.VoltageSeries.Single(
+            s => string.Equals(s.Name, "Ua", StringComparison.OrdinalIgnoreCase)).Samples.ToArray();
+        Assert.Equal(0, snapshot.Diagnostics.SequenceErrors);
+        Assert.Equal(0, snapshot.Diagnostics.MissingSamples);
+        Assert.Equal(before, after);
+    }
+
+    [Fact]
     public void Scope_WindowIsPhaseLocked_AcrossWholeCycleAdvances()
     {
         var analyzer = FeedSine(SamplesPerCycle * 10);
