@@ -521,13 +521,16 @@ public sealed class WaveformPanelControl : FrameworkElement
 
     private double ResolveLaneAmplitudeMax(LaneDefinition lane, IReadOnlyList<WaveformSeriesModel> series)
     {
-        var isVoltage = string.Equals(lane.Unit, "V", StringComparison.OrdinalIgnoreCase);
+        // A raw-count voltage lane is still the voltage lane. Its history
+        // must not share the current lane auto-range, nor adopt fixed A/V scales.
+        var isVoltage = string.Equals(lane.Title, "Voltage", StringComparison.OrdinalIgnoreCase);
+        var hasPhysicalUnits = string.Equals(lane.Unit, isVoltage ? "V" : "A", StringComparison.OrdinalIgnoreCase);
         var scaleText = isVoltage ? VoltageScale : CurrentScale;
 
-        if (isVoltage && TryParseVoltageScalePeak(scaleText, out var fixedVoltagePeak))
+        if (hasPhysicalUnits && isVoltage && TryParseVoltageScalePeak(scaleText, out var fixedVoltagePeak))
             return Math.Max(fixedVoltagePeak, 1.0);
 
-        if (!isVoltage && TryParseCurrentScalePeak(scaleText, out var fixedCurrentPeak))
+        if (hasPhysicalUnits && !isVoltage && TryParseCurrentScalePeak(scaleText, out var fixedCurrentPeak))
             return Math.Max(fixedCurrentPeak, 1.0);
 
         var observedPeak = ResolveRobustObservedPeak(series);
