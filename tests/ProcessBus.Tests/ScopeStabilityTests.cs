@@ -66,6 +66,40 @@ public class ScopeStabilityTests
 
 
     [Fact]
+    public void PhysicalPower_RejectsRawCountsAndRequiresAllThreeCalibratedPhases()
+    {
+        static ChannelValueModel C(string name, double rms, double angle, string unit) =>
+            new(name) { RmsValue = rms, AngleDegrees = angle, Unit = unit };
+
+        var raw = new AnalogValuesSnapshot
+        {
+            Ia = C("Ia", 1000, -30, "counts"), Ua = C("Ua", 5774, 0, "counts"),
+            Ib = C("Ib", 1000, -150, "counts"), Ub = C("Ub", 5774, -120, "counts"),
+            Ic = C("Ic", 1000, 90, "counts"), Uc = C("Uc", 5774, 120, "counts")
+        };
+        Assert.False(SvPhysicalPowerMeter.TryCompute(raw, out _));
+
+        var physical = new AnalogValuesSnapshot
+        {
+            Ia = C("Ia", 1, -30, "A"), Ua = C("Ua", 57.74, 0, "V"),
+            Ib = C("Ib", 1, -150, "A"), Ub = C("Ub", 57.74, -120, "V"),
+            Ic = C("Ic", 1, 90, "A"), Uc = C("Uc", 57.74, 120, "V")
+        };
+        Assert.True(SvPhysicalPowerMeter.TryCompute(physical, out var totals));
+        Assert.InRange(totals.S, 173.21, 173.23);
+        Assert.InRange(totals.P, 149.98, 150.03);
+        Assert.InRange(totals.Q, 86.60, 86.62);
+
+        var missing = new AnalogValuesSnapshot
+        {
+            Ia = C("Ia", 1, -30, "A"), Ua = C("Ua", 57.74, 0, "V"),
+            Ib = C("Ib", 1, -150, "A"), Ub = C("Ub", 57.74, -120, "V"),
+            Ic = C("Ic", 1, 90, "A")
+        };
+        Assert.False(SvPhysicalPowerMeter.TryCompute(missing, out _));
+    }
+
+    [Fact]
     public void EngineeringScale_RawByDefault_RequiresExplicitPerStreamAuthority()
     {
         var analyzer = FeedSine(800);
