@@ -214,9 +214,9 @@ public sealed class WaveformPanelControl : FrameworkElement
 
         var visibleLanes = new List<LaneDefinition>(2);
         if (showVoltage)
-            visibleLanes.Add(new LaneDefinition("Voltage", "V", snapshot.VoltageSeries));
+            visibleLanes.Add(new LaneDefinition("Voltage", snapshot.VoltageSeries.FirstOrDefault()?.Unit ?? "counts", snapshot.VoltageSeries));
         if (showCurrent)
-            visibleLanes.Add(new LaneDefinition("Current", "A", snapshot.CurrentSeries));
+            visibleLanes.Add(new LaneDefinition("Current", snapshot.CurrentSeries.FirstOrDefault()?.Unit ?? "counts", snapshot.CurrentSeries));
 
         if (visibleLanes.Count == 0)
         {

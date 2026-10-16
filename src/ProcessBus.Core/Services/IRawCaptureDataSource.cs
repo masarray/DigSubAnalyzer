@@ -8,6 +8,7 @@ public interface IRawCaptureDataSource : IAnalyzerDataSource
     void SelectAdapter(string adapterId, string rawDeviceName);
     void SelectStream(string? streamId);
     void SetScopeCycles(int cycles);
+    void SetSvEngineeringScale(string streamId, SvEngineeringScale scale);
     void SetSvChannelMappings(IReadOnlyList<SvChannelMappingProfile> profiles);
     Task StartAsync(CancellationToken cancellationToken = default);
     Task StopAsync(CancellationToken cancellationToken = default);

@@ -52,6 +52,11 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
         _analyzer.SetScopeCycles(cycles);
     }
 
+    public void SetSvEngineeringScale(string streamId, SvEngineeringScale scale)
+    {
+        _analyzer.SetSvEngineeringScale(streamId, scale);
+    }
+
     public void SetSvChannelMappings(IReadOnlyList<SvChannelMappingProfile> profiles)
     {
         _analyzer.SetSvChannelMappings(profiles);

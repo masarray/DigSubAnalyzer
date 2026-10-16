@@ -65,6 +65,63 @@ public class ScopeStabilityTests
 
 
     [Fact]
+    public void EngineeringScale_RawByDefault_RequiresExplicitPerStreamAuthority()
+    {
+        var analyzer = FeedSine(800);
+        var snapshot = analyzer.GetAnalyzerSnapshot();
+        var streamId = snapshot.SelectedStreamId;
+        Assert.NotNull(streamId);
+        Assert.Equal("counts", snapshot.AnalogValues.Ia.Unit);
+        Assert.Equal("counts", snapshot.AnalogValues.Ua.Unit);
+        var rawIa = snapshot.AnalogValues.Ia.RmsValue!.Value;
+        var rawUa = snapshot.AnalogValues.Ua.RmsValue!.Value;
+        Assert.InRange(rawIa, 690, 720);
+        Assert.InRange(rawUa, 5500, 5750);
+
+        analyzer.SetSvEngineeringScale(streamId!, SvEngineeringScale.Nominal4I4V);
+        var nominal = analyzer.GetAnalyzerSnapshot();
+        Assert.Equal("A", nominal.AnalogValues.Ia.Unit);
+        Assert.Equal("V", nominal.AnalogValues.Ua.Unit);
+        Assert.InRange(nominal.AnalogValues.Ia.RmsValue!.Value, 0.690, 0.720);
+        Assert.InRange(nominal.AnalogValues.Ua.RmsValue!.Value, 55, 57.5);
+        Assert.Equal(rawIa / 1000.0, nominal.AnalogValues.Ia.RmsValue!.Value, 5);
+        Assert.Equal(rawUa / 100.0, nominal.AnalogValues.Ua.RmsValue!.Value, 5);
+        var wave = nominal.Waveform;
+        var amp = wave.VoltageSeries.First(x => x.Name == "Ua");
+        Assert.Equal("V", amp.Unit);
+        Assert.True(amp.Samples.Max() < 81);
+        Assert.Equal(snapshot.AnalogValues.Ia.AngleDegrees, nominal.AnalogValues.Ia.AngleDegrees);
+
+        analyzer.SetSvEngineeringScale(streamId!, SvEngineeringScale.RawCounts);
+        var reverted = analyzer.GetAnalyzerSnapshot();
+        Assert.Equal("counts", reverted.AnalogValues.Ua.Unit);
+        Assert.Equal(rawUa, reverted.AnalogValues.Ua.RmsValue!.Value, 5);
+        Assert.Equal("counts", reverted.Waveform.VoltageSeries[0].Unit);
+    }
+
+    [Fact]
+    public void EngineeringScale_DoesNotLeakToAnotherStrongStream()
+    {
+        var analyzer = new RawProcessBusAnalyzer();
+        for (var i = 0; i < 800; i++)
+        {
+            var values = ChannelValuesAt(i, Math.Sin);
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples((ushort)i, values, "LAB_A", 0x4000));
+            analyzer.ObserveFrame(GoldenFrames.SvFrameWithChannelSamples((ushort)i, values, "LAB_B", 0x4F01));
+        }
+        var streams = analyzer.GetAnalyzerSnapshot().Streams;
+        var keyA = streams.Single(x => x.SvId == "LAB_A").StreamId;
+        var keyB = streams.Single(x => x.SvId == "LAB_B").StreamId;
+        analyzer.SetSvEngineeringScale(keyA, SvEngineeringScale.Nominal4I4V);
+        analyzer.SelectStream(keyA);
+        Assert.Equal("A", analyzer.GetAnalyzerSnapshot().AnalogValues.Ia.Unit);
+        analyzer.SelectStream(keyB);
+        Assert.Equal("counts", analyzer.GetAnalyzerSnapshot().AnalogValues.Ia.Unit);
+        analyzer.SelectStream(keyA);
+        Assert.Equal("A", analyzer.GetAnalyzerSnapshot().AnalogValues.Ia.Unit);
+    }
+
+    [Fact]
     public void Scope_ArstackPrimaryWithOptionalRateOmitted_RecoversWaveAnd50HzWithoutScl()
     {
         // Synthetic 64-byte 4I4V instMag/q frames model the operator's October
