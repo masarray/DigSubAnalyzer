@@ -47,6 +47,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private WaveformSnapshot _displayedWaveform = new();
     private string? _lastRequestedRawStreamId;
     private readonly Dictionary<string, StreamWorkspaceCache> _streamWorkspaces = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SvEngineeringScale> _explicitSvScales = new(StringComparer.OrdinalIgnoreCase);
+    private const string RawScaleText = "Raw counts (uncalibrated)";
+    private const string NominalScaleText = "4I+4V nominal (1 mA / 10 mV per count)";
     private string _waveformShowMode = "Both";
     private string _waveformLayoutMode = "Overlay";
     private string _waveformTimebase = "2 cycles";
@@ -729,6 +732,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             BeginWorkspaceTargetTransition();
             _selectedStream = value;
             RequestRawStreamSelection(value?.StreamId);
+            ApplySelectedStreamScale(value?.StreamId);
+            OnPropertyChanged(nameof(SelectedEngineeringScale));
+            OnPropertyChanged(nameof(EngineeringScaleExplanation));
             RestoreSelectedStreamWorkspace(value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(AnalogValues));
@@ -843,6 +849,48 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public IReadOnlyList<string> WaveformTimebaseOptions { get; } = ["1 cycle", "2 cycles", "4 cycles", "8 cycles"];
     public IReadOnlyList<string> WaveformModeOptions { get; } = ["Locked"];
     public IReadOnlyList<string> WaveformMarkerOptions { get; } = ["On", "Off"];
+    public IReadOnlyList<string> EngineeringScaleOptions { get; } = [RawScaleText, NominalScaleText];
+    public string SelectedEngineeringScale
+    {
+        get => SelectedStream is not null &&
+            _explicitSvScales.TryGetValue(SelectedStream.StreamId, out var mode) &&
+            mode == SvEngineeringScale.Nominal4I4V ? NominalScaleText : RawScaleText;
+        set
+        {
+            if (SelectedStream is null || (value != RawScaleText && value != NominalScaleText))
+                return;
+            var next = value == NominalScaleText ? SvEngineeringScale.Nominal4I4V : SvEngineeringScale.RawCounts;
+            var key = SelectedStream.StreamId;
+            if (_explicitSvScales.TryGetValue(key, out var previous) ? previous == next : next == SvEngineeringScale.RawCounts)
+                return;
+
+            if (next == SvEngineeringScale.RawCounts) _explicitSvScales.Remove(key);
+            else _explicitSvScales[key] = next;
+            ApplySelectedStreamScale(key);
+            // No stale physical metering, vectors, waveform, or wrong-stream cached state.
+            _streamWorkspaces.Remove(key);
+            RestoreSelectedStreamWorkspace(SelectedStream);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(EngineeringScaleExplanation));
+            RaiseAnalyzerRenderProperties();
+            OnPropertyChanged(nameof(EvidenceSnapshotText));
+        }
+    }
+
+    public string EngineeringScaleExplanation => SelectedStream is null
+        ? "Select an SV stream to see its measurement units."
+        : SelectedEngineeringScale == NominalScaleText
+            ? "Operator-selected 4I+4V nominal scaling; not calibrated or independently verified. Applies to this stream only."
+            : "Uncalibrated raw counts: waveform/angles remain available; physical power is unavailable.";
+
+    private void ApplySelectedStreamScale(string? streamId)
+    {
+        if (string.IsNullOrWhiteSpace(streamId)) return;
+        var mode = _explicitSvScales.TryGetValue(streamId, out var selected)
+            ? selected : SvEngineeringScale.RawCounts;
+        _rawDataSource.SetSvEngineeringScale(streamId, mode);
+    }
+
     public IReadOnlyList<string> WaveformVoltageScaleOptions { get; } =
     [
         "Auto",
@@ -1266,7 +1314,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         get
         {
             var power = ComputeThreePhasePower();
-            if (power.S <= 0)
+            if (!double.IsFinite(power.S) || power.S <= 0)
                 return "N/A";
 
             return $"{Math.Clamp(power.P / power.S, -1.0, 1.0):0.000}";
@@ -2017,6 +2065,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // first-seen while the UI workspace points elsewhere. Reasserting selection before
         // each snapshot is cheap and prevents the "phasor updates only after clicking SV" bug.
         _rawDataSource.SelectStream(streamId);
+        // Re-assert operator-owned scale after a capture reset/reconnect too.
+        // This is an idempotent per-stream configuration, not a per-packet action.
+        ApplySelectedStreamScale(streamId);
         _lastRequestedRawStreamId = streamId;
     }
 
@@ -2077,7 +2128,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         _selectedStream = row;
+        ApplySelectedStreamScale(row.StreamId);
         OnPropertyChanged(nameof(SelectedStream));
+        OnPropertyChanged(nameof(SelectedEngineeringScale));
+        OnPropertyChanged(nameof(EngineeringScaleExplanation));
     }
 
     private void RestoreSelectedStreamWorkspace(SvStreamItem? stream)
@@ -2392,6 +2446,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SvSemanticChannelSummaryText));
         OnPropertyChanged(nameof(SvSemanticChannelCompactText));
         OnPropertyChanged(nameof(AnalogValues));
+        OnPropertyChanged(nameof(SelectedEngineeringScale));
+        OnPropertyChanged(nameof(EngineeringScaleExplanation));
         OnPropertyChanged(nameof(TotalActivePowerText));
         OnPropertyChanged(nameof(TotalReactivePowerText));
         OnPropertyChanged(nameof(TotalApparentPowerText));
@@ -3688,6 +3744,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         builder.AppendLine();
         builder.AppendLine("[Observed SV]");
         builder.AppendLine($"Stream status: {Diagnostics.StreamStatusText}");
+        builder.AppendLine($"Engineering scaling: {SelectedEngineeringScale}");
+        builder.AppendLine(EngineeringScaleExplanation);
+        builder.AppendLine("Scaling authority: operator explicit selection only; SV packet shape/svID is not calibration evidence.");
+        builder.AppendLine($"RMS Ia: {AnalogValues.Ia.RmsDisplayText}; Ua: {AnalogValues.Ua.RmsDisplayText}; P: {TotalActivePowerText}; Q: {TotalReactivePowerText}; S: {TotalApparentPowerText}; PF: {PowerFactorText}");
         builder.AppendLine($"svID: {selectedStream?.SvId ?? "N/A"}");
         builder.AppendLine($"APPID: {selectedStream?.AppId ?? "N/A"}");
         builder.AppendLine($"Source MAC: {selectedStream?.SourceMac ?? "N/A"}");
@@ -3932,38 +3992,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private (double P, double Q, double S) ComputeThreePhasePower()
     {
-        var phases = new[]
-        {
-            (U: AnalogValues.Ua, I: AnalogValues.Ia),
-            (U: AnalogValues.Ub, I: AnalogValues.Ib),
-            (U: AnalogValues.Uc, I: AnalogValues.Ic)
-        };
-
-        var p = 0.0;
-        var q = 0.0;
-        var s = 0.0;
-
-        foreach (var phase in phases)
-        {
-            if (!phase.U.RmsValue.HasValue || !phase.I.RmsValue.HasValue)
-                continue;
-
-            var apparent = Math.Abs(phase.U.RmsValue.Value * phase.I.RmsValue.Value);
-            s += apparent;
-
-            if (!phase.U.AngleDegrees.HasValue || !phase.I.AngleDegrees.HasValue)
-                continue;
-
-            var angle = (phase.U.AngleDegrees.Value - phase.I.AngleDegrees.Value) * Math.PI / 180.0;
-            p += apparent * Math.Cos(angle);
-            q += apparent * Math.Sin(angle);
-        }
-
-        return (p, q, s);
+        return SvPhysicalPowerMeter.TryCompute(AnalogValues, out var power)
+            ? (power.P, power.Q, power.S)
+            : (double.NaN, double.NaN, double.NaN);
     }
 
     private static string FormatPower(double value, string unit)
     {
+        if (!double.IsFinite(value)) return "N/A (scaling not verified)";
         var abs = Math.Abs(value);
         if (abs >= 1_000_000.0)
             return $"{value / 1_000_000.0:0.00} M{unit}";

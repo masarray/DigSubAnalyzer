@@ -2413,6 +2413,23 @@
                                                     </Border>
                                                 </DockPanel>
 
+                                                <WrapPanel Margin="0,0,0,6">
+                                                    <TextBlock Text="SV units" Foreground="#B3C9DD" Margin="0,6,8,0" FontSize="11"/>
+                                                    <ComboBox Width="260"
+                                                              Style="{StaticResource CompactComboBoxStyle}"
+                                                              ItemsSource="{Binding EngineeringScaleOptions}"
+                                                              SelectedItem="{Binding SelectedEngineeringScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                              ToolTip="Choose the physical scale for this selected SV stream. No SCL required; raw counts is safest until the profile is verified."/>
+                                                    <Button Content="Copy diagnostics" Command="{Binding CopyEvidenceCommand}"
+                                                            Width="138" Height="27" Margin="0,3,6,3"
+                                                            ToolTip="Copy selected stream, packet counters, scaling, RMS and power evidence to clipboard."/>
+                                                    <TextBlock Text="{Binding EvidenceCopyStatusText}"
+                                                               Foreground="#9BB8D0" Margin="0,8,0,0" FontSize="10"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="{Binding EngineeringScaleExplanation}"
+                                                           Foreground="#F0B533" TextWrapping="Wrap" FontSize="10.5"
+                                                           Margin="0,0,0,9"/>
+
                                                 <Border Margin="0,0,0,8"
                                                     Visibility="Collapsed"
                                                     Padding="8,6"

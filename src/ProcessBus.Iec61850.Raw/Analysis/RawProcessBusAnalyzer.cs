@@ -15,6 +15,8 @@ public sealed class RawProcessBusAnalyzer
     private static readonly TimeSpan JitterEventInterval = TimeSpan.FromSeconds(5);
     private readonly object _gate = new();
     private readonly Dictionary<string, SvStreamState> _svStreams = new(StringComparer.OrdinalIgnoreCase);
+    // Per-stream operator evidence, never inferred from svID, APPID or payload count.
+    private readonly Dictionary<string, SvEngineeringScale> _svScales = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, AggregatedEventState> _aggregatedEvents = new(StringComparer.OrdinalIgnoreCase);
     private readonly PtpHealthTracker _ptpTracker = new();
@@ -141,6 +143,7 @@ public sealed class RawProcessBusAnalyzer
         lock (_gate)
         {
             _svStreams.Clear();
+            _svScales.Clear();
             _gooseStates.Clear();
             _events.Clear();
             _aggregatedEvents.Clear();
@@ -165,6 +168,23 @@ public sealed class RawProcessBusAnalyzer
     {
         lock (_gate)
             _selectedSvKey = string.IsNullOrWhiteSpace(streamId) ? null : streamId;
+    }
+
+    public void SetSvEngineeringScale(string streamId, SvEngineeringScale scale)
+    {
+        if (string.IsNullOrWhiteSpace(streamId) || !Enum.IsDefined(scale))
+            return;
+
+        lock (_gate)
+        {
+            if (scale == SvEngineeringScale.RawCounts)
+                _svScales.Remove(streamId);
+            else
+                _svScales[streamId] = scale;
+
+            if (_svStreams.TryGetValue(streamId, out var stream))
+                stream.SetEngineeringScale(scale);
+        }
     }
 
     public void SetScopeCycles(int cycles)
@@ -220,6 +240,8 @@ public sealed class RawProcessBusAnalyzer
             if (!_svStreams.TryGetValue(key, out var state))
             {
                 state = new SvStreamState(key, ++_svFirstSeenSequence, _requestedScopeCycles);
+                if (_svScales.TryGetValue(key, out var scale))
+                    state.SetEngineeringScale(scale);
                 _svStreams[key] = state;
                 AddEvent("Info", $"Raw SV stream detected: {DescribeSv(packet.Frame, asdu)}.");
             }
@@ -802,6 +824,17 @@ public sealed class RawProcessBusAnalyzer
         private long? _previousCaptureTicks;
         private string? _pendingJitterEvidence;
         private string? _activeMappingSignature;
+        private SvEngineeringScale _engineeringScale = SvEngineeringScale.RawCounts;
+
+        public void SetEngineeringScale(SvEngineeringScale scale)
+        {
+            if (_engineeringScale == scale) return;
+            _engineeringScale = scale;
+            // Raw ring buffers, phase and sequence evidence are unchanged.
+            // Drop only the previously projected coherent display snapshots.
+            _lastAnalogValues = null;
+            _lastScopeWaveform = null;
+        }
 
         public SvStreamState(string key, int firstSeenOrder, int scopeCycles)
         {
@@ -960,7 +993,10 @@ public sealed class RawProcessBusAnalyzer
                 ConfRevText = ConfRev?.ToString() ?? "N/A",
                 SampleValueMappingText = MappingProfileName,
                 SampleValueCountText = DecodedElementCount > 0 ? $"{DecodedElementCount} element(s)" : "0",
-                MappedChannelNamesText = MappedChannelNamesText,
+                MappedChannelNamesText = MappedChannelNamesText
+                    + (_engineeringScale == SvEngineeringScale.Nominal4I4V
+                        ? " | Engineering units: operator-selected nominal 4I+4V (I=0.001 A/count, U=0.01 V/count)"
+                        : " | Engineering units: RAW COUNTS ONLY; calibration unverified"),
                 RawValuesText = RawValuesText,
                 PacketEvidenceText = BuildPacketEvidenceText(),
                 TimebaseStatusText = "Raw capture monotonic clock",
@@ -1218,10 +1254,13 @@ public sealed class RawProcessBusAnalyzer
             IReadOnlyList<ScopeSampleFrame> coherentWindow,
             int samplesPerCycle)
         {
-            var unit = channel.StartsWith("U", StringComparison.OrdinalIgnoreCase) ? "V" : "A";
-            var instant = GetLatestScopeValue(channel);
+            var unit = SvEngineeringScaleFactors.Unit(_engineeringScale, channel);
+            var factor = SvEngineeringScaleFactors.Factor(_engineeringScale, channel);
+            var rawInstant = GetLatestScopeValue(channel);
+            var instant = rawInstant.HasValue ? rawInstant.Value * factor : (double?)null;
             var rawAngle = GetFundamentalAngleDegrees(coherentWindow, channel, samplesPerCycle);
-            var rms = GetRms(coherentWindow, channel);
+            var rawRms = GetRms(coherentWindow, channel);
+            var rms = rawRms.HasValue ? rawRms.Value * factor : (double?)null;
             var angle = ResolveDisplayAngle(channel, rawAngle, reference);
 
             return new ChannelValueModel(channel)
@@ -1283,8 +1322,10 @@ public sealed class RawProcessBusAnalyzer
                 result.Add(new WaveformSeriesModel
                 {
                     Name = channel,
-                    Unit = channel.StartsWith("U", StringComparison.OrdinalIgnoreCase) ? "V" : "A",
-                    Samples = scopeWindow,
+                    Unit = SvEngineeringScaleFactors.Unit(_engineeringScale, channel),
+                    Samples = _engineeringScale == SvEngineeringScale.RawCounts
+                        ? scopeWindow
+                        : scopeWindow.Select(value => value * SvEngineeringScaleFactors.Factor(_engineeringScale, channel)).ToArray(),
                     ShapeSeverity = shape.Severity,
                     ShapeStatusText = shape.StatusText,
                     ShapeResidualPercent = shape.ResidualPercent,
