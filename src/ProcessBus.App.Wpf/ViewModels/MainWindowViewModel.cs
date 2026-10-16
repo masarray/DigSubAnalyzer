@@ -3992,41 +3992,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private (double P, double Q, double S) ComputeThreePhasePower()
     {
-        // Physical watts/vars require explicit valid scale authority for BOTH
-        // quantities. Raw INT32 sample counts must NEVER be multiplied as A/V.
-        if (SelectedEngineeringScale != NominalScaleText)
-            return (double.NaN, double.NaN, double.NaN);
-
-        var phases = new[]
-        {
-            (U: AnalogValues.Ua, I: AnalogValues.Ia),
-            (U: AnalogValues.Ub, I: AnalogValues.Ib),
-            (U: AnalogValues.Uc, I: AnalogValues.Ic)
-        };
-
-        var p = 0.0;
-        var q = 0.0;
-        var s = 0.0;
-
-        foreach (var phase in phases)
-        {
-            if (phase.U.Unit != "V" || phase.I.Unit != "A" ||
-                !phase.U.RmsValue.HasValue || !phase.I.RmsValue.HasValue ||
-                !phase.U.AngleDegrees.HasValue || !phase.I.AngleDegrees.HasValue)
-                return (double.NaN, double.NaN, double.NaN);
-
-            var apparent = Math.Abs(phase.U.RmsValue.Value * phase.I.RmsValue.Value);
-            s += apparent;
-
-            if (!phase.U.AngleDegrees.HasValue || !phase.I.AngleDegrees.HasValue)
-                continue;
-
-            var angle = (phase.U.AngleDegrees.Value - phase.I.AngleDegrees.Value) * Math.PI / 180.0;
-            p += apparent * Math.Cos(angle);
-            q += apparent * Math.Sin(angle);
-        }
-
-        return (p, q, s);
+        return SvPhysicalPowerMeter.TryCompute(AnalogValues, out var power)
+            ? (power.P, power.Q, power.S)
+            : (double.NaN, double.NaN, double.NaN);
     }
 
     private static string FormatPower(double value, string unit)
