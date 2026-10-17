@@ -2077,7 +2077,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 ? int.MaxValue
                 : (int)Diagnostics.SequenceErrors;
 
-            _smcCntOk = Diagnostics.LastSampleCount > 0;
+            _smcCntOk = Diagnostics.LastSampleCount.HasValue;
             _frequencyStable = Diagnostics.FrequencyEstimateValid;
 
             SynchronizeSelectedStreamRow();
@@ -2357,14 +2357,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         SyncDiagnosticTargetRows(rows);
 
-        var next = !string.IsNullOrWhiteSpace(previousKey)
+        var previouslySelected = !string.IsNullOrWhiteSpace(previousKey)
             ? _diagnosticTargets.FirstOrDefault(x => string.Equals(x.TargetKey, previousKey, StringComparison.OrdinalIgnoreCase))
             : null;
-
-        next ??= _diagnosticTargets.FirstOrDefault(x => x.SeverityRank > 0);
-        next ??= SelectedStream is null
+        var analyzerStreamTarget = SelectedStream is null
             ? null
             : _diagnosticTargets.FirstOrDefault(x => string.Equals(x.TargetKey, $"SV|{SelectedStream.StreamId}", StringComparison.OrdinalIgnoreCase));
+
+        // An automatically chosen SV diagnostic target must follow the Analyzer's
+        // authoritative stream selection. Preserve explicit PTP/GOOSE target selection.
+        var next = previouslySelected?.Protocol == "SV"
+            ? analyzerStreamTarget ?? previouslySelected
+            : previouslySelected;
+        next ??= analyzerStreamTarget;
+        next ??= _diagnosticTargets.FirstOrDefault(x => x.SeverityRank > 0);
         next ??= _diagnosticTargets.FirstOrDefault();
 
         if (!ReferenceEquals(_selectedDiagnosticTarget, next))
