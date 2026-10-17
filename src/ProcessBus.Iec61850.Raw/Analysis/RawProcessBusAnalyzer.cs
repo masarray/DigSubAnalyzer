@@ -615,6 +615,8 @@ public sealed class RawProcessBusAnalyzer
         diagnostics.PtpAnnounceRatePerSecond = ptp.AnnounceRatePerSecond;
         diagnostics.PtpFollowUpRatePerSecond = ptp.FollowUpRatePerSecond;
         diagnostics.PtpGrandmasterChangeCount = ptp.GrandmasterChangeCount;
+        diagnostics.PtpMatchedTwoStepCount = ptp.MatchedTwoStepCount;
+        diagnostics.PtpUnmatchedFollowUpCount = ptp.UnmatchedFollowUpCount;
         diagnostics.LastPtpMessageTimestampUtc = ptp.LastMessageUtc;
         diagnostics.LastPtpSyncTimestampUtc = ptp.LastSyncUtc;
         diagnostics.LastPtpAnnounceTimestampUtc = ptp.LastAnnounceUtc;
