@@ -30,7 +30,10 @@ dotnet test .\ProcessBusSuite.sln -c Release --no-build --filter Category=M4Inte
 dotnet run --project .\tools\ProcessBus.InteropCli -c Release -- --pcap C:\lab\arstack-canonical.pcap --scl C:\lab\current-profile.scd --max-frames 20000000 --json C:\lab\interop-report.json
 ```
 
-The tool supports classic Ethernet PCAP 2.4 (microsecond/nanosecond). If the
+The tool supports classic Ethernet PCAP 2.4 (microsecond/nanosecond).
+The WPF **Validation → Inspect PCAP** action runs on a background worker,
+shows throttled file progress and exposes **Cancel** while reading. Progress
+never represents guaranteed accuracy or physical capture completeness. If the
 capture application creates PCAPNG, export/copy the packet recording as
 **classic PCAP** with full Ethernet headers before inspecting it.
 
@@ -38,7 +41,9 @@ capture application creates PCAPNG, export/copy the packet recording as
 expected-vs-observed verdicts. The CLI prints a short operator summary,
 keeps raw details in optional local JSON, and returns:
 
-- **0**: screening executed and no specified SCL comparison failed; **not**
+- **0**: screening executed and no specified SCL comparison failed; at least
+  two ASDUs are required for a clean field match, and data-limit, ambiguity,
+  counter-wrap, sequence and layout concerns downgrade positive verdicts; **not**
   certification and **not** proof of capture-path visibility. For a capture
   without SCL, there are no configured fields to validate.
 - **3**: observed/configured mismatch, unresolved SCL identity or expected
@@ -59,6 +64,12 @@ on the authorized **local machine**; do not push them to GitHub.
 | `CONFLICT` | APPID/MAC/VID/PCP/confRev/nofASDU differs | Inspect deployed SCL and exact wire identity; do not normalize away |
 | `INCOMPLETE_INTENT` | Some observed fields match but SCL lacks authority | Load the deployed full SCL/profile; do not auto-fill defaults |
 | `UNRESOLVED` | No trustworthy SCL svID | Correct/resolve engineering intent before claiming match |
+| `LIMITED_EVIDENCE` | Only one ASDU seen; no progression evidence | Record more samples of the publisher |
+| `SEQUENCE_WARNING` | Duplicate or non-unit sample-counter step | Check capture drops, sender counter policy and restart |
+| `COUNTER_POLICY_UNRESOLVED` | 4000/4800 smpCnt reset observed; policy not verified | Compare deployed counter policy and independent capture |
+| `LAYOUT_DRIFT` | Sample-data length changed within one wire identity | Investigate publisher dataset revision or malformed traffic |
+| `AMBIGUOUS_WIRE` | More than one observed sender satisfies SCL identity | Identify intended source; do not select one silently |
+| `CAPTURE_INCOMPLETE` | User frame limit or bounded stream catalog excluded evidence | Inspect complete windows, reduce publisher churn or split capture |
 
 Capture **VLAN absence on a Windows USB-NIC is not proof of untagged wire TX**.
 A mirrored `AR_DIAG_SV1`, APPID `0x4F01`, broadcast/untagged stream is diagnostic
