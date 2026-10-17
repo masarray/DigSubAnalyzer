@@ -922,6 +922,7 @@
                             <ListView Grid.Row="2"
                                       Style="{StaticResource GridListViewStyle}"
                                       ItemsSource="{Binding Streams}"
+                                      Margin="0,10,0,0"
                                       SelectedItem="{Binding SelectedStream, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       ClipToBounds="True"
                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -1927,47 +1928,10 @@
                                     <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="0"/>
+                                    <RowDefinition Height="0"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-
-                                <Border Grid.Column="0"
-            Grid.Row="0"
-            Style="{StaticResource DenseGroupBorderStyle}"
-            Padding="8">
-                                    <WrapPanel>
-                                        <Border>
-                                            <Border.Style>
-                                                <Style TargetType="Border" BasedOn="{StaticResource MetricChipBorderStyle}">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding WaveformHeaderFrequencyText}" Value="N/A">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Foreground="{StaticResource AccentBrush}"
-                           FontWeight="SemiBold"
-                           Text="{Binding WaveformHeaderFrequencyText}"/>
-                                        </Border>
-                                        <Border Style="{StaticResource MetricChipBorderStyle}">
-                                            <TextBlock Foreground="{StaticResource AccentBrush}"
-                           FontWeight="SemiBold"
-                           Text="{Binding WaveformHeaderWindowText}"/>
-                                        </Border>
-                                        <!-- Advanced waveform-shape inference is diagnostic, not a
-                                             primary oscilloscope KPI. Keep it on hover, not as a
-                                             constantly competing warning-colored pill. -->
-                                        <Border Style="{StaticResource MetricChipBorderStyle}"
-                                                Visibility="Collapsed"
-                                                ToolTip="{Binding WaveformShapeStatusText}">
-                                            <TextBlock Foreground="#B1CBE0"
-                                                       Text="{Binding WaveformShapeStatusText}"/>
-                                        </Border>
-                                    </WrapPanel>
-                                </Border>
 
                                 <Border x:Name="ScopeHeroPanel"
             Grid.Column="0"
@@ -2116,6 +2080,7 @@
                                         <controls:WaveformPanelControl Grid.Row="2"
                                                                    d:Visibility="Collapsed"
                                            Snapshot="{Binding Waveform}"
+                                           StreamKey="{Binding SelectedStream.StreamId, TargetNullValue=}"
                                            ShowMode="{Binding WaveformShowMode}"
                                            LayoutMode="{Binding WaveformLayoutMode}"
                                            TimebaseMode="{Binding WaveformTimebase}"
@@ -2194,9 +2159,7 @@
                                                 <DockPanel LastChildFill="False">
                                                     <TextBlock DockPanel.Dock="Left" Text="Measurements"
                                                                Style="{StaticResource PanelTitleTextStyle}"/>
-                                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center"
-                                                               Text="{Binding WaveformHeaderFrequencyText}"
-                                                               FontSize="11" Foreground="#8CBDE4"/>
+                                                    
                                                 </DockPanel>
                                                 <DockPanel Margin="0,7,0,2">
                                                     <Button DockPanel.Dock="Right" Content="Copy" Margin="7,0,0,0"
