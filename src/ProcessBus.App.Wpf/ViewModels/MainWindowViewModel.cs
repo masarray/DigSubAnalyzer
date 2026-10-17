@@ -7,6 +7,7 @@ using ProcessBus.Iec61850.Raw.Live;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using ProcessBus.Core.Presentation;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -29,6 +30,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private static readonly TimeSpan GooseInteractionQuietPeriod = TimeSpan.FromMilliseconds(750);
     private static readonly string LastInterfacePath = Path.Combine(AppContext.BaseDirectory, "raw_capture.last_interface.txt");
     private readonly AnalyzerShellState _state = new();
+    private readonly LiveRenderCoalescer _renderCoalescer = new();
     private readonly IRawCaptureDataSource _rawDataSource = new RawAnalyzerDataSource();
     private readonly DispatcherTimer _timer;
     private IAnalyzerDataSource _dataSource;
@@ -47,6 +49,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private WaveformSnapshot _displayedWaveform = new();
     private string? _lastRequestedRawStreamId;
     private readonly Dictionary<string, StreamWorkspaceCache> _streamWorkspaces = new(StringComparer.OrdinalIgnoreCase);
+    private string? _lastPhasorSourceStreamId;
     private readonly Dictionary<string, SvEngineeringScale> _explicitSvScales = new(StringComparer.OrdinalIgnoreCase);
     private const string RawScaleText = "Raw counts (uncalibrated)";
     private const string NominalScaleText = "4I+4V nominal (1 mA / 10 mV per count)";
@@ -2169,22 +2172,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // correctness and responsiveness are more important than suppressing this tiny
         // allocation.
         _displayedAnalogValues = analogValues;
-        _phasors = BuildPhasorItems(_displayedAnalogValues);
-        _lastPhasorSourceSnapshot = _displayedAnalogValues;
+        if (_lastPhasorSourceSnapshot is null ||
+            !LiveRenderCoalescer.SameAnalog(_lastPhasorSourceSnapshot, _displayedAnalogValues) ||
+            !string.Equals(_lastPhasorSourceStreamId, selectedStreamId, StringComparison.Ordinal))
+        {
+            _phasors = BuildPhasorItems(_displayedAnalogValues);
+            _lastPhasorSourceSnapshot = _displayedAnalogValues;
+            _lastPhasorSourceStreamId = selectedStreamId;
+        }
 
         if (!ReferenceEquals(_displayedWaveform, waveform))
             _displayedWaveform = waveform;
 
         if (!string.IsNullOrWhiteSpace(selectedStreamId))
         {
-            _streamWorkspaces[selectedStreamId] = new StreamWorkspaceCache
-            {
-                Details = _displayedSelectedStreamDetails,
-                AnalogValues = _displayedAnalogValues,
-                Waveform = _displayedWaveform,
-                Phasors = _phasors,
-                PhasorSource = _lastPhasorSourceSnapshot
-            };
+            if (!_streamWorkspaces.TryGetValue(selectedStreamId, out var cached))
+                _streamWorkspaces[selectedStreamId] = cached = new StreamWorkspaceCache();
+            cached.Details = _displayedSelectedStreamDetails;
+            cached.AnalogValues = _displayedAnalogValues;
+            cached.Waveform = _displayedWaveform;
+            cached.Phasors = _phasors;
+            cached.PhasorSource = _lastPhasorSourceSnapshot;
         }
     }
 
@@ -2416,7 +2424,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         if (IsAnalyzerTabActive)
-            RaiseAnalyzerRenderProperties();
+            RaiseAnalyzerRenderProperties(force);
         if (IsDiagnosticsTabActive && (force || (now - _lastDiagnosticsRaiseUtc).TotalMilliseconds >= PassiveUiRefreshMs))
         {
             _lastDiagnosticsRaiseUtc = now;
@@ -2444,21 +2452,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void RaiseAnalyzerRenderProperties()
+    private void RaiseAnalyzerRenderProperties(bool force = false)
     {
+        // Separate data-rate, UI-rate and render-rate. An equivalent reconstructed
+        // snapshot must not trigger full waveform/phasor repaint every timer tick.
+        // Compare every numeric sample: do not smooth away a real IEC 61850 transient.
+        var streamId = _selectedStream?.StreamId;
+        var waveformChanged = _renderCoalescer.PublishWaveform(streamId, _displayedWaveform);
+        var analogChanged = _renderCoalescer.PublishAnalog(streamId, _displayedAnalogValues);
         OnPropertyChanged(nameof(SelectedStreamDetails));
         OnPropertyChanged(nameof(SvMappingSourceText));
         OnPropertyChanged(nameof(SvMappingSourceCompactText));
         OnPropertyChanged(nameof(SvSemanticChannelSummaryText));
         OnPropertyChanged(nameof(SvSemanticChannelCompactText));
-        OnPropertyChanged(nameof(AnalogValues));
+        if (force || analogChanged)
+            OnPropertyChanged(nameof(AnalogValues));
         OnPropertyChanged(nameof(SelectedEngineeringScale));
         OnPropertyChanged(nameof(EngineeringScaleExplanation));
         OnPropertyChanged(nameof(TotalActivePowerText));
         OnPropertyChanged(nameof(TotalReactivePowerText));
         OnPropertyChanged(nameof(TotalApparentPowerText));
         OnPropertyChanged(nameof(PowerFactorText));
-        OnPropertyChanged(nameof(Waveform));
+        if (force || waveformChanged)
+            OnPropertyChanged(nameof(Waveform));
         OnPropertyChanged(nameof(WaveformStatusText));
         OnPropertyChanged(nameof(WaveformHeaderModeText));
         OnPropertyChanged(nameof(WaveformHeaderFrequencyText));
@@ -2467,7 +2483,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(WaveformHeaderWindowText));
         OnPropertyChanged(nameof(WaveformHeaderStatusText));
         OnPropertyChanged(nameof(WaveformShapeStatusText));
-        OnPropertyChanged(nameof(Phasors));
+        if (force || analogChanged)
+            OnPropertyChanged(nameof(Phasors));
         OnPropertyChanged(nameof(WaveformVoltageScale));
         OnPropertyChanged(nameof(WaveformCurrentScale));
     }
