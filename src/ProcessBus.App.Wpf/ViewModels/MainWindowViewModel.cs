@@ -144,6 +144,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly ObservableCollection<TrafficHealthTargetRow> _diagnosticTargets = new();
     private TrafficHealthTargetRow? _selectedDiagnosticTarget;
+    private DiagnosticEventItem? _selectedDiagnosticEvent;
+
+    public DiagnosticEventItem? SelectedDiagnosticEvent
+    {
+        get => _selectedDiagnosticEvent;
+        set
+        {
+            if (ReferenceEquals(_selectedDiagnosticEvent, value))
+                return;
+            _selectedDiagnosticEvent = value;
+            OnPropertyChanged();
+        }
+    }
 
     public ObservableCollection<GooseTrafficRow> GooseHistory => _gooseHistory;
     public ICollectionView GooseHistoryView => _gooseHistoryView;
@@ -297,9 +310,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public string DiagnosticFindingsHeaderText => SelectedDiagnosticTarget is null
-        ? "Recent Findings"
-        : $"Findings for {SelectedDiagnosticTarget.Protocol} target";
+    // This collection contains capture-wide evidence; do not label it as
+    // filtered to the diagnostic target when the backend has not supplied such a filter.
+    public string DiagnosticFindingsHeaderText => "Recent capture findings · all sources";
 
 
     public string AdvancedTargetTitle => SelectedDiagnosticTarget is null
@@ -2588,6 +2601,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void RaiseDiagnosticsProperties()
     {
+        // Diagnostics is a replaced snapshot, not an observable mutable object.
+        // Without this notification direct bindings (e.g. PTP matched pair count)
+        // froze at zero while independently-notified summary text kept advancing.
+        OnPropertyChanged(nameof(Diagnostics));
         OnPropertyChanged(nameof(HealthIcon));
         OnPropertyChanged(nameof(HealthBackgroundBrush));
         OnPropertyChanged(nameof(IsHealthy));
@@ -2651,6 +2668,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void RaiseTimingProperties()
     {
+        OnPropertyChanged(nameof(Diagnostics));
         OnPropertyChanged(nameof(ProtocolMonitor));
         OnPropertyChanged(nameof(PtpEvents));
         OnPropertyChanged(nameof(ProtocolSummaryText));
