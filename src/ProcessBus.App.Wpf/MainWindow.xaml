@@ -2763,6 +2763,7 @@
                                             <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
                                             <TextBlock Text="{Binding BandwidthText}" Foreground="#D6E8F8" FontSize="12"/>
                                             <TextBlock Text="{Binding PacketRateText}" Foreground="#D6E8F8" FontSize="12"/>
+                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}" Foreground="#F6D781" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                             <TextBlock Text="{Binding CaptureTimingCautionText}"
                                                        Foreground="#8FAAC3"
                                                        FontSize="10.5"
@@ -4363,6 +4364,7 @@
                                                 <TextBlock Margin="0,6,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding UiRefreshDurationText}"/>
                                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding UiQueueDepthText}"/>
                                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding ManagedMemoryText}"/>
+                                                <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding Diagnostics.CaptureDropEvidenceText}" TextWrapping="Wrap"/>
                                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CompactValueTextStyle}" Text="{Binding SkippedRefreshText}"/>
                                             </StackPanel>
                                         </Border>
