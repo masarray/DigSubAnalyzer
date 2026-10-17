@@ -18,8 +18,11 @@ public static class PtpPacketParser
         var payload = frame.Apdu.Span;
         var messageTypeValue = (byte)(payload[0] & 0x0F);
         var messageLength = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(2, 2));
-        if (messageLength < CommonHeaderLength || messageLength > payload.Length)
-            messageLength = (ushort)payload.Length;
+        // Do not turn a truncated/malformed PTP message into trusted source evidence.
+        if ((payload[1] & 0x0F) != 2 || messageLength < CommonHeaderLength ||
+            messageLength > payload.Length ||
+            (messageTypeValue == 0x0B && messageLength < AnnounceMinimumLength))
+            return false;
 
         var sourceClockIdentity = FormatClockIdentity(payload.Slice(20, 8));
         var sourcePortNumber = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(28, 2));
@@ -29,6 +32,7 @@ public static class PtpPacketParser
             MessageType = ResolveMessageType(messageTypeValue),
             MessageTypeValue = messageTypeValue,
             Version = (byte)(payload[1] & 0x0F),
+            TransportSpecific = (byte)(payload[0] >> 4),
             MessageLength = messageLength,
             DomainNumber = payload[4],
             Flags = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(6, 2)),
@@ -48,13 +52,14 @@ public static class PtpPacketParser
             CaptureTicks = frame.CaptureTicks
         };
 
-        if (messageTypeValue == 0x0B && payload.Length >= AnnounceMinimumLength)
+        if (messageTypeValue == 0x0B)
         {
             builder = new PtpMessage
             {
                 MessageType = builder.MessageType,
                 MessageTypeValue = builder.MessageTypeValue,
                 Version = builder.Version,
+                TransportSpecific = builder.TransportSpecific,
                 MessageLength = builder.MessageLength,
                 DomainNumber = builder.DomainNumber,
                 Flags = builder.Flags,
