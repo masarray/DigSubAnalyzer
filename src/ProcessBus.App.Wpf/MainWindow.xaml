@@ -3053,7 +3053,6 @@
                                                   EnableColumnVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True"
                                                   VirtualizingPanel.VirtualizationMode="Recycling"
-                                                      ScrollViewer.CanContentScroll="True"
                                                   ScrollViewer.CanContentScroll="True"
                                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto"
