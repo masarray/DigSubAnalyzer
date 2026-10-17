@@ -691,6 +691,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         CopyEvidenceCommand = new RelayCommand(CopyEvidenceSnapshot);
         LoadSclCommand = new RelayCommand(LoadSclProject);
         InspectPcapCommand = new AsyncRelayCommand(InspectLocalPcapAsync);
+        CancelInspectPcapCommand = new RelayCommand(() => _m4CaptureInspectCts?.Cancel());
         ClearSclCommand = new RelayCommand(ClearSclProject);
 
         SwitchToRawCommand = new AsyncRelayCommand(async () =>
@@ -934,6 +935,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
+    public ICommand CancelInspectPcapCommand { get; }
+    public Visibility M4CancelVisibility => _m4CaptureInspectInProgress ? Visibility.Visible : Visibility.Collapsed;
     public string M4CaptureSummaryText => _m4CaptureSummary;
     public string M4CaptureDetailText => _m4CaptureDetail;
     public bool CanInspectPcap => !_m4CaptureInspectInProgress && !_isShuttingDown;
@@ -2784,6 +2787,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _m4CaptureSummary = "Reading local capture…";
         _m4CaptureDetail = "Analysis runs off the UI dispatcher. The file stays on this computer.";
         OnPropertyChanged(nameof(CanInspectPcap));
+        OnPropertyChanged(nameof(M4CancelVisibility));
         OnPropertyChanged(nameof(M4CaptureSummaryText));
         OnPropertyChanged(nameof(M4CaptureDetailText));
 
@@ -2792,11 +2796,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var path = dialog.FileName;
+            var lastPercent = -1;
+            // Progress<T> captures the WPF dispatcher context here, while
+            // parsing continues entirely on a background worker.
+            var progress = new Progress<PcapInspectionProgress>(step =>
+            {
+                if (!_m4CaptureInspectInProgress || _isShuttingDown ||
+                    !ReferenceEquals(_m4CaptureInspectCts, cts))
+                    return;
+
+                if (step.Percent is { } percent)
+                {
+                    if (percent == lastPercent)
+                        return;
+                    lastPercent = percent;
+                    _m4CaptureSummary = $"Inspecting local PCAP… {percent}%";
+                }
+                else
+                    _m4CaptureSummary = $"Inspecting local PCAP… {step.FramesRead:N0} frames";
+                OnPropertyChanged(nameof(M4CaptureSummaryText));
+            });
+
             var report = await Task.Run(() =>
             {
                 using var capture = File.OpenRead(path);
                 return new PcapInteropInspector().Inspect(
-                    capture, expected, maximumFrames: 50_000_000, cts.Token);
+                    capture, expected, maximumFrames: 50_000_000, cts.Token, progress);
             }, cts.Token);
 
             if (_isShuttingDown)
@@ -2832,6 +2857,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _m4CaptureInspectInProgress = false;
             if (!_isShuttingDown)
             {
+                OnPropertyChanged(nameof(M4CancelVisibility));
                 OnPropertyChanged(nameof(CanInspectPcap));
                 OnPropertyChanged(nameof(M4CaptureSummaryText));
                 OnPropertyChanged(nameof(M4CaptureDetailText));
