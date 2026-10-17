@@ -2499,13 +2499,10 @@
                                 <UniformGrid Grid.Row="2" Columns="4">
                                     <UniformGrid.Style>
                                         <Style TargetType="UniformGrid">
-                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Setter Property="Visibility" Value="Collapsed"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="PTP">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="GOOSE">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="SV">
+                                                    <Setter Property="Visibility" Value="Visible"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -2541,7 +2538,7 @@
                                             <TextBlock Text="{Binding Diagnostics.SvSequenceEvidenceText}"
                                                        Foreground="#B9D1E5" FontSize="11.5"
                                                        TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding SmcCntStatus, StringFormat=Continuity: {0}}"
+                                            <TextBlock Text="{Binding SmcCntStatus, StringFormat=\'Continuity: {0}\'}"
                                                        Foreground="#9EBAD1" FontSize="11" Margin="0,3,0,0"/>
                                         </StackPanel>
                                     </Border>
