@@ -2434,8 +2434,6 @@ public sealed class RawProcessBusAnalyzer
         private const double RmsAttackAlpha = 0.02;
         private const double RmsReleaseAlpha = 0.006;
         private readonly Queue<double> _samples = new();
-        private readonly Queue<ushort> _sampleCounters = new();
-        private readonly Dictionary<ushort, double> _samplesByCounter = new();
         private readonly int _capacity;
         private double _sumSquares;
         private double? _displayRms;
@@ -2454,23 +2452,10 @@ public sealed class RawProcessBusAnalyzer
             _sumSquares += value * value;
             LastValue = value;
 
-            if (sampleCounter.HasValue)
-            {
-                _sampleCounters.Enqueue(sampleCounter.Value);
-                _samplesByCounter[sampleCounter.Value] = value;
-            }
-
             while (_samples.Count > _capacity)
             {
                 var removed = _samples.Dequeue();
                 _sumSquares -= removed * removed;
-            }
-
-            while (_sampleCounters.Count > _capacity)
-            {
-                var removedCounter = _sampleCounters.Dequeue();
-                if (!_sampleCounters.Contains(removedCounter))
-                    _samplesByCounter.Remove(removedCounter);
             }
 
             UpdateDisplayRms(Math.Max(1, minSamplesForRms));
@@ -2524,8 +2509,6 @@ public sealed class RawProcessBusAnalyzer
         public void Clear()
         {
             _samples.Clear();
-            _sampleCounters.Clear();
-            _samplesByCounter.Clear();
             _sumSquares = 0;
             _displayRms = null;
             LastValue = null;
@@ -2573,63 +2556,9 @@ public sealed class RawProcessBusAnalyzer
             return angle;
         }
 
-        public IReadOnlyList<double> GetScopeWindow(ushort? lastSampleCounter, int samplesPerCycle, int visibleSamples)
-        {
-            if (!lastSampleCounter.HasValue || samplesPerCycle <= 0 || visibleSamples <= 0 || _sampleCounters.Count == 0)
-                return GetTail(visibleSamples);
-
-            // ARSVIN-style phase-locked scope:
-            // - Do NOT draw a sliding tail as the primary oscilloscope view. A sliding tail moves the
-            //   waveform horizontally at every refresh and looks glitchy even when SV data is stable.
-            // - Each smpCnt maps to a fixed modulo slot in the visible window, so new samples update
-            //   the same phase position instead of shifting the whole trace.
-            var slotValues = new double?[visibleSamples];
-            var filled = 0;
-
-            foreach (var counter in _sampleCounters)
-            {
-                if (!_samplesByCounter.TryGetValue(counter, out var value))
-                    continue;
-
-                var slot = counter % visibleSamples;
-                if (!slotValues[slot].HasValue)
-                    filled++;
-
-                slotValues[slot] = value;
-            }
-
-            // Do not forward-fill missing modulo slots. Forward-fill creates artificial flat
-            // segments and visible flicker while the UI samples a partially refreshed ring. ARSVIN
-            // keeps only real decoded SV points in slot order; use a locked window only after it is
-            // mostly populated, otherwise fall back to the latest contiguous tail.
-            var minimumUsefulFill = Math.Max(samplesPerCycle * 2, (int)Math.Ceiling(visibleSamples * 0.85));
-            if (filled < minimumUsefulFill)
-                return GetTail(visibleSamples);
-
-            return BuildStableSlotWindow(slotValues);
-        }
-
-        private static IReadOnlyList<double> BuildStableSlotWindow(IReadOnlyList<double?> slotValues)
-        {
-            var result = new List<double>(slotValues.Count);
-
-            for (var i = 0; i < slotValues.Count; i++)
-            {
-                if (slotValues[i].HasValue)
-                    result.Add(slotValues[i]!.Value);
-            }
-
-            return result.Count == 0 ? Array.Empty<double>() : result.ToArray();
-        }
-
-        private IReadOnlyList<double> GetTail(int visibleSamples)
-        {
-            var all = _samples.ToArray();
-            if (visibleSamples <= 0 || all.Length <= visibleSamples)
-                return all;
-
-            return all.Skip(all.Length - visibleSamples).ToArray();
-        }
+        // The active scope is built from the stream-owned monotonic ScopeSampleFrame ring.
+        // The previous sampleCounter -> value dictionary was no longer consumed, and its
+        // per-sample Queue.Contains scan caused O(1024) work per channel at full capacity.
     }
 
     private sealed class GooseState
