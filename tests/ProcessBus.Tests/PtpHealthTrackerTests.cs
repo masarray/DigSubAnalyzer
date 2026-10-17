@@ -29,14 +29,14 @@ public class PtpHealthTrackerTests
         tracker.Observe(Message(now.AddMilliseconds(100), 1, "CLOCK-B", 0x0B, "GM-B"));
         tracker.Observe(Message(now.AddMilliseconds(150), 1, "CLOCK-B", 0));
         var selected = tracker.CreateSnapshot(now.AddMilliseconds(200));
-        Assert.Equal(1, selected.DomainNumber);
+        Assert.Equal((byte)1, selected.DomainNumber);
         Assert.Equal("GM-B", selected.GrandmasterIdentity);
         Assert.Equal(2, selected.ObservedSourceCount);
         Assert.Equal(0, selected.GrandmasterChangeCount);
 
         tracker.Observe(Message(now.AddMilliseconds(300), 0, "CLOCK-A", 0x0B, "GM-A"));
         selected = tracker.CreateSnapshot(now.AddMilliseconds(350));
-        Assert.Equal(0, selected.DomainNumber);
+        Assert.Equal((byte)0, selected.DomainNumber);
         Assert.Equal("GM-A", selected.GrandmasterIdentity);
         Assert.Equal(0, selected.GrandmasterChangeCount);
 
