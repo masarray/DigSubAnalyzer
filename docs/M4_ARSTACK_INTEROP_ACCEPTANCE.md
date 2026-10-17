@@ -102,6 +102,14 @@ evidence only, always separate from the canonical SCL stream.
 
 While the live analyzer displays mixed traffic, record every 5 seconds:
 
+```powershell
+.\\scripts\\measure-m4-bench.ps1 -DurationMinutes 60 -IntervalSeconds 5 -OutputPath C:\\lab\\m4-local-metrics.csv
+```
+
+This is a local process CPU/working-set sampler, **not** a substitute for
+`dotnet-counters`, native Npcap driver statistics or hardware wire timestamps.
+
+
 - CPU utilization and process memory/working set;
 - .NET allocation rate and GC collections (`dotnet-counters` or equivalent);
 - NIC driver/interface drops where supported;
