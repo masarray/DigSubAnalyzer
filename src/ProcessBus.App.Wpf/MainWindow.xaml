@@ -3620,6 +3620,14 @@
                                             <StackPanel>
                                                 <DockPanel LastChildFill="True">
                                                     <Button DockPanel.Dock="Right"
+                                                            Content="Cancel"
+                                                            Margin="5,0,0,0"
+                                                            Padding="6,2"
+                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
+                                                            Visibility="{Binding M4CancelVisibility}"
+                                                            Command="{Binding CancelInspectPcapCommand}"
+                                                            ToolTip="Stop offline inspection without changing the capture file."/>
+                                                    <Button DockPanel.Dock="Right"
                                                             Content="Inspect PCAP"
                                                             Style="{StaticResource ToolbarGhostButtonStyle}"
                                                             Command="{Binding InspectPcapCommand}"
