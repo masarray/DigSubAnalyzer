@@ -2002,7 +2002,7 @@
                                                         <Style TargetType="Border">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                                                <DataTrigger Binding="{Binding IsSelectedSvReceiving}" Value="True">
                                                                     <Setter Property="Visibility" Value="Visible"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
@@ -2014,7 +2014,7 @@
                                                                 <Style TargetType="Ellipse">
                                                                     <Setter Property="Opacity" Value="0.55"/>
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                                                        <DataTrigger Binding="{Binding IsSelectedSvReceiving}" Value="True">
                                                                             <DataTrigger.EnterActions>
                                                                                 <BeginStoryboard x:Name="LiveDotPulseStoryboard">
                                                                                     <Storyboard AutoReverse="True" RepeatBehavior="Forever">
@@ -2205,6 +2205,7 @@
                                                             Command="{Binding CopyEvidenceCommand}"
                                                             ToolTip="Copy original engineering values and passive capture evidence"/>
                                                     <ComboBox Height="28" MinWidth="140"
+                                                              IsEnabled="{Binding CanSelectEngineeringScale}"
                                                               Style="{StaticResource CompactComboBoxStyle}"
                                                               ItemsSource="{Binding EngineeringScaleOptions}"
                                                               SelectedItem="{Binding SelectedEngineeringScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
