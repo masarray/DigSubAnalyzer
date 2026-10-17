@@ -2485,6 +2485,11 @@
                            FontSize="12.5"
                            FontWeight="SemiBold"
                            Margin="0,1,0,0"/>
+                                            <TextBlock Text="{Binding DiagnosticOperatorGuidanceText}"
+                                                       Foreground="#A9C9DF"
+                                                       FontSize="11.5" Margin="0,5,8,0"
+                                                       TextWrapping="Wrap" MaxHeight="38"
+                                                       ToolTip="{Binding DiagnosticOperatorGuidanceText}"/>
                                             
                                         </StackPanel>
 
@@ -2916,7 +2921,7 @@
 
 
                                         <Expander DockPanel.Dock="Bottom" Margin="0,8,0,0"
-                                                  Header="Selected finding · complete evidence" IsExpanded="False"
+                                                  Header="Selected finding · raw evidence" IsExpanded="False"
                                                   Foreground="#9DBCD7">
                                             <TextBox Text="{Binding SelectedDiagnosticEvent.Message, Mode=OneWay}"
                                                      MinHeight="52" MaxHeight="110"
