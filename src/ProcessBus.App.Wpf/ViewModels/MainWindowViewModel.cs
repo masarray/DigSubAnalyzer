@@ -315,6 +315,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     // This collection contains capture-wide evidence; do not label it as
     // filtered to the diagnostic target when the backend has not supplied such a filter.
+    // One bounded operator hint derived from actual SV evidence; not an
+    // automated root-cause diagnosis or an accusation against the publisher.
+    public string DiagnosticOperatorGuidanceText
+    {
+        get
+        {
+            if (!string.Equals(SelectedDiagnosticTarget?.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
+                return "Inspect selected protocol evidence below; passive capture cannot verify subscriber operation.";
+            if (Diagnostics.SequenceErrors > 0 || Diagnostics.MissingSamples > 0)
+                return "smpCnt discontinuities observed. Compare publisher counters and capture-path drops before assigning the cause.";
+            if (Diagnostics.RecentJitterOver300MicrosecondsCount > 0)
+                return "Arrival excursions in the last 5 s. Inspect adapter/USB timestamping or SPAN/TAP before attributing publisher jitter.";
+            if (Diagnostics.SmpSynchText == "0")
+                return "Publisher reports unsynchronized samples (smpSynch=0); observed PTP packets do not establish clock lock.";
+            return "No current sample-sequence alert; inspect the capture timeline for historical excursions.";
+        }
+    }
+
     public string DiagnosticFindingsHeaderText => "Recent capture findings · all sources";
 
 
@@ -1343,6 +1361,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string SclSelectedBindingText => SelectedSclBindingMatrixRow?.StatusSummaryText
         ?? SelectedSclStreamCatalog?.LiveStatusText
         ?? "Binding pending";
+    public string SclSelectedVerdictText => SelectedSclBindingMatrixRow?.OperatorVerdictText
+        ?? "Select a stream to inspect its live identity.";
+    public string SclSelectedVerdictDetailText => SelectedSclBindingMatrixRow?.OperatorEvidenceText
+        ?? "Compare the selected SCL stream with captured publisher identity.";
     public string SclSelectedExpectedText => SelectedSclBindingMatrixRow?.ExpectedDetailText
         ?? SelectedSclStreamCatalog?.TransportText
         ?? "No expected stream selected";
@@ -2491,6 +2513,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(DiagnosticTargetHealthText));
         OnPropertyChanged(nameof(DiagnosticAffectedSummaryText));
         OnPropertyChanged(nameof(DiagnosticFindingsHeaderText));
+        OnPropertyChanged(nameof(DiagnosticOperatorGuidanceText));
     }
 
     private static string ShortenMac(string value)
@@ -2652,6 +2675,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // Without this notification direct bindings (e.g. PTP matched pair count)
         // froze at zero while independently-notified summary text kept advancing.
         OnPropertyChanged(nameof(Diagnostics));
+        OnPropertyChanged(nameof(DiagnosticOperatorGuidanceText));
         OnPropertyChanged(nameof(HealthIcon));
         OnPropertyChanged(nameof(HealthBackgroundBrush));
         OnPropertyChanged(nameof(IsHealthy));
@@ -3967,6 +3991,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclSelectedTransportText));
         OnPropertyChanged(nameof(SclSelectedDatasetText));
         OnPropertyChanged(nameof(SclSelectedBindingText));
+        OnPropertyChanged(nameof(SclSelectedVerdictText));
+        OnPropertyChanged(nameof(SclSelectedVerdictDetailText));
         OnPropertyChanged(nameof(SclSelectedExpectedText));
         OnPropertyChanged(nameof(SclSelectedObservedText));
         OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
@@ -4991,7 +5017,26 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
         _ => "#8FA8BF"
     };
 
-    public string StatusSummaryText => $"{StatusText}  -  confidence {Score}%  -  {EvidenceText}";
+    // Similarity score ranks observed candidates; it is NOT the probability
+    // that the publisher matches the engineering configuration.
+    public string StatusSummaryText => $"{StatusText} · match score {Score}% · {EvidenceText}";
+    public string OperatorVerdictText => StatusText switch
+    {
+        "MISMATCH" when Protocol == "SV" &&
+                        !string.Equals(ExpectedName, ObservedName, StringComparison.OrdinalIgnoreCase)
+            => "MISMATCH · svID differs",
+        "MISMATCH" => "MISMATCH · publisher attributes differ",
+        "MATCHED" => "MATCHED · observed identity agrees",
+        "MATCHED_WITH_WARNING" => "MATCHED · design warning",
+        "MISSING" => "NOT OBSERVED · expected stream",
+        "UNEXPECTED" => "UNEXPECTED · not defined in SCL",
+        "AMBIGUOUS" => "AMBIGUOUS · multiple identity candidates",
+        "CONFLICT" => "CONFLICT · identity collision",
+        _ => $"{StatusText} · verify identity"
+    };
+    public string OperatorEvidenceText => string.IsNullOrWhiteSpace(EvidencePrimaryText)
+        ? "Inspect the original expected/observed attributes."
+        : EvidencePrimaryText + " · Match score " + Score.ToString(System.Globalization.CultureInfo.InvariantCulture) + "% (not probability)";
     public string StatusBackgroundBrush => StatusText switch
     {
         "MATCHED" => "#17382C",
@@ -5005,7 +5050,7 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
         _ => "#142235"
     };
 
-    public string ScoreText => Score > 0 ? $"{Score}% confidence" : "No score";
+    public string ScoreText => Score > 0 ? $"Match score {Score}%" : "No score";
     public string ExpectedMetaText => string.Join(" - ", new[] { IedName, AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public string ObservedMetaText => string.IsNullOrWhiteSpace(LiveKey) ? "Not seen on selected adapter" : string.Join(" - ", new[] { AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public string EvidencePrimaryText => SplitEvidence(EvidenceText).Primary;
