@@ -19,7 +19,7 @@ public sealed class SvDiagnosticsReadoutTests
             ExpectedDeltaMicroseconds = 250
         };
         Assert.Equal("-413.2 µs", d.SvJitterHeadlineText);
-        Assert.Equal("Mean |Δ| 77.1 µs · Max |Δ| 813.1 µs", d.SvJitterStatisticsText);
+        Assert.Equal("Mean |Δ| 77.1 µs · Max |Δ| 813.1 µs (last 4000 intervals)", d.SvJitterStatisticsText);
         Assert.Equal("≥300 µs: 5 / 5s · 1530 total", d.SvJitterExcursionsText);
         Assert.Equal("Actual Δ 663.2 µs · Expected Δ 250.0 µs", d.SvArrivalIntervalText);
         Assert.Contains("Host/Npcap", d.SvArrivalAuthorityText);
@@ -45,7 +45,7 @@ public sealed class SvDiagnosticsReadoutTests
             MaxAbsJitterMicroseconds = double.NegativeInfinity
         };
         Assert.Equal("N/A", d.SvJitterHeadlineText);
-        Assert.Equal("Mean |Δ| N/A · Max |Δ| N/A", d.SvJitterStatisticsText);
+        Assert.Equal("Mean |Δ| N/A · Max |Δ| N/A (last 4000 intervals)", d.SvJitterStatisticsText);
     }
 
     [Fact]
@@ -72,7 +72,21 @@ public sealed class SvDiagnosticsReadoutTests
     {
         var d = new SvDiagnosticsSnapshot { ValidityText = evidence, SmpSynchText = "0" };
         Assert.Equal(expected, d.SvQualityHeadlineText);
-        Assert.Contains("smpSynch: 0 (observed)", d.SvQualityEvidenceText);
+        Assert.Equal(evidence, d.SvQualityEvidenceText);
+        Assert.Equal("NOT SYNCED", d.SvSampleSyncHeadlineText);
+        Assert.Contains("smpSynch=0", d.SvSampleSyncEvidenceText);
+    }
+
+    [Theory]
+    [InlineData("0", "NOT SYNCED")]
+    [InlineData("1", "LOCAL REF REPORTED")]
+    [InlineData("2", "GLOBAL REF REPORTED")]
+    [InlineData("N/A", "UNVERIFIED")]
+    public void QualityAndSampleSynchronizationRemainIndependent(string wire, string expected)
+    {
+        var d = new SvDiagnosticsSnapshot { ValidityText = "4I+4V quality good", SmpSynchText = wire };
+        Assert.Equal("GOOD", d.SvQualityHeadlineText);
+        Assert.Equal(expected, d.SvSampleSyncHeadlineText);
     }
 
     [Fact]
