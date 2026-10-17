@@ -73,7 +73,7 @@ public sealed class SvDiagnosticsSnapshot
         : "N/A";
 
     public string SvJitterStatisticsText =>
-        $"Mean |Δ| {FormatMicroseconds(AverageAbsJitterMicroseconds)} · Max |Δ| {FormatMicroseconds(MaxAbsJitterMicroseconds)}";
+        $"Mean |Δ| {FormatMicroseconds(AverageAbsJitterMicroseconds)} · Max |Δ| {FormatMicroseconds(MaxAbsJitterMicroseconds)} (last 4000 intervals)";
 
     public string SvJitterExcursionsText =>
         $"≥300 µs: {RecentJitterOver300MicrosecondsCount} / 5s · {JitterOver300MicrosecondsCount} total";
@@ -96,8 +96,18 @@ public sealed class SvDiagnosticsSnapshot
         _ => "UNVERIFIED"
     };
 
-    public string SvQualityEvidenceText => $"{ValidityText} · smpSynch: {SmpSynchText}" +
-        (SmpSynchText == "N/A" ? " (unavailable)" : " (observed)");
+    public string SvQualityEvidenceText => ValidityText;
+
+    // The source claims synchronization through smpSynch; observed PTP traffic
+    // is not independent proof that the publisher's sampling clock is locked.
+    public string SvSampleSyncHeadlineText => SmpSynchText switch
+    {
+        "0" => "NOT SYNCED",
+        "1" => "LOCAL REF REPORTED",
+        "2" => "GLOBAL REF REPORTED",
+        _ => "UNVERIFIED"
+    };
+    public string SvSampleSyncEvidenceText => $"smpSynch={SmpSynchText} · publisher flag only";
     public string SvArrivalIntervalText =>
         $"Actual Δ {FormatMicroseconds(CurrentDeltaMicroseconds)} · Expected Δ {FormatMicroseconds(ExpectedDeltaMicroseconds)}";
     public string SvArrivalAuthorityText =>
