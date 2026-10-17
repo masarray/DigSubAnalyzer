@@ -57,7 +57,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string? _lastPhasorSourceStreamId;
     private readonly Dictionary<string, SvEngineeringScale> _explicitSvScales = new(StringComparer.OrdinalIgnoreCase);
     private const string RawScaleText = "Raw counts (uncalibrated)";
-    private const string NominalScaleText = "4I+4V nominal (1 mA / 10 mV per count)";
+    private const string NominalScaleText = "4I+4V nominal";
     private string _waveformShowMode = "Both";
     private string _waveformLayoutMode = "Overlay";
     private string _waveformTimebase = "2 cycles";
@@ -110,6 +110,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _isRunning = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSwitchCaptureMode));
+            OnPropertyChanged(nameof(IsSelectedSvReceiving));
         }
     }
 
@@ -764,6 +765,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ApplySelectedStreamScale(value?.StreamId);
             OnPropertyChanged(nameof(SelectedEngineeringScale));
             OnPropertyChanged(nameof(EngineeringScaleExplanation));
+            OnPropertyChanged(nameof(CanSelectEngineeringScale));
+            OnPropertyChanged(nameof(IsSelectedSvReceiving));
             RestoreSelectedStreamWorkspace(value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(AnalogValues));
@@ -880,6 +883,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public IReadOnlyList<string> WaveformMarkerOptions { get; } = ["On", "Off"];
     public IReadOnlyList<string> EngineeringScaleOptions { get; } = [NominalScaleText, RawScaleText];
 
+    // Before SV discovery this is a display preset only. No incoming samples,
+    // physical units or fabricated measurements are implied.
+    public bool CanSelectEngineeringScale => SelectedStream is not null;
+    public bool IsSelectedSvReceiving => IsRunning && SelectedStream is { IsActive: true };
+
     private SvEngineeringScale ResolveSelectedStreamScale(string streamId)
     {
         if (_explicitSvScales.TryGetValue(streamId, out var explicitMode))
@@ -899,8 +907,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string SelectedEngineeringScale
     {
-        get => SelectedStream is not null &&
-               ResolveSelectedStreamScale(SelectedStream.StreamId) == SvEngineeringScale.Nominal4I4V
+        get => (SelectedStream is null
+                ? SvEngineeringScaleFactors.IdlePresentationDefault
+                : ResolveSelectedStreamScale(SelectedStream.StreamId)) == SvEngineeringScale.Nominal4I4V
             ? NominalScaleText : RawScaleText;
         set
         {
@@ -925,7 +934,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public string EngineeringScaleExplanation => SelectedStream is null
-        ? "Select an SV stream to see its measurement units."
+        ? "Waiting for publisher. Nominal 4I+4V is a display preset, not a measurement; no values until recognized SV data arrives."
         : SelectedEngineeringScale == NominalScaleText
             ? "Assumed 4I+4V nominal: 1 mA / 10 mV per count. Display estimate only; not calibrated or SCL-verified. Choose Raw counts anytime."
             : "Raw SV counts: no electrical units inferred. Use nominal 4I+4V only when its layout is confirmed.";
@@ -2182,6 +2191,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedStream = refreshed;
             RestoreSelectedStreamWorkspace(refreshed);
             OnPropertyChanged(nameof(SelectedStream));
+            OnPropertyChanged(nameof(IsSelectedSvReceiving));
+            OnPropertyChanged(nameof(CanSelectEngineeringScale));
             OnPropertyChanged(nameof(AnalogValues));
             OnPropertyChanged(nameof(Phasors));
             OnPropertyChanged(nameof(Waveform));
@@ -2218,6 +2229,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedStream));
         OnPropertyChanged(nameof(SelectedEngineeringScale));
         OnPropertyChanged(nameof(EngineeringScaleExplanation));
+        OnPropertyChanged(nameof(CanSelectEngineeringScale));
+        OnPropertyChanged(nameof(IsSelectedSvReceiving));
     }
 
     private void RestoreSelectedStreamWorkspace(SvStreamItem? stream)
@@ -2546,6 +2559,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             _lastGlobalRaiseUtc = now;
             OnPropertyChanged(nameof(StreamStatusText));
+            OnPropertyChanged(nameof(IsSelectedSvReceiving));
             OnPropertyChanged(nameof(OperatorCaptureSummaryText));
             OnPropertyChanged(nameof(DataSourceName));
             OnPropertyChanged(nameof(IsLiveMode));

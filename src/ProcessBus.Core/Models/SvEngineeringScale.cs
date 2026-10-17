@@ -12,6 +12,11 @@ public enum SvEngineeringScale
 
 public static class SvEngineeringScaleFactors
 {
+    // UI preset shown before any publisher is detected. It is not applied to
+    // an unknown stream until its decoded profile is verified or the operator
+    // explicitly selects nominal. No electrical values exist during idle.
+    public const SvEngineeringScale IdlePresentationDefault = SvEngineeringScale.Nominal4I4V;
+
     // This explicitly opted-in 4I+4V lab/nominal profile is 1 mA per
     // current count and 10 mV per voltage count. It is NOT universal
     // IEC 61850 SV scaling and must never be auto-selected by svID.
