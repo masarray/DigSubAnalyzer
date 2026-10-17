@@ -22,7 +22,7 @@ public sealed class PcapInteropInspector
         int maximumFrames = 1_000_000,
         CancellationToken cancellationToken = default)
     {
-        if (maximumFrames < 1 || maximumFrames > 2_000_000)
+        if (maximumFrames < 1 || maximumFrames > 50_000_000)
             throw new ArgumentOutOfRangeException(nameof(maximumFrames));
 
         var observed = new Dictionary<string, SvEvidenceBuilder>(StringComparer.Ordinal);
@@ -130,7 +130,8 @@ public sealed class PcapInteropInspector
             var incomplete = string.IsNullOrWhiteSpace(expectation.AppId) ||
                              string.IsNullOrWhiteSpace(expectation.DestinationMac) ||
                              expectation.ConfRev <= 0 ||
-                             expectation.NofAsdu <= 0;
+                             expectation.NofAsdu <= 0 ||
+                             (string.IsNullOrWhiteSpace(expectation.VlanId) && exact.Stream.VlanId.HasValue);
             return new(expectation.ControlBlockReference,
                 incomplete ? "INCOMPLETE_INTENT" : "WIRE_FIELDS_MATCH",
                 incomplete ? "Matching observed fields, but mandatory SCL intent is incomplete"
@@ -159,7 +160,7 @@ public sealed class PcapInteropInspector
             mismatch.Add("Destination MAC differs from SCL");
         if (!string.IsNullOrWhiteSpace(e.VlanId))
         {
-            if (!ushort.TryParse(e.VlanId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var vid))
+            if (!TryParseSclVlan(e.VlanId, out var vid))
                 mismatch.Add("SCL VLAN ID not parseable");
             else if (a.VlanId != vid)
                 mismatch.Add($"VLAN SCL={vid}, wire={(a.VlanId?.ToString() ?? "untagged")}");
@@ -176,6 +177,20 @@ public sealed class PcapInteropInspector
         if (e.NofAsdu > 0 && (a.MinAsduPerFrame != e.NofAsdu || a.MaxAsduPerFrame != e.NofAsdu))
             mismatch.Add($"nofASDU SCL={e.NofAsdu}, observed range={a.MinAsduPerFrame}..{a.MaxAsduPerFrame}");
         return mismatch;
+    }
+
+    private static bool TryParseSclVlan(string raw, out ushort value)
+    {
+        // IEC SCL P[type=VLAN-ID] commonly uses a four-digit hex lexical form
+        // (e.g. 0064 is VID 100, not decimal 64). Short decimal forms are also
+        // accepted, but ambiguous four-digit SCL wire encodings remain hex.
+        var text = raw.Trim();
+        var hex = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
+                  text.Length == 4 || text.Any(c => c is >= 'A' and <= 'F' or >= 'a' and <= 'f');
+        if (hex)
+            text = text.Replace("0x", "", StringComparison.OrdinalIgnoreCase);
+        return ushort.TryParse(text, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.Integer,
+                   CultureInfo.InvariantCulture, out value) && value <= 4095;
     }
 
     private static string NormalizeMac(string mac) =>
