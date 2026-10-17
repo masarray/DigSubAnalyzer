@@ -214,11 +214,17 @@ public sealed class WaveformPanelControl : FrameworkElement
         var amplitudeMax = ResolveLaneAmplitudeMax(lane, laneSeries);
 
         dc.DrawText(CreateText(lane.Title, 13, TitleBrush, TitleTypeface), new Point(rect.Left + 12, rect.Top + 7));
-        // Shape quality is reported once in the main scope header. Repeating it inside
-        // both lanes and the footer created visual noise during harmonic tests.
-        dc.DrawText(
-            CreateText($"+/-{amplitudeMax:0.#} {lane.Unit}", 11, LabelBrush, LabelTypeface),
-            new Point(rect.Right - 104, rect.Top + 8));
+        // Stable header legend, not badges covering the trace. Samples remain
+        // geometrically unmodified and every phase retains its color identity.
+        var legendX = rect.Left + 103;
+        foreach (var visible in laneSeries)
+        {
+            var legend = CreateText(visible.Name, 10.5, LabelBrush, LabelTypeface);
+            dc.DrawEllipse(GetSeriesBrush(visible.Name), null,
+                new Point(legendX, rect.Top + 15), 3.5, 3.5);
+            dc.DrawText(legend, new Point(legendX + 7, rect.Top + 7));
+            legendX += legend.Width + 25;
+        }
 
         DrawGrid(dc, innerRect);
         DrawYAxisScale(dc, innerRect, amplitudeMax, lane.Unit);
@@ -233,9 +239,9 @@ public sealed class WaveformPanelControl : FrameworkElement
         for (var index = 0; index < laneSeries.Count; index++)
             DrawSeries(dc, innerRect, laneSeries[index], amplitudeMax, stacked, index, laneSeries.Count);
 
-        // Cursor overlay is expensive during repaint/resize.
-        // Re-enable later with cached text layout.
-        if (MarkersEnabled)
+        // Inspection overlay is interactive only: never obstruct live curves
+        // with a permanent cursor/tooltip when the operator is not inspecting.
+        if (MarkersEnabled && _isDraggingCursor)
             DrawCursor(dc, innerRect, laneSeries, amplitudeMax, stacked, snapshot);
 
         DrawTimebaseLabel(dc, innerRect, snapshot);
@@ -703,20 +709,6 @@ public sealed class WaveformPanelControl : FrameworkElement
         dc.DrawGeometry(null, pens.Shadow, geometry);
         dc.DrawGeometry(null, pens.Main, geometry);
 
-        // cleaner label badge at right side
-        var labelY = GetLastY(rect, series.Samples, amplitudeMax, stacked, index, totalSeries) - 9;
-        var labelText = CreateText(series.Name, 11, brush, TitleTypeface);
-        var badge = new Rect(rect.Right - 43, labelY - 3, 38, labelText.Height + 6);
-
-        dc.DrawRoundedRectangle(CloneBrushOpacity(brush, series.HasShapeDistortion ? 0.24 : 0.12), null, badge, 7, 7);
-        dc.DrawText(labelText, new Point(badge.Left + 8, badge.Top + 3));
-
-        if (series.HasShapeDistortion)
-        {
-            var marker = new Rect(badge.Left - 18, badge.Top + 1, 14, 14);
-            dc.DrawRoundedRectangle(CloneBrushOpacity(ShapeAlertBrush, 0.24), null, marker, 7, 7);
-            dc.DrawText(CreateText("!", 10.5, ShapeAlertBrush, TitleTypeface), new Point(marker.Left + 4.2, marker.Top - 0.5));
-        }
     }
 
     private static void DrawLaneShapeBadge(DrawingContext dc, Rect rect, IReadOnlyList<WaveformSeriesModel> series)
@@ -1051,6 +1043,7 @@ public sealed class WaveformPanelControl : FrameworkElement
 
         _isDraggingCursor = false;
         ReleaseMouseCapture();
+        InvalidateVisual();
         e.Handled = true;
     }
 

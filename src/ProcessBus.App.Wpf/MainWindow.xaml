@@ -910,97 +910,7 @@
                                Text="SV Stream Explorer"/>
                                 </StackPanel>
 
-                                <TextBlock Margin="0,2,0,0"
-                           Style="{StaticResource PanelSubtitleTextStyle}"
-                           Text="Online streams first · sorted by SV name"/>
-
-                                <Border Margin="0,7,0,9"
-                                        Style="{StaticResource CompactExplorerCardStyle}">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <DockPanel LastChildFill="True">
-                                            <Border DockPanel.Dock="Right"
-                                    Padding="6,1"
-                                    Background="{Binding SelectedStream.StatusSoftBrush}"
-                                    BorderBrush="{Binding SelectedStream.StatusBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8">
-                                                <TextBlock Text="{Binding SelectedStream.DisplayStatusText}"
-                                           Foreground="{Binding SelectedStream.StatusBrush}"
-                                           FontSize="9.5"
-                                           FontWeight="Bold"/>
-                                            </Border>
-
-                                            <StackPanel Orientation="Horizontal">
-                                                <Border Width="7"
-                                        Height="20"
-                                        Margin="0,0,8,0"
-                                        CornerRadius="3"
-                                        Background="{Binding SelectedStream.StatusBrush}"/>
-                                                <TextBlock Text="{Binding SelectedStreamDetails.StreamName}"
-                                           FontWeight="SemiBold"
-                                           FontSize="12.5"
-                                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                                            </StackPanel>
-                                        </DockPanel>
-
-                                        <TextBlock Grid.Row="1"
-                                   Margin="15,2,0,8"
-                                   Text="{Binding SelectedStreamDetails.SvId, StringFormat=svID {0}}"
-                                   FontSize="11"
-                                   Foreground="#B8CDE0"/>
-
-                                        <WrapPanel Grid.Row="2"
-                                   Margin="0,0,0,2">
-                                            <Border Style="{StaticResource MetricChipBorderStyle}">
-                                                <TextBlock Text="{Binding SelectedStreamDetails.AppId, StringFormat=APPID {0}}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="SemiBold"/>
-                                            </Border>
-
-                                            <Border Style="{StaticResource MetricChipBorderStyle}">
-                                                <TextBlock Text="{Binding SelectedStreamDetails.ConfRevText, StringFormat=ConfRev {0}}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="SemiBold"/>
-                                            </Border>
-
-                                            <Border Style="{StaticResource MetricChipBorderStyle}">
-                                                <TextBlock Text="{Binding SelectedStreamDetails.SampleValueCountText, StringFormat=Val {0}}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="SemiBold"/>
-                                            </Border>
-                                        </WrapPanel>
-
-                                        <StackPanel Grid.Row="3" Margin="0,6,0,0">
-                                            <TextBlock Text="{Binding SvMappingSourceCompactText}"
-                                                       FontSize="10.5"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#F6D781"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-
-                                        <DockPanel Grid.Row="4"
-                                   Margin="0,6,0,0">
-                                            <TextBlock DockPanel.Dock="Left"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       FontSize="10"
-                                       Margin="0,1,5,0"
-                                       Foreground="#6F8FAF"
-                                       Text="&#xE823;"/>
-                                            <TextBlock FontSize="10"
-                                       Foreground="{StaticResource TextMutedBrush}"
-                                       Text="{Binding SelectedStreamDetails.LastSeenText, StringFormat=Last update {0}}"/>
-                                        </DockPanel>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
+                                </StackPanel>
 
                             <TextBox Grid.Row="1"
                      Margin="0,6,0,6"
@@ -1170,8 +1080,7 @@
 
                             <Expander Grid.Row="3"
                       Style="{StaticResource DenseExpanderStyle}"
-                      Header="Source detail"
-                      Visibility="Collapsed"
+                      Header="Stream details"
                       IsExpanded="False">
                                 <Border Margin="0,6,0,0"
                         Padding="8"
@@ -1180,6 +1089,12 @@
                         BorderThickness="1"
                         CornerRadius="6">
                                     <StackPanel>
+                                        <TextBlock Text="{Binding SelectedStreamDetails.SvId, StringFormat=svID: {0}}"
+                                                   Foreground="#D6E8F8" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Margin="0,3,0,0" Text="{Binding SelectedStreamDetails.AppId, StringFormat=APPID: {0}}"
+                                                   Foreground="#9FB8D2"/>
+                                        <TextBlock Margin="0,3,0,5" Text="{Binding SelectedStreamDetails.ConfRevText, StringFormat=confRev: {0}}"
+                                                   Foreground="#9FB8D2"/>
                                         <TextBlock Style="{StaticResource CompactLabelTextStyle}"
                                    Text="Mapped channels"/>
                                         <TextBlock Margin="0,2,0,0"
@@ -1616,21 +1531,22 @@
                             <Border Grid.Row="2" Style="{StaticResource DenseMetricCardStyle}" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="Timing Confidence" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Margin="0,8,0,0" Text="{Binding TimingConfidenceText}" Foreground="#F6D781" TextWrapping="Wrap"/>
+                                    <TextBlock Margin="0,8,0,0" Text="{Binding TimingConfidenceBadgeText}" Foreground="#F6D781"
+                                               FontSize="13" FontWeight="SemiBold" ToolTip="{Binding TimingConfidenceText}"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Grid.Row="3" Style="{StaticResource DenseMetricCardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="Protocol Monitor" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Margin="0,8,0,0" Text="{Binding ProtocolSvStatusText}" Foreground="#EAF6FF" TextWrapping="Wrap"/>
-                                    <TextBlock Margin="0,6,0,0" Text="{Binding ProtocolGooseStatusText}" Foreground="#EAF6FF" TextWrapping="Wrap"/>
-                                    <TextBlock Margin="0,6,0,0" Text="{Binding ProtocolPtpStatusText}" Foreground="#EAF6FF" TextWrapping="Wrap"/>
-                                    <Border Height="1" Background="#183B58" Margin="0,10,0,10"/>
-                                    <TextBlock Text="{Binding TimingMetricText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
-                                    <TextBlock Margin="0,8,0,0" Text="{Binding AdapterTimingRiskText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
+    <Expander Header="Protocol details" IsExpanded="False" Foreground="#D7EAFB">
+        <StackPanel Margin="0,8,0,0">
+            <TextBlock Text="{Binding ProtocolSvStatusText}" Foreground="#B6CDE2" TextWrapping="Wrap"/>
+            <TextBlock Margin="0,5,0,0" Text="{Binding ProtocolGooseStatusText}" Foreground="#B6CDE2" TextWrapping="Wrap"/>
+            <TextBlock Margin="0,5,0,0" Text="{Binding ProtocolPtpStatusText}" Foreground="#B6CDE2" TextWrapping="Wrap"/>
+            <TextBlock Margin="0,8,0,0" Text="{Binding TimingMetricText}" Foreground="#91B0C9" TextWrapping="Wrap"/>
+            <TextBlock Margin="0,4,0,0" Text="{Binding AdapterTimingRiskText}" Foreground="#91B0C9" TextWrapping="Wrap"/>
+        </StackPanel>
+    </Expander>
+</Border>
                         </Grid>
 
                         <!-- =========================================================
@@ -2039,17 +1955,7 @@
                                         <Border Style="{StaticResource MetricChipBorderStyle}">
                                             <TextBlock Foreground="{StaticResource AccentBrush}"
                            FontWeight="SemiBold"
-                           Text="{Binding WaveformHeaderSamplesPerCycleText}"/>
-                                        </Border>
-                                        <Border Style="{StaticResource MetricChipBorderStyle}">
-                                            <TextBlock Foreground="{StaticResource AccentBrush}"
-                           FontWeight="SemiBold"
                            Text="{Binding WaveformHeaderWindowText}"/>
-                                        </Border>
-                                        <Border Style="{StaticResource MetricChipBorderStyle}">
-                                            <TextBlock Foreground="{StaticResource AccentBrush}"
-                           FontWeight="SemiBold"
-                           Text="Reference: Ua"/>
                                         </Border>
                                         <Border Style="{StaticResource MetricChipBorderStyle}">
                                             <TextBlock Foreground="#F0B533"
@@ -2117,18 +2023,9 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False">
                                             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                                                 <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,1,8,0" Foreground="{StaticResource AccentStrongBrush}" Text="&#xE9D9;"/>
-                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="SV-Scope (IEC 61850 Digital Oscilloscope)"/>
+                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Waveforms"/>
                                             </StackPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <Border Padding="7,2"
-                                                        Margin="0,0,8,0"
-                                                        Background="#0D8CFF"
-                                                        CornerRadius="10">
-                                                    <TextBlock Text="FOCUS"
-                                                               FontSize="9"
-                                                               FontWeight="Bold"
-                                                               Foreground="White"/>
-                                                </Border>
 
                                                 <Border Padding="7,2"
                                                         Margin="0,0,8,0"
@@ -2176,10 +2073,6 @@
                                                                    Foreground="#B9FFE0"/>
                                                     </StackPanel>
                                                 </Border>
-
-                                                <TextBlock Style="{StaticResource PanelSubtitleTextStyle}"
-                                                           VerticalAlignment="Center"
-                                                           Text="SV scope · selected stream"/>
                                             </StackPanel>
                                         </DockPanel>
 
@@ -2300,10 +2193,6 @@
                            Text="&#xE9D5;"/>
                                                     <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Phasor Diagram"/>
                                                 </StackPanel>
-
-                                                <TextBlock DockPanel.Dock="Right"
-                       Style="{StaticResource PanelSubtitleTextStyle}"
-                       Text="Vector relation and angle check"/>
                                             </DockPanel>
 
                                             <!-- RUNTIME CONTROL (DIMATIKAN DI DESIGNER) -->
@@ -2328,321 +2217,228 @@
                                         </Grid>
                                     </Border>
 
+                                    <!-- Quiet, full-width phase ledger. One hierarchy, no competing micro-cards. -->
                                     <Border Grid.Row="2"
-                Style="{StaticResource DenseGroupBorderStyle}"
-                Padding="6"
-                Background="{DynamicResource PanelBrush}">
-                                        <StackPanel>
-                                                <DockPanel Margin="0,0,0,8" LastChildFill="False">
-                                                    <StackPanel DockPanel.Dock="Left">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,1,8,0" Foreground="{StaticResource AccentStrongBrush}" Text="&#xE9D2;"/>
-                                                            <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Metering"/>
-                                                        </StackPanel>
-
-                                                    </StackPanel>
-
-                                                    <Border DockPanel.Dock="Right"
-                                                        Padding="6,1"
-                                                        Background="{StaticResource AccentSoftBrush}"
-                                                        BorderBrush="#1C5F91"
-                                                        BorderThickness="1"
-                                                        CornerRadius="8">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding WaveformHeaderFrequencyText}" Value="N/A">
-                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <TextBlock FontSize="10"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource AccentBrush}"
-                                                               Text="{Binding WaveformHeaderFrequencyText}"/>
-                                                    </Border>
+                                            Style="{StaticResource DenseGroupBorderStyle}"
+                                            Padding="10"
+                                            Background="{DynamicResource PanelBrush}">
+                                        <Border.Resources>
+                                            <Style x:Key="MeterPhaseRowStyle" TargetType="Border">
+                                                <Setter Property="Background" Value="#0E2032"/>
+                                                <Setter Property="BorderBrush" Value="#1A354E"/>
+                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                <Setter Property="Padding" Value="7,6"/>
+                                                <Setter Property="MinHeight" Value="34"/>
+                                            </Style>
+                                        </Border.Resources>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      CanContentScroll="False">
+                                            <StackPanel>
+                                                <DockPanel LastChildFill="False">
+                                                    <TextBlock DockPanel.Dock="Left" Text="Metering"
+                                                               Style="{StaticResource PanelTitleTextStyle}"/>
+                                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                               Text="{Binding WaveformHeaderFrequencyText}"
+                                                               FontSize="11" Foreground="#8CBDE4"/>
                                                 </DockPanel>
-
-                                                <WrapPanel Margin="0,0,0,6">
-                                                    <TextBlock Text="SV units" Foreground="#B3C9DD" Margin="0,6,8,0" FontSize="11"/>
-                                                    <ComboBox Width="260"
+                                                <DockPanel Margin="0,9,0,0">
+                                                    <Button DockPanel.Dock="Right" Content="Copy" Margin="7,0,0,0"
+                                                            MinWidth="49" Height="28" Padding="7,0"
+                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
+                                                            Command="{Binding CopyEvidenceCommand}"
+                                                            ToolTip="Copy detailed measurements and capture evidence"/>
+                                                    <ComboBox Height="28" MinWidth="140"
                                                               Style="{StaticResource CompactComboBoxStyle}"
                                                               ItemsSource="{Binding EngineeringScaleOptions}"
                                                               SelectedItem="{Binding SelectedEngineeringScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                              ToolTip="Choose the physical scale for this selected SV stream. No SCL required; raw counts is safest until the profile is verified."/>
-                                                    <Button Content="Copy diagnostics" Command="{Binding CopyEvidenceCommand}"
-                                                            Width="138" Height="27" Margin="0,3,6,3"
-                                                            ToolTip="Copy selected stream, packet counters, scaling, RMS and power evidence to clipboard."/>
-                                                    <TextBlock Text="{Binding EvidenceCopyStatusText}"
-                                                               Foreground="#9BB8D0" Margin="0,8,0,0" FontSize="10"/>
-                                                </WrapPanel>
-                                                <TextBlock Text="{Binding EngineeringScaleExplanation}"
-                                                           Foreground="#F0B533" TextWrapping="Wrap" FontSize="10.5"
-                                                           Margin="0,0,0,9"/>
-
-                                                <Border Margin="0,0,0,8"
-                                                    Visibility="Collapsed"
-                                                    Padding="8,6"
-                                                    Background="#0D2740"
-                                                    BorderBrush="#1C5F91"
-                                                    BorderThickness="1"
-                                                    CornerRadius="8">
-                                                    <DockPanel LastChildFill="False">
-                                                        <TextBlock DockPanel.Dock="Left"
-                                                               FontSize="11.5"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource AccentBrush}"
-                                                               Text="{Binding Diagnostics.TimebaseStatusText}"/>
-                                                        <TextBlock DockPanel.Dock="Right"
-                                                               FontSize="11.5"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="#D6E8F8"
-                                                               Text="{Binding Diagnostics.FrequencyEstimateValid, StringFormat=Freq valid: {0}}"/>
-                                                    </DockPanel>
-                                                </Border>
-
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <Border Grid.Column="0" Padding="6" Background="#0B1A2A" BorderBrush="#1B344F" BorderThickness="1" CornerRadius="10">
-                                                        <StackPanel>
-                                                            <TextBlock Margin="0,0,0,5" FontSize="10" FontWeight="Bold" Foreground="#D6E8F8" Text="VOLTAGE"/>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseRBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ua" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ua.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseRBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ua.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseSBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ub" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ub.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseSBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ub.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseTBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Uc" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Uc.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseTBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Uc.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <Border Grid.Column="2" Padding="6" Background="#0B1A2A" BorderBrush="#1B344F" BorderThickness="1" CornerRadius="10">
-                                                        <StackPanel>
-                                                            <TextBlock Margin="0,0,0,5" FontSize="10" FontWeight="Bold" Foreground="#D6E8F8" Text="CURRENT"/>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseRBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ia" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ia.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseRBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ia.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseSBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ib" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ib.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseSBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ib.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseTBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ic" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ic.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseTBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ic.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Grid>
-
-                                                <Grid Margin="0,6,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="8"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-
-                                                    <Border Grid.Row="0" Grid.Column="0" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="P" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,2,0,0" Text="{Binding TotalActivePowerText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border Grid.Row="0" Grid.Column="2" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="Q" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,2,0,0" Text="{Binding TotalReactivePowerText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border Grid.Row="2" Grid.Column="0" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="S" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,2,0,0" Text="{Binding TotalApparentPowerText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border Grid.Row="2" Grid.Column="2" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="PF" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,3,0,0" Text="{Binding PowerFactorText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Grid>
-
-                                                <Border Margin="0,8,0,0"
-                                                    Visibility="Collapsed"
-                                                    Padding="10"
-                                                    Background="#0B1A2A"
-                                                    BorderBrush="#1B344F"
-                                                    BorderThickness="1"
-                                                    CornerRadius="10">
-                                                    <StackPanel>
-                                                        <DockPanel LastChildFill="False">
-                                                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                                                                <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                                       FontSize="13"
-                                                                       Margin="0,1,8,0"
-                                                                       Foreground="{StaticResource AccentStrongBrush}"
-                                                                       Text="&#xE9D2;"/>
-                                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Analysis Insight"/>
+                                                              ToolTip="{Binding EngineeringScaleExplanation}"/>
+                                                </DockPanel>
+                                                <TextBlock Margin="0,10,0,4" Text="VOLTAGE · RMS / ANGLE" FontSize="10.5"
+           FontWeight="SemiBold" Foreground="#88AAC7"/>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseRBrush}"/>
+      <TextBlock Text="Ua" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ua.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ua.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ua.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ua.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseSBrush}"/>
+      <TextBlock Text="Ub" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ub.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ub.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ub.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ub.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseTBrush}"/>
+      <TextBlock Text="Uc" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Uc.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Uc.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Uc.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Uc.AngleDisplayText}"/>
+  </Grid>
+</Border>
+                                                <TextBlock Margin="0,10,0,4" Text="CURRENT · RMS / ANGLE" FontSize="10.5"
+           FontWeight="SemiBold" Foreground="#88AAC7"/>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseRBrush}"/>
+      <TextBlock Text="Ia" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ia.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ia.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ia.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ia.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseSBrush}"/>
+      <TextBlock Text="Ib" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ib.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ib.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ib.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ib.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseTBrush}"/>
+      <TextBlock Text="Ic" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ic.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ic.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ic.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ic.AngleDisplayText}"/>
+  </Grid>
+</Border>
+                                                <Expander Margin="0,8,0,0" Header="Power &amp; scaling details"
+                                                          IsExpanded="False"
+                                                          Foreground="#B9D7EE">
+                                                    <StackPanel Margin="3,7,3,0">
+                                                        <TextBlock Text="{Binding EngineeringScaleExplanation}"
+                                                                   Foreground="#F4C66D" FontSize="11"
+                                                                   TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                        <UniformGrid Columns="2">
+                                                            <StackPanel Margin="0,0,4,6">
+                                                                <TextBlock Text="P" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding TotalActivePowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
-                                                            <Border DockPanel.Dock="Right"
-                                                                Padding="6,1"
-                                                                Background="#3A2B12"
-                                                                BorderBrush="#A8791C"
-                                                                BorderThickness="1"
-                                                                CornerRadius="8">
-                                                                <TextBlock Text="Full"
-                                                                       FontSize="9"
-                                                                       FontWeight="Bold"
-                                                                       Foreground="#F5D47A"/>
-                                                            </Border>
-                                                        </DockPanel>
-                                                        <TextBlock Margin="0,8,0,0"
-                                                               Text="Root-cause hints, recommendation engine, report narration, and event correlation are available in the full engineering platform."
-                                                               TextWrapping="Wrap"
-                                                               LineHeight="17"
-                                                               Foreground="#9FB8D2"
-                                                               FontSize="11.5"/>
-                                                        <Button Margin="0,10,0,0"
-                                                            Height="30"
-                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
-                                                            Tag="Analysis Insight"
-                                                            Click="LockedFeature_Click">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                                       FontSize="12"
-                                                                       Margin="0,0,7,0"
-                                                                       Text="&#xE946;"
-                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                                                <TextBlock Text="Open Insight"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                            <StackPanel Margin="0,0,0,6">
+                                                                <TextBlock Text="Q" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding TotalReactivePowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
-                                                        </Button>
+                                                            <StackPanel Margin="0,0,4,0">
+                                                                <TextBlock Text="S" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding TotalApparentPowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                            <StackPanel>
+                                                                <TextBlock Text="PF" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding PowerFactorText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                        </UniformGrid>
+                                                        <TextBlock Text="{Binding EvidenceCopyStatusText}" Foreground="#89AFCB"
+                                                                   FontSize="10" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
-                                                </Border>
-
-                                                <Border Margin="0,8,0,0"
-                                                    Visibility="Collapsed"
-                                                    Padding="10"
-                                                    Background="#0B1A2A"
-                                                    BorderBrush="#1B344F"
-                                                    BorderThickness="1"
-                                                    CornerRadius="10">
-                                                    <DockPanel LastChildFill="False">
-                                                        <TextBlock DockPanel.Dock="Left"
-                                                               Style="{StaticResource CompactValueTextStyle}"
-                                                               FontWeight="SemiBold"
-                                                               Text="Scaling"/>
-                                                        <Button DockPanel.Dock="Right"
-                                                            Width="84"
-                                                            Height="28"
-                                                            Padding="8,0"
-                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
-                                                            Tag="Primary / Secondary Scaling"
-                                                            Click="LockedFeature_Click">
-                                                            <TextBlock Text="Configure"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                                        </Button>
-                                                        <WrapPanel Margin="0,0,8,0">
-                                                            <Border Style="{StaticResource MetricChipBorderStyle}" Background="#102236">
-                                                                <TextBlock Text="Raw" Foreground="#CFE7FF" FontWeight="SemiBold"/>
-                                                            </Border>
-                                                            <Border Style="{StaticResource MetricChipBorderStyle}" Background="#1C2A38" BorderBrush="#5B7188">
-                                                                <TextBlock Text="Secondary" Foreground="#8FA8BF" FontWeight="SemiBold"/>
-                                                            </Border>
-                                                            <Border Style="{StaticResource MetricChipBorderStyle}" Background="#1C2A38" BorderBrush="#5B7188">
-                                                                <TextBlock Text="Primary" Foreground="#8FA8BF" FontWeight="SemiBold"/>
-                                                            </Border>
-                                                        </WrapPanel>
-                                                    </DockPanel>
-                                                </Border>
-
-                                        </StackPanel>
+                                                </Expander>
+                                            </StackPanel>
+                                        </ScrollViewer>
                                     </Border>
                                 </Grid>
                             </Grid>
@@ -2708,85 +2504,260 @@
                            FontSize="12.5"
                            FontWeight="SemiBold"
                            Margin="0,1,0,0"/>
-                                            <TextBlock Text="{Binding DiagnosticScopeIssueText}"
-                           Foreground="#D6E8F8"
-                           FontSize="12"
-                           FontWeight="SemiBold"
-                           TextTrimming="CharacterEllipsis"/>
+                                            
                                         </StackPanel>
 
-                                        <TextBlock Grid.Column="2"
-                       Text="{Binding DiagnosticScopeSubtitle}"
-                       Foreground="#8FAAC3"
-                       FontSize="11"
-                       TextWrapping="Wrap"
-                       Width="360"
-                       VerticalAlignment="Top"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding DiagnosticScopeSubtitle}"
+                                                               Foreground="#88AAC4" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis" Width="235"
+                                                               VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
 
                                 <!-- Unified cards -->
+                                <!-- Read-first status: four decisions; forensic explanations via hover/details. -->
                                 <UniformGrid Grid.Row="2" Columns="4">
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="PTP">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="GOOSE">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0,0,8,0"
+                                            ToolTip="{Binding TimingReferenceText}">
                                         <StackPanel>
-                                            <TextBlock Text="ARRIVAL TIMING" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding FrequencyText}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding JitterText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding LatencyText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding ExpectedDeltaText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding TimingReferenceText}" Foreground="#8FAAC3" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding TimestampSourceText}" Foreground="#8FAAC3" FontSize="10.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                            <TextBlock Text="{Binding SvTimingStandardText}"
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="10.5"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,4,0,0"/>
+                                            <TextBlock Text="ARRIVAL" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding FrequencyText}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding JitterText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding TimestampSourceText}"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0,0,8,0"
+                                            ToolTip="{Binding OutOfSequenceText}">
                                         <StackPanel>
-                                            <TextBlock Text="INTEGRITY" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding SmcCntStatus}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding PacketLossText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding OutOfSequenceText}" Foreground="#D6E8F8" FontSize="12"/>
+                                            <TextBlock Text="SEQUENCE" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SmcCntStatus}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PacketLossText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding ExpectedDeltaText}"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0,0,8,0"
+                                            ToolTip="{Binding CaptureTimingCautionText}">
                                         <StackPanel>
-                                            <TextBlock Text="CAPTURE PATH" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding NetworkHealthText}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding BandwidthText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding PacketRateText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}" Foreground="#F6D781" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding CaptureTimingCautionText}"
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="10.5"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding AdapterTimingRiskText}"
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="10.5"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,2,0,0"/>
+                                            <TextBlock Text="CAPTURE PATH" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding NetworkHealthText}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding AdapterTimingRiskText}"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0"
+                                            ToolTip="{Binding FrequencyStabilityText}">
                                         <StackPanel>
-                                            <TextBlock Text="SIGNAL" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding SignalHealthText}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding VoltageBalanceText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding FrequencyStabilityText}" Foreground="#D6E8F8" FontSize="12"/>
+                                            <TextBlock Text="SIGNAL" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SignalHealthText}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding VoltageBalanceText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding TimingMetricText}"/>
                                         </StackPanel>
                                     </Border>
-
+                                </UniformGrid>
+                                <!-- Target-specific cards prevent a PTP or GOOSE selection
+                                     from being mislabeled with a global SV timing metric. -->
+                                <UniformGrid Grid.Row="2" Columns="4">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="PTP">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding PtpTransportText}">
+                                        <StackPanel>
+                                            <TextBlock Text="SOURCE" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding DiagnosticTargetHealthText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PtpDomainText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding PtpProfileText}">
+                                        <StackPanel>
+                                            <TextBlock Text="TWO-STEP" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.PtpMatchedTwoStepCount, StringFormat={}{0}}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PtpTwoStepEvidenceText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding PtpRateText}">
+                                        <StackPanel>
+                                            <TextBlock Text="MESSAGE FLOW" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding PtpStatusCompactText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PtpRateText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0"
+                                            ToolTip="{Binding TimingConfidenceText}">
+                                        <StackPanel>
+                                            <TextBlock Text="CLOCK LOCK" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="UNVERIFIED"
+                                                       Foreground="#F4C66D"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="Passive observation only"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+                                <!-- Target-specific cards prevent a PTP or GOOSE selection
+                                     from being mislabeled with a global SV timing metric. -->
+                                <UniformGrid Grid.Row="2" Columns="4">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="GOOSE">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="PUBLISHER" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.DisplayName}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.Subtitle}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="HEALTH" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding DiagnosticTargetHealthText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.Subtitle}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="STATE NUMBER" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SelectedGooseMessage.StNum, StringFormat={}{0}}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedGooseMessage.SqNum}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="LAST CHANGE" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.StatusText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.IssueSummaryText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
                                 </UniformGrid>
 
                                 <Border Grid.Row="4"
@@ -3390,7 +3361,7 @@
                                             <StackPanel>
                                                 <TextBlock Text="PTP Reference" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,6,0,0" Text="{Binding PtpStatusText}" Foreground="#F4FAFF" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                                <TextBlock Margin="0,6,0,0" Text="{Binding PtpTransportText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
+                                                <TextBlock Margin="0,5,0,0" Text="{Binding PtpDomainText}" Foreground="#8FAAC3" FontSize="11" ToolTip="{Binding PtpTransportText}"/>
                                             </StackPanel>
                                         </Border>
 
@@ -3399,7 +3370,8 @@
                                                 <TextBlock Text="Grandmaster" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,6,0,0" Text="{Binding PtpGrandmasterText}" Foreground="#F4FAFF" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                                 <TextBlock Margin="0,6,0,0" Text="{Binding PtpDomainText}" Foreground="#8FAAC3"/>
-                                                <TextBlock Margin="0,3,0,0" Text="{Binding PtpClockQualityText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
+                                                <TextBlock Margin="0,4,0,0" Text="{Binding PtpClockQualityText}" Foreground="#8FAAC3"
+                                                           FontSize="11" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                         </Border>
 
@@ -3408,7 +3380,7 @@
                                                 <TextBlock Text="Message Rates" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,6,0,0" Text="{Binding PtpRateText}" Foreground="#F4FAFF" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                                 <TextBlock Margin="0,5,0,0" Text="{Binding PtpTwoStepEvidenceText}" Foreground="#8FAAC3" FontSize="11" TextWrapping="Wrap"/>
-                                                <TextBlock Margin="0,6,0,0" Text="{Binding PtpProfileText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
+                                                
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -3424,12 +3396,14 @@
                                     <Border Grid.Column="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="16">
                                         <StackPanel>
                                             <TextBlock Text="Timing Confidence" Style="{StaticResource PanelTitleTextStyle}"/>
-                                            <TextBlock Margin="0,4,0,14" Text="How much trust the analyzer can place on packet-arrival timing." Style="{StaticResource PanelSubtitleTextStyle}" TextWrapping="Wrap"/>
+                                            
 
                                             <Border Style="{StaticResource DenseMetricCardStyle}" Padding="14" Margin="0,0,0,10">
                                                 <StackPanel>
                                                     <TextBlock Text="Current confidence" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                    <TextBlock Margin="0,7,0,0" Text="{Binding TimingConfidenceText}" Foreground="#F6D781" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                    <TextBlock Margin="0,7,0,0" Text="{Binding TimingConfidenceBadgeText}"
+                                                               ToolTip="{Binding TimingConfidenceText}"
+                                                               Foreground="#F6D781" FontSize="17" FontWeight="SemiBold"/>
                                                 </StackPanel>
                                             </Border>
 
@@ -3437,7 +3411,7 @@
                                                 <StackPanel>
                                                     <TextBlock Text="Timestamp source" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                     <TextBlock Margin="0,7,0,0" Text="{Binding TimestampSourceText}" Foreground="#EAF6FF" TextWrapping="Wrap"/>
-                                                    <TextBlock Margin="0,7,0,0" Text="{Binding AdapterTimingRiskText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
+                                                    
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
@@ -3446,7 +3420,7 @@
                                     <Border Grid.Column="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="16">
                                         <StackPanel>
                                             <TextBlock Text="SV Timing Correlation" Style="{StaticResource PanelTitleTextStyle}"/>
-                                            <TextBlock Margin="0,4,0,14" Text="Combines SV sequence continuity, arrival variation, adapter quality, and observed PTP traffic." Style="{StaticResource PanelSubtitleTextStyle}" TextWrapping="Wrap"/>
+                                            
 
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -3475,8 +3449,13 @@
                                             <Border Margin="0,14,0,0" Style="{StaticResource DenseMetricCardStyle}" Padding="14">
                                                 <StackPanel>
                                                     <TextBlock Text="Interpretation" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                    <TextBlock Margin="0,7,0,0" Text="{Binding TimingReferenceText}" Foreground="#EAF6FF" TextWrapping="Wrap"/>
-                                                    <TextBlock Margin="0,7,0,0" Text="{Binding TimingMetricText}" Foreground="#8FAAC3" TextWrapping="Wrap"/>
+                                                    <TextBlock Margin="0,7,0,0" Text="{Binding TimingConfidenceBadgeText}"
+                                                               ToolTip="{Binding TimingReferenceText}"
+                                                               Foreground="#EAF6FF" FontWeight="SemiBold"/>
+                                                    <TextBlock Margin="0,7,0,0" Text="{Binding TimestampSourceText}"
+                                                               Foreground="#9FB8D2" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding TimingMetricText}"/>
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
@@ -3492,10 +3471,7 @@
                                         </Grid.RowDefinitions>
                                         <DockPanel>
                                             <TextBlock Text="PTP Event Timeline" Style="{StaticResource PanelTitleTextStyle}" DockPanel.Dock="Left"/>
-                                            <TextBlock Text="Raw PTP messages captured by this analyzer; Wireshark is not required for basic verification."
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="11"
-                                                       HorizontalAlignment="Right"/>
+                                            
                                         </DockPanel>
 
                                         <DataGrid Grid.Row="2"
