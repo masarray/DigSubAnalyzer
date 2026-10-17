@@ -2157,7 +2157,7 @@
                            Margin="0,1,8,0"
                            Foreground="{StaticResource AccentStrongBrush}"
                            Text="&#xE9D5;"/>
-                                                    <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Phasor Diagram"/>
+                                                    <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Phasors"/>
                                                 </StackPanel>
                                             </DockPanel>
 
@@ -2374,7 +2374,7 @@
                ToolTip="{Binding AnalogValues.Ic.AngleDisplayText}"/>
   </Grid>
 </Border>
-                                                <Expander Margin="0,8,0,0" Header="Power &amp; scaling details"
+                                                <Expander Margin="0,8,0,0" Header="Power &amp; calibration"
                                                           IsExpanded="False"
                                                           Foreground="#B9D7EE">
                                                     <StackPanel Margin="3,7,3,0">
@@ -3343,7 +3343,7 @@
 
                                         <Border Grid.Column="4" Style="{StaticResource DenseMetricCardStyle}" Padding="14">
                                             <StackPanel>
-                                                <TextBlock Text="Message Rates" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                <TextBlock Text="PTP traffic" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                 <TextBlock Margin="0,6,0,0" Text="{Binding PtpRateText}" Foreground="#F4FAFF" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                                 <TextBlock Margin="0,5,0,0" Text="{Binding PtpTwoStepEvidenceText}" Foreground="#8FAAC3" FontSize="11" TextWrapping="Wrap"/>
                                                 
@@ -3361,12 +3361,12 @@
 
                                     <Border Grid.Column="0" Style="{StaticResource DenseGroupBorderStyle}" Padding="16">
                                         <StackPanel>
-                                            <TextBlock Text="Timing Confidence" Style="{StaticResource PanelTitleTextStyle}"/>
+                                            <TextBlock Text="Capture confidence" Style="{StaticResource PanelTitleTextStyle}"/>
                                             
 
                                             <Border Style="{StaticResource DenseMetricCardStyle}" Padding="14" Margin="0,0,0,10">
                                                 <StackPanel>
-                                                    <TextBlock Text="Current confidence" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="Assessment" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                     <TextBlock Margin="0,7,0,0" Text="{Binding TimingConfidenceBadgeText}"
                                                                ToolTip="{Binding TimingConfidenceText}"
                                                                Foreground="#F6D781" FontSize="17" FontWeight="SemiBold"/>
@@ -3375,7 +3375,7 @@
 
                                             <Border Style="{StaticResource DenseMetricCardStyle}" Padding="14">
                                                 <StackPanel>
-                                                    <TextBlock Text="Timestamp source" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="Timestamp" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                     <TextBlock Margin="0,7,0,0" Text="{Binding TimestampSourceText}" Foreground="#EAF6FF" TextWrapping="Wrap"/>
                                                     
                                                 </StackPanel>
@@ -3385,7 +3385,7 @@
 
                                     <Border Grid.Column="2" Style="{StaticResource DenseGroupBorderStyle}" Padding="16">
                                         <StackPanel>
-                                            <TextBlock Text="SV Timing Correlation" Style="{StaticResource PanelTitleTextStyle}"/>
+                                            <TextBlock Text="SV arrival &amp; continuity" Style="{StaticResource PanelTitleTextStyle}"/>
                                             
 
                                             <Grid>
@@ -3436,7 +3436,7 @@
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
                                         <DockPanel>
-                                            <TextBlock Text="PTP Event Timeline" Style="{StaticResource PanelTitleTextStyle}" DockPanel.Dock="Left"/>
+                                            <TextBlock Text="PTP events" Style="{StaticResource PanelTitleTextStyle}" DockPanel.Dock="Left"/>
                                             
                                         </DockPanel>
 
