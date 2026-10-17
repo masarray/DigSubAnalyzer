@@ -45,7 +45,12 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
                 yield break;
 
             if (status == ReadStatus.Timeout)
-                await Task.Yield();
+            {
+                // A driver/adapter may return empty immediately even with a configured
+                // timeout. Task.Yield alone can spin at full CPU while the link is idle.
+                // The delay is only on empty reads; available frames remain uninterrupted.
+                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
@@ -98,6 +103,34 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
                 ResolveCaptureTicks(header.Timestamp, _timestampPrecision));
 
             return ReadStatus.Frame;
+        }
+    }
+
+    /// <summary>
+    /// Snapshot of Npcap counters. ps_drop is a kernel/driver drop statistic and
+    /// ps_ifdrop may be unsupported by an adapter; neither is an IEC 61850
+    /// smpCnt-gap measurement or a certified wire-loss counter.
+    /// </summary>
+    public bool TryGetCaptureStatistics(out NpcapCaptureStatistics statistics)
+    {
+        statistics = default;
+        lock (_handleGate)
+        {
+            if (_disposed || _handle == IntPtr.Zero)
+                return false;
+
+            try
+            {
+                if (PcapStats(_handle, out var raw) != 0)
+                    return false;
+
+                statistics = new NpcapCaptureStatistics(raw.Received, raw.Dropped, raw.InterfaceDropped);
+                return true;
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return false;
+            }
         }
     }
 
@@ -361,6 +394,21 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
     [DllImport("wpcap", CallingConvention = CallingConvention.Cdecl, EntryPoint = "pcap_activate")]
     private static extern int PcapActivate(IntPtr handle);
 
+    [DllImport("wpcap", CallingConvention = CallingConvention.Cdecl, EntryPoint = "pcap_stats")]
+    private static extern int PcapStats(IntPtr handle, out PcapNativeStatistics stats);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PcapNativeStatistics
+    {
+        public uint Received;
+        public uint Dropped;
+        public uint InterfaceDropped;
+        // Npcap/WinPcap Windows-specific trailing counters.
+        public uint Captured;
+        public uint Sent;
+        public uint NetworkDropped;
+    }
+
     [DllImport("wpcap", CallingConvention = CallingConvention.Cdecl, EntryPoint = "pcap_next_ex")]
     private static extern int PcapNextEx(IntPtr handle, out IntPtr header, out IntPtr data);
 
@@ -420,3 +468,5 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
             : Marshal.PtrToStringAnsi(error) ?? string.Empty;
     }
 }
+
+public readonly record struct NpcapCaptureStatistics(uint DriverReceived, uint DriverDropped, uint InterfaceDropped);

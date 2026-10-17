@@ -4,9 +4,11 @@ using ProcessBus.Core.Services;
 using ProcessBus.Core.Services.Scl;
 using Microsoft.Win32;
 using ProcessBus.Iec61850.Raw.Live;
+using ProcessBus.Iec61850.Raw.Interop;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using ProcessBus.Core.Presentation;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -29,6 +31,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private static readonly TimeSpan GooseInteractionQuietPeriod = TimeSpan.FromMilliseconds(750);
     private static readonly string LastInterfacePath = Path.Combine(AppContext.BaseDirectory, "raw_capture.last_interface.txt");
     private readonly AnalyzerShellState _state = new();
+    private readonly LiveRenderCoalescer _renderCoalescer = new();
+    private CancellationTokenSource? _m4CaptureInspectCts;
+    private bool _m4CaptureInspectInProgress;
+    private string _m4CaptureSummary = "Load a local PCAP to compare observed SV with SCL.";
+    private string _m4CaptureDetail = "Capture-path VLAN visibility and IED subscription are not verified.";
     private readonly IRawCaptureDataSource _rawDataSource = new RawAnalyzerDataSource();
     private readonly DispatcherTimer _timer;
     private IAnalyzerDataSource _dataSource;
@@ -47,6 +54,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private WaveformSnapshot _displayedWaveform = new();
     private string? _lastRequestedRawStreamId;
     private readonly Dictionary<string, StreamWorkspaceCache> _streamWorkspaces = new(StringComparer.OrdinalIgnoreCase);
+    private string? _lastPhasorSourceStreamId;
     private readonly Dictionary<string, SvEngineeringScale> _explicitSvScales = new(StringComparer.OrdinalIgnoreCase);
     private const string RawScaleText = "Raw counts (uncalibrated)";
     private const string NominalScaleText = "4I+4V nominal (1 mA / 10 mV per count)";
@@ -69,6 +77,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private int _currentWorkspaceTabIndex;
     private bool _refreshInFlight;
     private DateTime _lastRefreshUtc = DateTime.MinValue;
+    private DateTime _lastSclEvaluationUtc = DateTime.MinValue;
+    private DateTime _lastDiagnosticTargetRefreshUtc = DateTime.MinValue;
+    private DateTime _lastManagedMemorySampleUtc = DateTime.MinValue;
+    private DateTime _lastWorkspacePruneUtc = DateTime.MinValue;
     private long _lastObservedPacketCount = -1;
     private DateTime _lastPacketAdvanceUtc = DateTime.MinValue;
     private DateTime _lastGlobalRaiseUtc = DateTime.MinValue;
@@ -678,6 +690,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ClearCommand = new AsyncRelayCommand(ClearAsync);
         CopyEvidenceCommand = new RelayCommand(CopyEvidenceSnapshot);
         LoadSclCommand = new RelayCommand(LoadSclProject);
+        InspectPcapCommand = new AsyncRelayCommand(InspectLocalPcapAsync);
         ClearSclCommand = new RelayCommand(ClearSclProject);
 
         SwitchToRawCommand = new AsyncRelayCommand(async () =>
@@ -920,6 +933,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand GooseInteractionCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
+    public ICommand InspectPcapCommand { get; }
+    public string M4CaptureSummaryText => _m4CaptureSummary;
+    public string M4CaptureDetailText => _m4CaptureDetail;
+    public bool CanInspectPcap => !_m4CaptureInspectInProgress && !_isShuttingDown;
     public ICommand ClearSclCommand { get; }
 
     public SclProjectModel SclProject => _sclProject;
@@ -1506,6 +1523,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     // ===== HEALTH =====
     private bool HasDiagnosticWarning =>
         Diagnostics.DecodeErrors > 0 ||
+        Diagnostics.CaptureDriverDroppedFrames > 0 ||
         Diagnostics.SequenceErrors > 0 ||
         Diagnostics.MissingSamples > 0 ||
         Diagnostics.RecentJitterOver300MicrosecondsCount > 0 ||
@@ -1688,9 +1706,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private string OperatorSvGuidanceText
+    {
+        get
+        {
+            if (SelectedStream is null)
+                return "Waiting for SV";
+            if (SelectedStream.IssueSummaryText.Contains("diagnostic mirror", StringComparison.OrdinalIgnoreCase))
+                return "Lab mirror only  •  Canonical SV unverified";
+            if (Diagnostics.ValidityText.Contains("invalid", StringComparison.OrdinalIgnoreCase))
+                return "Invalid SV quality  •  Measurements withheld";
+            if (!SelectedStream.IsActive)
+                return "Stream stale  •  Check publisher or capture path";
+            return "Host arrival timing only  •  Not calibrated";
+        }
+    }
+
     public string WorkspaceFooterLeftText => CurrentWorkspaceTabIndex switch
     {
-        0 => $"SV  -  {SelectedStreamDetails?.MappedChannelNamesText ?? "No SV stream selected"}",
+        0 => SelectedStream is null
+            ? "SV  •  Select a stream from the explorer"
+            : $"SV  •  {SelectedStream.SvId}  •  {SelectedStream.AppId}  •  {SelectedStream.DisplayStatusText}",
         1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
         2 => $"GOOSE  -  {_gooseMessages.Count} publisher(s)  -  {_gooseHistory.Count} event(s)",
         3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
@@ -1702,7 +1738,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string WorkspaceFooterRightText => CurrentWorkspaceTabIndex switch
     {
-        0 => "SV scope locked to selected stream",
+        0 => OperatorSvGuidanceText,
         1 => TimingConfidenceBadgeText,
         2 => GooseFilterSummaryText,
         3 => TimingConfidenceBadgeText,
@@ -1734,6 +1770,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return $"Sync {sync}  -  Announce {announce}  -  Follow_Up {follow}";
         }
     }
+
+    public string PtpTwoStepEvidenceText => !Diagnostics.PtpObserved
+        ? "Two-step pairing: no PTP observed"
+        : $"Two-step pairs: {Diagnostics.PtpMatchedTwoStepCount}; unmatched Follow_Up: {Diagnostics.PtpUnmatchedFollowUpCount} (passive evidence)";
 
     public string PtpTransportText => Diagnostics.PtpObserved
         ? $"Transport: {Diagnostics.PtpTransportText}"
@@ -1994,8 +2034,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 BufferDiagnosticEvents(snapshot.Events);
 
             _state.ApplySnapshot(snapshot, mergeEvents: IsDiagnosticsTabActive);
+            PruneStaleStreamWorkspaces(now);
             UpdateStreamStaleState();
-            RebuildDiagnosticTargets();
+            if (now - _lastDiagnosticTargetRefreshUtc >= TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
+            {
+                _lastDiagnosticTargetRefreshUtc = now;
+                RebuildDiagnosticTargets();
+            }
             RebuildSclBindingMatrix();
             if (IsDebugTabActive)
                 UpdateDebugDisplaySnapshot();
@@ -2044,7 +2089,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _lastRefreshUtc = now;
             refreshWatch.Stop();
             _lastUiRefreshMilliseconds = refreshWatch.Elapsed.TotalMilliseconds;
-            _managedMemoryMegabytes = GC.GetTotalMemory(false) / (1024 * 1024);
+            if (now - _lastManagedMemorySampleUtc >= TimeSpan.FromSeconds(1))
+            {
+                _managedMemoryMegabytes = GC.GetTotalMemory(false) / (1024 * 1024);
+                _lastManagedMemorySampleUtc = now;
+            }
             RaiseAll(now);
         }
         finally
@@ -2168,22 +2217,48 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // correctness and responsiveness are more important than suppressing this tiny
         // allocation.
         _displayedAnalogValues = analogValues;
-        _phasors = BuildPhasorItems(_displayedAnalogValues);
-        _lastPhasorSourceSnapshot = _displayedAnalogValues;
+        if (_lastPhasorSourceSnapshot is null ||
+            !LiveRenderCoalescer.SameAnalog(_lastPhasorSourceSnapshot, _displayedAnalogValues) ||
+            !string.Equals(_lastPhasorSourceStreamId, selectedStreamId, StringComparison.Ordinal))
+        {
+            _phasors = BuildPhasorItems(_displayedAnalogValues);
+            _lastPhasorSourceSnapshot = _displayedAnalogValues;
+            _lastPhasorSourceStreamId = selectedStreamId;
+        }
 
         if (!ReferenceEquals(_displayedWaveform, waveform))
             _displayedWaveform = waveform;
 
         if (!string.IsNullOrWhiteSpace(selectedStreamId))
         {
-            _streamWorkspaces[selectedStreamId] = new StreamWorkspaceCache
-            {
-                Details = _displayedSelectedStreamDetails,
-                AnalogValues = _displayedAnalogValues,
-                Waveform = _displayedWaveform,
-                Phasors = _phasors,
-                PhasorSource = _lastPhasorSourceSnapshot
-            };
+            if (!_streamWorkspaces.TryGetValue(selectedStreamId, out var cached))
+                _streamWorkspaces[selectedStreamId] = cached = new StreamWorkspaceCache();
+            cached.Details = _displayedSelectedStreamDetails;
+            cached.AnalogValues = _displayedAnalogValues;
+            cached.Waveform = _displayedWaveform;
+            cached.Phasors = _phasors;
+            cached.PhasorSource = _lastPhasorSourceSnapshot;
+        }
+    }
+
+    private void PruneStaleStreamWorkspaces(DateTime now)
+    {
+        if (now - _lastWorkspacePruneUtc < TimeSpan.FromSeconds(5))
+            return;
+
+        _lastWorkspacePruneUtc = now;
+        if (_streamWorkspaces.Count == 0)
+            return;
+
+        // The receive engine evicts only stale, nonselected publishers at its
+        // capacity limit. The WPF workspace cache must obey the same lifecycle
+        // rather than retaining every identity an operator ever clicked.
+        var observed = Streams.Select(x => x.StreamId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in _streamWorkspaces.Keys.ToArray())
+        {
+            if (!observed.Contains(key))
+                _streamWorkspaces.Remove(key);
         }
     }
 
@@ -2244,18 +2319,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         var ptpObserved = Diagnostics.PtpObserved || _state.ProtocolMonitor.PtpFrames > 0;
+        var ptpStale = ptpObserved &&
+            (Diagnostics.PtpStatusText.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+             (Diagnostics.LastPtpMessageTimestampUtc is { } lastPtp &&
+              DateTime.UtcNow - lastPtp > TimeSpan.FromSeconds(6)));
         rows.Add(new TrafficHealthTargetRow
         {
             Protocol = "PTP",
             TargetKey = "PTP|reference",
             DisplayName = ptpObserved ? Diagnostics.PtpGrandmasterIdentity : "Timing reference",
             Subtitle = ptpObserved ? $"{Diagnostics.PtpTransportText}  -  {PtpDomainText}" : "No PTP observed",
-            StatusText = ptpObserved ? "OBSERVED" : "WAIT",
-            StatusBrush = ptpObserved ? "#70D7A7" : "#8FA8BF",
-            StatusSoftBrush = ptpObserved ? "#173528" : "#1C2A38",
-            IssueSummaryText = ptpObserved ? PtpRateText : "No PTP packets detected in current capture",
+            StatusText = ptpStale ? "STALE" : ptpObserved ? "OBSERVED" : "WAIT",
+            StatusBrush = ptpStale ? "#F0B533" : ptpObserved ? "#70D7A7" : "#8FA8BF",
+            StatusSoftBrush = ptpStale ? "#3A2B12" : ptpObserved ? "#173528" : "#1C2A38",
+            IssueSummaryText = ptpStale ? "PTP evidence expired; check source/domain and capture path" :
+                ptpObserved ? PtpRateText : "No PTP packets detected in current capture",
             LastSeenUtc = Diagnostics.LastPtpMessageTimestampUtc,
-            SeverityRank = ptpObserved ? 0 : 1,
+            SeverityRank = ptpStale || !ptpObserved ? 1 : 0,
             SourceId = "PTP"
         });
 
@@ -2384,18 +2464,46 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _streamStale = (now - _lastPacketAdvanceUtc).TotalSeconds > StreamStaleTimeoutSeconds;
     }
 
+    // One operator-level statement in the primary status strip; detailed wire
+    // evidence remains in Timing/Diagnostics/Advanced rather than five noisy chips.
+    public string OperatorCaptureSummaryText
+    {
+        get
+        {
+            if (!IsRunning)
+                return "Capture stopped  •  Select an Ethernet adapter and press Start";
+
+            var activeSv = Streams.Count(stream => stream.IsActive);
+            if (Diagnostics.CaptureDriverDroppedFrames > 0)
+                return $"Capture drops reported by NIC  •  {activeSv} SV stream(s)  •  Open Diagnostics";
+            if (activeSv == 0)
+                return Diagnostics.DecodeErrors > 0
+                    ? "Listening  •  Traffic detected, but no valid SV decoded"
+                    : "Listening  •  Waiting for SV publisher";
+
+            var ptpActive = Diagnostics.PtpObserved &&
+                !Diagnostics.PtpStatusText.Contains("timeout", StringComparison.OrdinalIgnoreCase) &&
+                Diagnostics.LastPtpMessageTimestampUtc is { } lastPtp &&
+                DateTime.UtcNow - lastPtp <= TimeSpan.FromSeconds(6);
+            return ptpActive
+                ? $"Receiving {activeSv} SV stream(s)  •  PTP observed (sync unverified)"
+                : $"Receiving {activeSv} SV stream(s)  •  PTP not verified";
+        }
+    }
+
     private void RaiseAll(DateTime now, bool force = false)
     {
         if (force || (now - _lastGlobalRaiseUtc).TotalMilliseconds >= GlobalStatusRefreshMs)
         {
             _lastGlobalRaiseUtc = now;
             OnPropertyChanged(nameof(StreamStatusText));
+            OnPropertyChanged(nameof(OperatorCaptureSummaryText));
             OnPropertyChanged(nameof(DataSourceName));
             OnPropertyChanged(nameof(IsLiveMode));
             OnPropertyChanged(nameof(ModeBannerText));
-            OnPropertyChanged(nameof(SelectedStream));
-            OnPropertyChanged(nameof(IsRunning));
-            OnPropertyChanged(nameof(IsRawMode));
+            // SelectedStream and IsRunning already notify on actual transitions.
+            // Reasserting them every 500 ms causes ListView selection churn and
+            // unrelated WPF controls to remeasure while SV is otherwise stable.
             OnPropertyChanged(nameof(PtpStatusCompactText));
             OnPropertyChanged(nameof(TimingConfidenceBadgeText));
             OnPropertyChanged(nameof(ProtocolMonitor));
@@ -2410,7 +2518,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         if (IsAnalyzerTabActive)
-            RaiseAnalyzerRenderProperties();
+            RaiseAnalyzerRenderProperties(force);
         if (IsDiagnosticsTabActive && (force || (now - _lastDiagnosticsRaiseUtc).TotalMilliseconds >= PassiveUiRefreshMs))
         {
             _lastDiagnosticsRaiseUtc = now;
@@ -2438,21 +2546,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void RaiseAnalyzerRenderProperties()
+    private void RaiseAnalyzerRenderProperties(bool force = false)
     {
+        // Separate data-rate, UI-rate and render-rate. An equivalent reconstructed
+        // snapshot must not trigger full waveform/phasor repaint every timer tick.
+        // Compare every numeric sample: do not smooth away a real IEC 61850 transient.
+        var streamId = _selectedStream?.StreamId;
+        var waveformChanged = _renderCoalescer.PublishWaveform(streamId, _displayedWaveform);
+        var analogChanged = _renderCoalescer.PublishAnalog(streamId, _displayedAnalogValues);
         OnPropertyChanged(nameof(SelectedStreamDetails));
         OnPropertyChanged(nameof(SvMappingSourceText));
         OnPropertyChanged(nameof(SvMappingSourceCompactText));
         OnPropertyChanged(nameof(SvSemanticChannelSummaryText));
         OnPropertyChanged(nameof(SvSemanticChannelCompactText));
-        OnPropertyChanged(nameof(AnalogValues));
+        if (force || analogChanged)
+            OnPropertyChanged(nameof(AnalogValues));
         OnPropertyChanged(nameof(SelectedEngineeringScale));
         OnPropertyChanged(nameof(EngineeringScaleExplanation));
         OnPropertyChanged(nameof(TotalActivePowerText));
         OnPropertyChanged(nameof(TotalReactivePowerText));
         OnPropertyChanged(nameof(TotalApparentPowerText));
         OnPropertyChanged(nameof(PowerFactorText));
-        OnPropertyChanged(nameof(Waveform));
+        if (force || waveformChanged)
+            OnPropertyChanged(nameof(Waveform));
         OnPropertyChanged(nameof(WaveformStatusText));
         OnPropertyChanged(nameof(WaveformHeaderModeText));
         OnPropertyChanged(nameof(WaveformHeaderFrequencyText));
@@ -2461,7 +2577,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(WaveformHeaderWindowText));
         OnPropertyChanged(nameof(WaveformHeaderStatusText));
         OnPropertyChanged(nameof(WaveformShapeStatusText));
-        OnPropertyChanged(nameof(Phasors));
+        if (force || analogChanged)
+            OnPropertyChanged(nameof(Phasors));
         OnPropertyChanged(nameof(WaveformVoltageScale));
         OnPropertyChanged(nameof(WaveformCurrentScale));
     }
@@ -2501,6 +2618,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(PtpDomainText));
         OnPropertyChanged(nameof(PtpClockQualityText));
         OnPropertyChanged(nameof(PtpRateText));
+        OnPropertyChanged(nameof(PtpTwoStepEvidenceText));
         OnPropertyChanged(nameof(PtpProfileText));
         OnPropertyChanged(nameof(PtpTransportText));
         OnPropertyChanged(nameof(TimingReferenceText));
@@ -2542,6 +2660,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(PtpDomainText));
         OnPropertyChanged(nameof(PtpClockQualityText));
         OnPropertyChanged(nameof(PtpRateText));
+        OnPropertyChanged(nameof(PtpTwoStepEvidenceText));
         OnPropertyChanged(nameof(PtpProfileText));
         OnPropertyChanged(nameof(PtpTransportText));
         OnPropertyChanged(nameof(TimingReferenceText));
@@ -2645,6 +2764,80 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return $"{trimmed[..Math.Max(0, limit - 16)]} ... ({trimmed.Length} chars)";
     }
 
+
+    private async Task InspectLocalPcapAsync()
+    {
+        if (_m4CaptureInspectInProgress || _isShuttingDown)
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Inspect local process-bus Ethernet PCAP (receive-only)",
+            Filter = "Classic Ethernet PCAP (*.pcap;*.cap)|*.pcap;*.cap|All files (*.*)|*.*",
+            Multiselect = false
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var expected = _sclProjects.SelectMany(project => project.SvStreams).ToArray();
+        _m4CaptureInspectInProgress = true;
+        _m4CaptureSummary = "Reading local capture…";
+        _m4CaptureDetail = "Analysis runs off the UI dispatcher. The file stays on this computer.";
+        OnPropertyChanged(nameof(CanInspectPcap));
+        OnPropertyChanged(nameof(M4CaptureSummaryText));
+        OnPropertyChanged(nameof(M4CaptureDetailText));
+
+        using var cts = new CancellationTokenSource();
+        _m4CaptureInspectCts = cts;
+        try
+        {
+            var path = dialog.FileName;
+            var report = await Task.Run(() =>
+            {
+                using var capture = File.OpenRead(path);
+                return new PcapInteropInspector().Inspect(
+                    capture, expected, maximumFrames: 50_000_000, cts.Token);
+            }, cts.Token);
+
+            if (_isShuttingDown)
+                return;
+
+            var matchCount = report.Comparisons.Count(x => x.Status == "WIRE_FIELDS_MATCH");
+            var attention = report.Comparisons.Count(x => x.Status != "WIRE_FIELDS_MATCH");
+            var mirrors = report.SvStreams.Count(x => x.IsArstackDiagnosticMirror);
+            _m4CaptureSummary = expected.Length == 0
+                ? $"Observed {report.SvStreams.Count} SV identities, {report.PtpMessages} PTP messages. Load SCL for comparison."
+                : $"{matchCount}/{expected.Length} SCL wire identities match; {attention} need attention; {mirrors} diagnostic mirror(s).";
+
+            _m4CaptureDetail = report.Comparisons.FirstOrDefault(x => x.Status != "WIRE_FIELDS_MATCH") is { } issue
+                ? $"{issue.Status}: {issue.Explanation}. Independent capture/IED not verified."
+                : $"Captured {report.FramesRead} frames; matched two-step PTP {report.MatchedTwoStep}. " +
+                  "Wire-field screening only; TAP/VLAN and IED acceptance still unverified.";
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_isShuttingDown)
+                _m4CaptureSummary = "Capture inspection cancelled.";
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or
+                                         UnauthorizedAccessException or ArgumentException or OverflowException)
+        {
+            _m4CaptureSummary = "Unable to inspect this capture.";
+            _m4CaptureDetail = exception.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_m4CaptureInspectCts, cts))
+                _m4CaptureInspectCts = null;
+            _m4CaptureInspectInProgress = false;
+            if (!_isShuttingDown)
+            {
+                OnPropertyChanged(nameof(CanInspectPcap));
+                OnPropertyChanged(nameof(M4CaptureSummaryText));
+                OnPropertyChanged(nameof(M4CaptureDetailText));
+            }
+        }
+    }
 
     private void LoadSclProject()
     {
@@ -2949,6 +3142,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void RebuildSclBindingMatrix(bool force = false)
     {
+        // SCL expected-vs-observed joins can be O(expected * observed) and do not
+        // belong on every 8 FPS oscilloscope UI tick. Explicit SCL edits bypass the
+        // coalescing interval; passive evidence updates remain bounded to 500 ms.
+        var now = DateTime.UtcNow;
+        if (!force && now - _lastSclEvaluationUtc < TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
+            return;
+        _lastSclEvaluationUtc = now;
         var previousKey = _selectedSclBindingMatrixRow?.BindingKey;
         var rows = BuildSclBindingRows();
         var signature = string.Join("|", rows.Select(x => x.SignatureText));
@@ -3834,6 +4034,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         _isShuttingDown = true;
+        _m4CaptureInspectCts?.Cancel();
         _timer.Stop();
 
         try

@@ -12,11 +12,17 @@ namespace ProcessBus.Iec61850.Raw.Analysis;
 public sealed class RawProcessBusAnalyzer
 {
     private static readonly TimeSpan MalformedEventInterval = TimeSpan.FromSeconds(2);
+    private const int MaximumTrackedSvStreams = 256;
+    private const int MaximumTrackedGoosePublishers = 256;
+    private static readonly TimeSpan StaleStreamRetention = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan JitterEventInterval = TimeSpan.FromSeconds(5);
     private readonly object _gate = new();
     private readonly Dictionary<string, SvStreamState> _svStreams = new(StringComparer.OrdinalIgnoreCase);
     // Per-stream operator evidence, never inferred from svID, APPID or payload count.
     private readonly Dictionary<string, SvEngineeringScale> _svScales = new(StringComparer.OrdinalIgnoreCase);
+    // Mapping eligibility is stable until the operator reloads SCL/mapping context.
+    // Avoid scoring + LINQ allocations for every 4,000/4,800 Hz ASDU.
+    private readonly Dictionary<string, SvChannelMappingProfile?> _resolvedSvMappings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, AggregatedEventState> _aggregatedEvents = new(StringComparer.OrdinalIgnoreCase);
     private readonly PtpHealthTracker _ptpTracker = new();
@@ -144,6 +150,7 @@ public sealed class RawProcessBusAnalyzer
         {
             _svStreams.Clear();
             _svScales.Clear();
+            _resolvedSvMappings.Clear();
             _gooseStates.Clear();
             _events.Clear();
             _aggregatedEvents.Clear();
@@ -206,6 +213,7 @@ public sealed class RawProcessBusAnalyzer
         lock (_gate)
         {
             var nextMappings = profiles.Where(x => x.HasRenderableChannels).ToArray();
+            _resolvedSvMappings.Clear();
             var nextSignature = BuildMappingSetSignature(nextMappings);
             if (string.Equals(_svChannelMappingSetSignature, nextSignature, StringComparison.Ordinal))
             {
@@ -233,12 +241,42 @@ public sealed class RawProcessBusAnalyzer
             return;
         }
 
+        // Multiple ASDUs share one Ethernet capture timestamp. Track sequence per ASDU,
+        // but never treat intra-frame sample intervals as observed RX timing.
+        var multipleAsdus = packet.Asdus.Count > 1;
+        HashSet<string>? frameStreams = multipleAsdus ? new(StringComparer.OrdinalIgnoreCase) : null;
         foreach (var asdu in packet.Asdus)
         {
             var key = BuildSvKey(packet.Frame, asdu);
+            var firstForStreamInFrame = frameStreams?.Add(key) ?? true;
 
             if (!_svStreams.TryGetValue(key, out var state))
             {
+                if (_svStreams.Count >= MaximumTrackedSvStreams)
+                {
+                    // Keep active and operator-selected streams. Under identity churn,
+                    // reclaim only stale unselected state rather than leaking indefinitely.
+                    var oldestStale = _svStreams.Values
+                        .Where(candidate =>
+                            !string.Equals(candidate.Key, _selectedSvKey, StringComparison.OrdinalIgnoreCase) &&
+                            packet.Frame.CaptureTimeUtc - candidate.LastSeenUtc > StaleStreamRetention)
+                        .OrderBy(candidate => candidate.LastSeenUtc)
+                        .FirstOrDefault();
+                    if (oldestStale is null)
+                    {
+                        AddAggregatedEvent(
+                            "sv.stream-capacity", "Warning", "SV stream capacity reached",
+                            "256 active identities retained; new publisher ignored until stale state expires.",
+                            TimeSpan.FromSeconds(10));
+                        continue;
+                    }
+
+                    _svStreams.Remove(oldestStale.Key);
+                    _svScales.Remove(oldestStale.Key);
+                    _resolvedSvMappings.Remove(oldestStale.Key);
+                    _aggregatedEvents.Remove($"sv.jitter.{oldestStale.Key}");
+                }
+
                 state = new SvStreamState(key, ++_svFirstSeenSequence, _requestedScopeCycles);
                 if (_svScales.TryGetValue(key, out var scale))
                     state.SetEngineeringScale(scale);
@@ -246,7 +284,12 @@ public sealed class RawProcessBusAnalyzer
                 AddEvent("Info", $"Raw SV stream detected: {DescribeSv(packet.Frame, asdu)}.");
             }
 
-            state.Observe(packet.Frame, asdu, ResolveSvMappingProfile(packet.Frame, asdu));
+            if (!_resolvedSvMappings.TryGetValue(key, out var mapping))
+            {
+                mapping = ResolveSvMappingProfile(packet.Frame, asdu);
+                _resolvedSvMappings[key] = mapping;
+            }
+            state.Observe(packet.Frame, asdu, mapping, firstForStreamInFrame, multipleAsdus);
             if (state.ConsumeJitterEvidence() is { } jitterEvidence)
             {
                 AddAggregatedEvent(
@@ -434,6 +477,22 @@ public sealed class RawProcessBusAnalyzer
 
         if (!_gooseStates.TryGetValue(key, out var state))
         {
+            if (_gooseStates.Count >= MaximumTrackedGoosePublishers)
+            {
+                var oldestStale = _gooseStates.Values
+                    .Where(x => item.LastSeenUtc - x.Item.LastSeenUtc > StaleStreamRetention)
+                    .OrderBy(x => x.Item.LastSeenUtc)
+                    .FirstOrDefault();
+                if (oldestStale is null)
+                {
+                    AddAggregatedEvent("goose.capacity", "Warning",
+                        "GOOSE publisher capacity reached",
+                        "256 active identities retained; new publisher ignored until stale state expires.",
+                        TimeSpan.FromSeconds(10));
+                    return;
+                }
+                _gooseStates.Remove(oldestStale.Item.MessageId);
+            }
             AnnotateGooseChanges(item, previous: null);
             _gooseStates[key] = new GooseState(item, ++_gooseFirstSeenSequence);
             AddEvent("Info", $"Raw GOOSE message detected: {key}; values={item.ValuesText}.");
@@ -531,8 +590,8 @@ public sealed class RawProcessBusAnalyzer
         {
             IsRunning = true,
             StreamStatusText = "Raw SV stream active",
-            PacketRatePps = selected.RecentPacketRatePps ?? selected.PacketCount / elapsedSeconds,
-            TotalPackets = selected.PacketCount,
+            PacketRatePps = selected.RecentPacketRatePps ?? selected.FrameCount / elapsedSeconds,
+            TotalPackets = selected.FrameCount,
             DecodeErrors = _decodeErrors,
             SequenceErrors = selected.SequenceErrors,
             MissingSamples = selected.MissingSamples,
@@ -548,7 +607,7 @@ public sealed class RawProcessBusAnalyzer
             JitterStatusText = selected.JitterStatusText,
             LastPacketTimestampUtc = selected.LastSeenUtc,
             SmpSynchText = selected.SmpSynchText,
-            ValidityText = "Raw payload not quality-mapped yet",
+            ValidityText = selected.QualityStatusText,
             DecodeStatusText = "Raw SV APDU decoded",
             PacketRateMeaningText = selected.RecentPacketRatePps.HasValue
                 ? "Raw SV frames observed in a rolling capture window"
@@ -574,6 +633,8 @@ public sealed class RawProcessBusAnalyzer
         diagnostics.PtpAnnounceRatePerSecond = ptp.AnnounceRatePerSecond;
         diagnostics.PtpFollowUpRatePerSecond = ptp.FollowUpRatePerSecond;
         diagnostics.PtpGrandmasterChangeCount = ptp.GrandmasterChangeCount;
+        diagnostics.PtpMatchedTwoStepCount = ptp.MatchedTwoStepCount;
+        diagnostics.PtpUnmatchedFollowUpCount = ptp.UnmatchedFollowUpCount;
         diagnostics.LastPtpMessageTimestampUtc = ptp.LastMessageUtc;
         diagnostics.LastPtpSyncTimestampUtc = ptp.LastSyncUtc;
         diagnostics.LastPtpAnnounceTimestampUtc = ptp.LastAnnounceUtc;
@@ -804,10 +865,20 @@ public sealed class RawProcessBusAnalyzer
             ("Un", 14)
         ];
 
-        private readonly Queue<double> _absJitterWindow = new();
+        private readonly RollingJitterWindow _jitterWindow = new(JitterWindowCapacity);
         private readonly Queue<DateTime> _recentJitterExcursions = new();
         private readonly Queue<DateTime> _recentPacketTimes = new();
         private readonly Queue<ScopeSampleFrame> _scopeFrames = new(WaveformSampleCapacity + 8);
+        private ReadOnlyMemory<byte> _latestSamplePayload;
+        private SvChannelMappingProfile? _lastDecodedMapping;
+        private int _lastDecodedElementCount = -1;
+        private bool _qualityAccepted = true;
+        private bool _previousMultiAsduFrame;
+        private bool _knownFourI4VMapping;
+        private bool _lastMappingDisplayAccepted = true;
+        private long _cachedWindowIndex = -1;
+        private int _cachedWindowCycles;
+        private IReadOnlyList<ScopeSampleFrame> _cachedWindow = Array.Empty<ScopeSampleFrame>();
         private readonly Dictionary<string, RollingChannelSamples> _channelSamples = CreateChannelBuffers();
         private readonly Dictionary<string, double?> _displayAngles = CreateAngleState();
         private long _scopeFrameIndex;
@@ -816,7 +887,6 @@ public sealed class RawProcessBusAnalyzer
         private ushort _maxSeenScopeSampleCounter;
         private WaveformSnapshot? _lastScopeWaveform;
         private AnalogValuesSnapshot? _lastAnalogValues;
-        private double _absJitterWindowTotalMicroseconds;
         private double _totalDeltaMicroseconds;
         private long _deltaCount;
         private ushort? _previousSmpCnt;
@@ -870,7 +940,8 @@ public sealed class RawProcessBusAnalyzer
         public ushort? SmpMod { get; private set; }
         public byte? SmpSynch { get; private set; }
         public int LastPayloadBytes { get; private set; }
-        public long PacketCount { get; private set; }
+        public long PacketCount { get; private set; } // decoded ASDUs
+        public long FrameCount { get; private set; } // observed Ethernet frames for this SV identity
         public long SequenceErrors { get; private set; }
         public long MissingSamples { get; private set; }
         public double? CurrentDeltaMicroseconds { get; private set; }
@@ -886,21 +957,35 @@ public sealed class RawProcessBusAnalyzer
         public int DecodedElementCount { get; private set; }
         public string MappingProfileName { get; private set; } = "Unmapped";
         public string MappedChannelNamesText { get; private set; } = "Not mapped yet";
-        public string RawValuesText { get; private set; } = "[]";
+        // Format debug evidence on snapshot reads, never for every high-rate ASDU.
+        public string RawValuesText => BuildRawValuesText(DecodeInt32Elements(_latestSamplePayload.Span));
+        public long QualityRejectedSamples { get; private set; }
+        public string QualityStatusText { get; private set; } = "Quality mapping not verified";
         public string JitterStatusText { get; private set; } = "Arrival variation pending";
         public string SequenceStatusText { get; private set; } = "First sample";
         public DateTime LastSeenUtc { get; private set; }
         public string SmpSynchText => SmpSynch.HasValue ? SmpSynch.Value.ToString() : "N/A";
+        // Observed wire identity, not attestation of the transmitting device.
+        private bool IsArstackDiagnosticMirror =>
+            string.Equals(SvId, "AR_DIAG_SV1", StringComparison.Ordinal) &&
+            string.Equals(AppId, "0x4F01", StringComparison.Ordinal) &&
+            string.Equals(DestinationMac, "FF:FF:FF:FF:FF:FF", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(VlanText, "Untagged", StringComparison.Ordinal);
 
         public void ResetRenderMappingState()
         {
             _activeMappingSignature = null;
+            _lastDecodedMapping = null;
+            _lastDecodedElementCount = -1;
             ClearRenderBuffers();
         }
 
-        public void Observe(ProcessBusFrame frame, SampledValueAsdu asdu, SvChannelMappingProfile? mappingProfile)
+        public void Observe(ProcessBusFrame frame, SampledValueAsdu asdu, SvChannelMappingProfile? mappingProfile,
+            bool firstAsduInFrame, bool multipleAsdus)
         {
             PacketCount++;
+            if (firstAsduInFrame)
+                FrameCount++;
             SvId = ValueOrFallback(asdu.SvId, "N/A");
             DataSet = ValueOrFallback(asdu.DataSet, "N/A");
             AppId = FormatAppId(frame.AppId);
@@ -916,11 +1001,12 @@ public sealed class RawProcessBusAnalyzer
             SmpSynch = asdu.SmpSynch;
             LastPayloadBytes = asdu.SamplePayload.Length;
             LastSeenUtc = frame.CaptureTimeUtc;
-            TrackRecentPacketRate(frame.CaptureTimeUtc);
+            if (firstAsduInFrame)
+                TrackRecentPacketRate(frame.CaptureTimeUtc);
 
             var acceptForDisplay = true;
             if (asdu.SmpCnt.HasValue)
-                acceptForDisplay = ObserveTiming(frame.CaptureTicks, frame.CaptureTimeUtc, asdu.SmpCnt.Value);
+                acceptForDisplay = ObserveTiming(frame.CaptureTicks, frame.CaptureTimeUtc, asdu.SmpCnt.Value, multipleAsdus);
 
             ObserveSamples(asdu.SamplePayload, asdu.SmpCnt, mappingProfile, acceptForDisplay);
         }
@@ -970,6 +1056,9 @@ public sealed class RawProcessBusAnalyzer
             if (RecentJitterOver300MicrosecondsCount > 0)
                 return $"Arrival excursion: {RecentJitterOver300MicrosecondsCount}/5s, max {MaxAbsJitterMicroseconds?.ToString("0.#") ?? "N/A"} us";
 
+            if (IsArstackDiagnosticMirror)
+                return "ARStack diagnostic mirror identity; canonical multicast/VLAN not proven";
+
             return LastSmpCnt.HasValue
                 ? $"Continuous - smpCnt {LastSmpCnt}"
                 : "Continuous - awaiting smpCnt";
@@ -991,7 +1080,9 @@ public sealed class RawProcessBusAnalyzer
                         ? $"{_counterVerifiedSampleRateHz} (estimated: smpCnt wrap + host arrival rate, not on-wire)"
                         : "N/A (optional smpRate absent; awaiting verified wrap)",
                 ConfRevText = ConfRev?.ToString() ?? "N/A",
-                SampleValueMappingText = MappingProfileName,
+                SampleValueMappingText = IsArstackDiagnosticMirror
+                    ? $"Diagnostic mirror only (not canonical SCL) | {MappingProfileName}"
+                    : MappingProfileName,
                 SampleValueCountText = DecodedElementCount > 0 ? $"{DecodedElementCount} element(s)" : "0",
                 MappedChannelNamesText = MappedChannelNamesText
                     + (_engineeringScale == SvEngineeringScale.Nominal4I4V
@@ -1122,80 +1213,129 @@ public sealed class RawProcessBusAnalyzer
 
         private void ObserveSamples(ReadOnlyMemory<byte> samplePayload, ushort? smpCnt, SvChannelMappingProfile? mappingProfile, bool acceptForDisplay)
         {
-            var decoded = DecodeInt32Elements(samplePayload.Span);
-            DecodedElementCount = decoded.Count;
-            RawValuesText = BuildRawValuesText(decoded);
-            ApplyMappingSignature(BuildMappingSignature(mappingProfile, decoded.Count));
-            var displayValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            _latestSamplePayload = samplePayload;
+            var payload = samplePayload.Span;
+            var elementCount = payload.Length / sizeof(int);
+            DecodedElementCount = elementCount;
+
+            var mappingChanged = !ReferenceEquals(_lastDecodedMapping, mappingProfile) ||
+                                 _lastDecodedElementCount != elementCount;
+            if (mappingChanged)
+            {
+                // Quality semantics are layout-specific. Never infer pair order for an
+                // arbitrary DataSet merely because it occupies 64 bytes.
+                _knownFourI4VMapping = mappingProfile is null ||
+                    (mappingProfile.Elements.Count >= 3 && mappingProfile.Elements.All(e =>
+                        e.ElementIndex >= 0 && e.ElementIndex < 16 && e.ElementIndex % 2 == 0 &&
+                        (e.SignalReference.Contains("instMag", StringComparison.OrdinalIgnoreCase) ||
+                         e.TypeText.Contains("instMag", StringComparison.OrdinalIgnoreCase))));
+            }
+
+            var quality = payload.Length == 64 && _knownFourI4VMapping
+                ? FourI4VQuality.Assess(payload)
+                : FourI4VQuality.MeasurementState.UnknownLayout;
+            QualityStatusText = quality switch
+            {
+                FourI4VQuality.MeasurementState.Good => "4I+4V quality good",
+                FourI4VQuality.MeasurementState.Test => "4I+4V TEST data (laboratory stimulus)",
+                FourI4VQuality.MeasurementState.OperatorBlocked => "4I+4V operator-blocked data",
+                FourI4VQuality.MeasurementState.Untrusted => "4I+4V quality invalid: measurement withheld",
+                _ => "Quality mapping not verified"
+            };
+
+            if (quality == FourI4VQuality.MeasurementState.Untrusted)
+            {
+                QualityRejectedSamples++;
+                if (_qualityAccepted)
+                {
+                    _qualityAccepted = false;
+                    ClearRenderBuffers();
+                }
+                return;
+            }
+            _qualityAccepted = true;
+
+            if (mappingChanged)
+            {
+                ApplyMappingSignature(BuildMappingSignature(mappingProfile, elementCount));
+                _lastDecodedMapping = mappingProfile;
+                _lastDecodedElementCount = elementCount;
+            }
+
+            // This stack-local value record replaces a per-frame Dictionary + eight
+            // dynamic entries. Stream ordering and strong identity remain unchanged.
+            var values = new ScopeSampleValues();
+            var samplesPerCycle = acceptForDisplay ? ResolveSamplesPerCycle() : 0;
 
             if (mappingProfile?.HasRenderableChannels == true)
             {
-                var sclMapped = new List<string>(mappingProfile.Elements.Count);
-                var sclUsed = new List<int>(mappingProfile.Elements.Count);
-
+                var mappedCount = 0;
                 foreach (var element in mappingProfile.Elements)
                 {
-                    if (element.ElementIndex < 0 || element.ElementIndex >= decoded.Count)
-                        continue;
-                    if (!_channelSamples.TryGetValue(element.ChannelName, out var samples))
+                    if (element.ElementIndex < 0 || element.ElementIndex >= elementCount ||
+                        !_channelSamples.TryGetValue(element.ChannelName, out var samples))
                         continue;
 
+                    mappedCount++;
                     if (acceptForDisplay)
                     {
-                        samples.Add(smpCnt, decoded[element.ElementIndex].Value, ResolveSamplesPerCycle());
-                        displayValues[element.ChannelName] = decoded[element.ElementIndex].Value;
+                        var sample = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4));
+                        samples.Add(smpCnt, sample, samplesPerCycle);
+                        values.Set(element.ChannelName, sample);
                     }
-
-                    sclMapped.Add($"{element.ChannelName}<-element[{element.ElementIndex}]");
-                    sclUsed.Add(element.ElementIndex);
                 }
 
-                if (sclMapped.Count > 0)
+                if (mappedCount > 0)
                 {
                     if (acceptForDisplay)
-                        AddScopeFrame(smpCnt, displayValues);
+                        AddScopeFrame(smpCnt, values);
 
-                    MappingProfileName = $"{mappingProfile.SourceText} / {mappingProfile.ControlBlockReference}";
-                    var displayGateText = acceptForDisplay ? string.Empty : " | display held by SV sequence gate";
-                    MappedChannelNamesText = $"{string.Join(", ", sclMapped)} | SCL DataSet {mappingProfile.DataSetReference} | Used elements: {string.Join(", ", sclUsed)}{displayGateText}";
+                    if (mappingChanged || _lastMappingDisplayAccepted != acceptForDisplay)
+                    {
+                        var eligible = mappingProfile.Elements.Where(e =>
+                            e.ElementIndex >= 0 && e.ElementIndex < elementCount &&
+                            _channelSamples.ContainsKey(e.ChannelName)).ToArray();
+                        MappingProfileName = $"{mappingProfile.SourceText} / {mappingProfile.ControlBlockReference}";
+                        MappedChannelNamesText = $"{string.Join(", ", eligible.Select(e => $"{e.ChannelName}<-element[{e.ElementIndex}]"))} | " +
+                            $"SCL DataSet {mappingProfile.DataSetReference} | Used elements: {string.Join(", ", eligible.Select(e => e.ElementIndex))}" +
+                            (acceptForDisplay ? "" : " | display held by SV sequence gate");
+                        _lastMappingDisplayAccepted = acceptForDisplay;
+                    }
                     return;
                 }
             }
 
-            if (decoded.Count < 15)
+            // Without an authoritative SCL binding, recognize ONLY the exact 64-byte
+            // eight instMag/q layout, not a truncated or arbitrary larger payload.
+            if (elementCount != 16)
             {
-                MappingProfileName = "Raw SV payload evidence";
-                MappedChannelNamesText = "Not mapped yet";
+                if (mappingChanged)
+                {
+                    MappingProfileName = "Raw SV payload evidence";
+                    MappedChannelNamesText = "Not mapped yet";
+                }
                 return;
             }
 
-            var mapped = new List<string>(OmicronInstMagQualityMap.Length);
-            var used = new List<int>(OmicronInstMagQualityMap.Length);
-
             foreach (var (channel, elementIndex) in OmicronInstMagQualityMap)
             {
-                if (elementIndex >= decoded.Count)
+                if (!acceptForDisplay)
                     continue;
-
-                if (acceptForDisplay)
-                {
-                    _channelSamples[channel].Add(smpCnt, decoded[elementIndex].Value, ResolveSamplesPerCycle());
-                    displayValues[channel] = decoded[elementIndex].Value;
-                }
-
-                mapped.Add(channel);
-                used.Add(elementIndex);
+                var sample = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4));
+                _channelSamples[channel].Add(smpCnt, sample, samplesPerCycle);
+                values.Set(channel, sample);
             }
 
-            if (mapped.Count > 0 && acceptForDisplay)
-                AddScopeFrame(smpCnt, displayValues);
+            if (acceptForDisplay)
+                AddScopeFrame(smpCnt, values);
 
-            MappingProfileName = IsOmicronStream(SvId)
-                ? $"OMICRON raw 4I4V instMag/q profile / {SvId}"
-                : "Raw 4I4V instMag/q candidate profile";
-            MappedChannelNamesText = mapped.Count == 0
-                ? "Not mapped yet"
-                : $"{string.Join(", ", mapped)} | Used elements: {string.Join(", ", used)}";
+            if (mappingChanged)
+            {
+                MappingProfileName = IsOmicronStream(SvId)
+                    ? $"OMICRON raw 4I4V instMag/q profile / {SvId}"
+                    : "Raw 4I4V instMag/q candidate profile";
+                MappedChannelNamesText = "Ia, Ib, Ic, In, Ua, Ub, Uc, Un | Used elements: 0, 2, 4, 6, 8, 10, 12, 14";
+            }
         }
 
         private static string BuildMappingSignature(SvChannelMappingProfile? mappingProfile, int decodedElementCount)
@@ -1209,7 +1349,7 @@ public sealed class RawProcessBusAnalyzer
                 return $"scl|{mappingProfile.ProfileKey}|{elementSignature}";
             }
 
-            return decodedElementCount >= 15
+            return decodedElementCount == 16
                 ? "raw|4i4v-instmag-q"
                 : "raw|unmapped";
         }
@@ -1239,6 +1379,8 @@ public sealed class RawProcessBusAnalyzer
         {
             _scopeFrames.Clear();
             _scopeFrameIndex = 0;
+            _cachedWindowIndex = -1;
+            _cachedWindow = Array.Empty<ScopeSampleFrame>();
             _lastScopeSampleCounter = null;
             _maxSeenScopeSampleCounter = 0;
             if (clearPublishedSnapshot)
@@ -1369,7 +1511,7 @@ public sealed class RawProcessBusAnalyzer
             return lockedShape;
         }
 
-        private void AddScopeFrame(ushort? smpCnt, IReadOnlyDictionary<string, double> displayValues)
+        private void AddScopeFrame(ushort? smpCnt, ScopeSampleValues displayValues)
         {
             if (displayValues.Count == 0)
                 return;
@@ -1425,25 +1567,10 @@ public sealed class RawProcessBusAnalyzer
                 _lastScopeSampleCounter = null;
             }
 
-            _scopeFrames.Enqueue(new ScopeSampleFrame(
-                Index: _scopeFrameIndex,
-                SampleCounter: smpCnt,
-                Ia: TryGetDisplayValue(displayValues, "Ia"),
-                Ib: TryGetDisplayValue(displayValues, "Ib"),
-                Ic: TryGetDisplayValue(displayValues, "Ic"),
-                In: TryGetDisplayValue(displayValues, "In"),
-                Ua: TryGetDisplayValue(displayValues, "Ua"),
-                Ub: TryGetDisplayValue(displayValues, "Ub"),
-                Uc: TryGetDisplayValue(displayValues, "Uc"),
-                Un: TryGetDisplayValue(displayValues, "Un")));
+            _scopeFrames.Enqueue(displayValues.ToFrame(_scopeFrameIndex, smpCnt));
 
             while (_scopeFrames.Count > WaveformSampleCapacity)
                 _scopeFrames.Dequeue();
-        }
-
-        private static double? TryGetDisplayValue(IReadOnlyDictionary<string, double> values, string channel)
-        {
-            return values.TryGetValue(channel, out var value) ? value : null;
         }
 
         private IReadOnlyList<ScopeSampleFrame> BuildCoherentScopeWindow(int samplesPerCycle, int visibleSamples)
@@ -1455,6 +1582,12 @@ public sealed class RawProcessBusAnalyzer
             // window is visually stretched into a long, slow line. Keep the ARSVIN slot-locking
             // rule, but publish only when the whole two-cycle slot window is available. Until
             // then ToWaveform()/ToAnalogValues() hold the last published snapshot.
+            // Analog/RMS and waveform projections from the same publication generation
+            // reuse one immutable coherent window. Avoid duplicate frame copies and slot
+            // reconstruction during the same UI tick, without sacrificing stream ownership.
+            if (_cachedWindowIndex == _scopeFrameIndex && _cachedWindowCycles == _scopeCycles)
+                return _cachedWindow;
+
             var frames = _scopeFrames.ToArray();
             if (frames.Length == 0)
                 return Array.Empty<ScopeSampleFrame>();
@@ -1488,7 +1621,10 @@ public sealed class RawProcessBusAnalyzer
                 result.Add(frame with { Index = slot });
             }
 
-            return result.ToArray();
+            _cachedWindow = result.ToArray();
+            _cachedWindowIndex = _scopeFrameIndex;
+            _cachedWindowCycles = _scopeCycles;
+            return _cachedWindow;
         }
 
         private static int ResolveArsvinPointsPerCycle(int samplesPerCycle)
@@ -1602,7 +1738,7 @@ public sealed class RawProcessBusAnalyzer
             return result;
         }
 
-        private bool ObserveTiming(long captureTicks, DateTime captureTimeUtc, ushort smpCnt)
+        private bool ObserveTiming(long captureTicks, DateTime captureTimeUtc, ushort smpCnt, bool multipleAsdus)
         {
             TrimRecentJitterExcursions(captureTimeUtc);
             var acceptForDisplay = true;
@@ -1628,47 +1764,58 @@ public sealed class RawProcessBusAnalyzer
                     _counterVerifiedSampleRateHz = _previousSmpCnt.Value + 1;
                 }
 
-                var actualUs = (captureTicks - _previousCaptureTicks.Value) * 1_000_000.0 / Stopwatch.Frequency;
-                CurrentDeltaMicroseconds = actualUs;
-                _totalDeltaMicroseconds += actualUs;
-                _deltaCount++;
-                AverageDeltaMicroseconds = _totalDeltaMicroseconds / _deltaCount;
-
-                var expectedUs = ResolveExpectedDeltaUs(sequence.SampleStep);
-                ExpectedDeltaMicroseconds = expectedUs;
-
-                if (expectedUs.HasValue)
+                if (!multipleAsdus && !_previousMultiAsduFrame)
                 {
-                    var signedJitter = actualUs - expectedUs.Value;
-                    var absJitter = Math.Abs(signedJitter);
-                    CurrentJitterMicroseconds = signedJitter;
-                    AddJitter(absJitter);
-                    AverageAbsJitterMicroseconds = _absJitterWindow.Count == 0
-                        ? null
-                        : _absJitterWindowTotalMicroseconds / _absJitterWindow.Count;
-                    MaxAbsJitterMicroseconds = _absJitterWindow.Count == 0 ? null : _absJitterWindow.Max();
-
-                    if (absJitter >= JitterAlertThresholdMicroseconds)
+                    var actualUs = (captureTicks - _previousCaptureTicks.Value) * 1_000_000.0 / Stopwatch.Frequency;
+                    CurrentDeltaMicroseconds = actualUs;
+                    _totalDeltaMicroseconds += actualUs;
+                    _deltaCount++;
+                    AverageDeltaMicroseconds = _totalDeltaMicroseconds / _deltaCount;
+    
+                    var expectedUs = ResolveExpectedDeltaUs(sequence.SampleStep);
+                    ExpectedDeltaMicroseconds = expectedUs;
+    
+                    if (expectedUs.HasValue)
                     {
-                        JitterOver300MicrosecondsCount++;
-                        TrackRecentJitterExcursion(captureTimeUtc);
-                        _pendingJitterEvidence = BuildJitterEvidence(
-                            previousSmpCnt: _previousSmpCnt.Value,
-                            currentSmpCnt: smpCnt,
-                            actualUs: actualUs,
-                            expectedUs: expectedUs.Value,
-                            signedJitterUs: signedJitter,
-                            absJitterUs: absJitter,
-                            sampleStep: sequence.SampleStep);
+                        var signedJitter = actualUs - expectedUs.Value;
+                        var absJitter = Math.Abs(signedJitter);
+                        CurrentJitterMicroseconds = signedJitter;
+                        AddJitter(absJitter);
+                        AverageAbsJitterMicroseconds = _jitterWindow.Average;
+                        MaxAbsJitterMicroseconds = _jitterWindow.Maximum;
+    
+                        if (absJitter >= JitterAlertThresholdMicroseconds)
+                        {
+                            JitterOver300MicrosecondsCount++;
+                            TrackRecentJitterExcursion(captureTimeUtc);
+                            _pendingJitterEvidence = BuildJitterEvidence(
+                                previousSmpCnt: _previousSmpCnt.Value,
+                                currentSmpCnt: smpCnt,
+                                actualUs: actualUs,
+                                expectedUs: expectedUs.Value,
+                                signedJitterUs: signedJitter,
+                                absJitterUs: absJitter,
+                                sampleStep: sequence.SampleStep);
+                        }
+    
+                        JitterStatusText = absJitter >= JitterAlertThresholdMicroseconds
+                            ? $"Arrival variation alert: {absJitter:0.#} us >= {JitterAlertThresholdMicroseconds:0} us"
+                            : $"Arrival variation nominal: {absJitter:0.#} us";
                     }
-
-                    JitterStatusText = absJitter >= JitterAlertThresholdMicroseconds
-                        ? $"Arrival variation alert: {absJitter:0.#} us >= {JitterAlertThresholdMicroseconds:0} us"
-                        : $"Arrival variation nominal: {absJitter:0.#} us";
+                    else
+                    {
+                        JitterStatusText = "Arrival variation pending: sample rate unknown";
+                    }
                 }
                 else
                 {
-                    JitterStatusText = "Arrival variation pending: sample rate unknown";
+                    // One RX timestamp represents the entire frame, not each ASDU.
+                    // Fake zero deltas and frame-duration deltas must not pollute
+                    // jitter, latency or current sample-timing diagnostics.
+                    CurrentDeltaMicroseconds = null;
+                    CurrentJitterMicroseconds = null;
+                    ExpectedDeltaMicroseconds = null;
+                    JitterStatusText = "Multi-ASDU: per-sample arrival timing not observable";
                 }
             }
 
@@ -1677,6 +1824,7 @@ public sealed class RawProcessBusAnalyzer
 
             _previousSmpCnt = smpCnt;
             _previousCaptureTicks = captureTicks;
+            _previousMultiAsduFrame = multipleAsdus;
             return acceptForDisplay;
         }
 
@@ -1707,11 +1855,7 @@ public sealed class RawProcessBusAnalyzer
 
         private void AddJitter(double absJitterUs)
         {
-            _absJitterWindow.Enqueue(absJitterUs);
-            _absJitterWindowTotalMicroseconds += absJitterUs;
-
-            while (_absJitterWindow.Count > JitterWindowCapacity)
-                _absJitterWindowTotalMicroseconds -= _absJitterWindow.Dequeue();
+            _jitterWindow.Add(absJitterUs);
         }
 
         private void TrackRecentJitterExcursion(DateTime nowUtc)
@@ -1763,7 +1907,8 @@ public sealed class RawProcessBusAnalyzer
                 $"payloadBytes={LastPayloadBytes}",
                 $"mapped={MappedChannelNamesText}",
                 $"sequence={SequenceStatusText}",
-                $"timing={JitterStatusText}"
+                $"timing={JitterStatusText}",
+                IsArstackDiagnosticMirror ? "identity=diagnostic mirror; canonical stream requires separate capture" : "identity=observed wire SV"
             });
         }
 
@@ -2237,9 +2382,8 @@ public sealed class RawProcessBusAnalyzer
         /// </summary>
         private int ResolveSequenceWrapBase()
         {
-            if (SmpRate is > 0)
-                return SmpRate.Value;
-
+            // SmpRate/SmpMod express sampling semantics, NOT a universal counter
+            // modulus. Never reinterpret an 80-samples/cycle field as 80-count wrap.
             // A highest *observed* counter is not a verified wrap modulus.
             // Missing the last packet(s) of a second makes maxSeen+1 one or
             // more counts too small and falsely classifies a gap as contiguous.
@@ -2285,6 +2429,32 @@ public sealed class RawProcessBusAnalyzer
                 2 => "SAMPLES_PER_PERIOD",
                 _ => smpMod?.ToString() ?? "N/A"
             };
+        }
+
+        // Fixed-size struct, no per-frame heap dictionary for the eight logical channels.
+        private struct ScopeSampleValues
+        {
+            public int Count { get; private set; }
+            public double? Ia, Ib, Ic, In, Ua, Ub, Uc, Un;
+            public void Set(string channel, double value)
+            {
+                switch (channel)
+                {
+                    case "Ia": Ia = value; break;
+                    case "Ib": Ib = value; break;
+                    case "Ic": Ic = value; break;
+                    case "In": In = value; break;
+                    case "Ua": Ua = value; break;
+                    case "Ub": Ub = value; break;
+                    case "Uc": Uc = value; break;
+                    case "Un": Un = value; break;
+                    default: return;
+                }
+                Count++;
+            }
+
+            public ScopeSampleFrame ToFrame(long index, ushort? count) =>
+                new(index, count, Ia, Ib, Ic, In, Ua, Ub, Uc, Un);
         }
 
         private readonly record struct ScopeSampleFrame(
@@ -2346,8 +2516,6 @@ public sealed class RawProcessBusAnalyzer
         private const double RmsAttackAlpha = 0.02;
         private const double RmsReleaseAlpha = 0.006;
         private readonly Queue<double> _samples = new();
-        private readonly Queue<ushort> _sampleCounters = new();
-        private readonly Dictionary<ushort, double> _samplesByCounter = new();
         private readonly int _capacity;
         private double _sumSquares;
         private double? _displayRms;
@@ -2366,23 +2534,10 @@ public sealed class RawProcessBusAnalyzer
             _sumSquares += value * value;
             LastValue = value;
 
-            if (sampleCounter.HasValue)
-            {
-                _sampleCounters.Enqueue(sampleCounter.Value);
-                _samplesByCounter[sampleCounter.Value] = value;
-            }
-
             while (_samples.Count > _capacity)
             {
                 var removed = _samples.Dequeue();
                 _sumSquares -= removed * removed;
-            }
-
-            while (_sampleCounters.Count > _capacity)
-            {
-                var removedCounter = _sampleCounters.Dequeue();
-                if (!_sampleCounters.Contains(removedCounter))
-                    _samplesByCounter.Remove(removedCounter);
             }
 
             UpdateDisplayRms(Math.Max(1, minSamplesForRms));
@@ -2436,8 +2591,6 @@ public sealed class RawProcessBusAnalyzer
         public void Clear()
         {
             _samples.Clear();
-            _sampleCounters.Clear();
-            _samplesByCounter.Clear();
             _sumSquares = 0;
             _displayRms = null;
             LastValue = null;
@@ -2485,63 +2638,9 @@ public sealed class RawProcessBusAnalyzer
             return angle;
         }
 
-        public IReadOnlyList<double> GetScopeWindow(ushort? lastSampleCounter, int samplesPerCycle, int visibleSamples)
-        {
-            if (!lastSampleCounter.HasValue || samplesPerCycle <= 0 || visibleSamples <= 0 || _sampleCounters.Count == 0)
-                return GetTail(visibleSamples);
-
-            // ARSVIN-style phase-locked scope:
-            // - Do NOT draw a sliding tail as the primary oscilloscope view. A sliding tail moves the
-            //   waveform horizontally at every refresh and looks glitchy even when SV data is stable.
-            // - Each smpCnt maps to a fixed modulo slot in the visible window, so new samples update
-            //   the same phase position instead of shifting the whole trace.
-            var slotValues = new double?[visibleSamples];
-            var filled = 0;
-
-            foreach (var counter in _sampleCounters)
-            {
-                if (!_samplesByCounter.TryGetValue(counter, out var value))
-                    continue;
-
-                var slot = counter % visibleSamples;
-                if (!slotValues[slot].HasValue)
-                    filled++;
-
-                slotValues[slot] = value;
-            }
-
-            // Do not forward-fill missing modulo slots. Forward-fill creates artificial flat
-            // segments and visible flicker while the UI samples a partially refreshed ring. ARSVIN
-            // keeps only real decoded SV points in slot order; use a locked window only after it is
-            // mostly populated, otherwise fall back to the latest contiguous tail.
-            var minimumUsefulFill = Math.Max(samplesPerCycle * 2, (int)Math.Ceiling(visibleSamples * 0.85));
-            if (filled < minimumUsefulFill)
-                return GetTail(visibleSamples);
-
-            return BuildStableSlotWindow(slotValues);
-        }
-
-        private static IReadOnlyList<double> BuildStableSlotWindow(IReadOnlyList<double?> slotValues)
-        {
-            var result = new List<double>(slotValues.Count);
-
-            for (var i = 0; i < slotValues.Count; i++)
-            {
-                if (slotValues[i].HasValue)
-                    result.Add(slotValues[i]!.Value);
-            }
-
-            return result.Count == 0 ? Array.Empty<double>() : result.ToArray();
-        }
-
-        private IReadOnlyList<double> GetTail(int visibleSamples)
-        {
-            var all = _samples.ToArray();
-            if (visibleSamples <= 0 || all.Length <= visibleSamples)
-                return all;
-
-            return all.Skip(all.Length - visibleSamples).ToArray();
-        }
+        // The active scope is built from the stream-owned monotonic ScopeSampleFrame ring.
+        // The previous sampleCounter -> value dictionary was no longer consumed, and its
+        // per-sample Queue.Contains scan caused O(1024) work per channel at full capacity.
     }
 
     private sealed class GooseState

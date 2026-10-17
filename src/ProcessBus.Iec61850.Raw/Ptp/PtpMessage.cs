@@ -5,6 +5,7 @@ public sealed class PtpMessage
     public string MessageType { get; init; } = "Unknown";
     public byte MessageTypeValue { get; init; }
     public byte Version { get; init; }
+    public byte TransportSpecific { get; init; }
     public ushort MessageLength { get; init; }
     public byte DomainNumber { get; init; }
     public ushort Flags { get; init; }
@@ -52,10 +53,8 @@ public sealed class PtpMessage
             if (!IsAnnounce)
                 return "PTP v2 message";
 
-            if (GrandmasterClockClass is 6 or 7 or 13 or 14 or 52 or 187 or 248)
-                return "PTP power-utility profile candidate";
-
-            return "PTP v2 announce observed";
+            // ClockClass alone is insufficient to identify IEC/IEEE 61850-9-3.
+            return "PTP v2 Announce (power profile unverified)";
         }
     }
 }

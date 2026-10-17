@@ -14,6 +14,13 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
     private ProtocolMonitorSnapshot _protocolMonitor = new();
     private string _dataSourceName = "Raw Passive";
     private string _waveformStatusText = "Waiting for SV samples.";
+    // Preserve bounded deduplication indexes across UI ticks rather than
+    // rebuilding hundreds of formatted keys on every 8 FPS refresh.
+    private readonly HashSet<DiagnosticEventKey> _diagnosticEventKeys = new();
+    private readonly HashSet<PtpEventKey> _ptpEventKeys = new();
+    private readonly record struct DiagnosticEventKey(DateTime TimestampUtc, string Severity, string Message);
+    private readonly record struct PtpEventKey(DateTime TimestampUtc, string Transport, string MessageType,
+        string SequenceId, string ClockIdentity);
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -66,6 +73,7 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
     public void ApplySnapshot(AnalyzerSnapshot snapshot, bool mergeEvents = true)
     {
         var incomingById = snapshot.Streams.ToDictionary(stream => stream.StreamId, StringComparer.OrdinalIgnoreCase);
+        var existingById = Streams.ToDictionary(stream => stream.StreamId, StringComparer.OrdinalIgnoreCase);
 
         for (var index = 0; index < Streams.Count;)
         {
@@ -84,7 +92,7 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
                      .ThenBy(stream => string.IsNullOrWhiteSpace(stream.SvId) ? stream.StreamName : stream.SvId, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(stream => stream.StreamId, StringComparer.OrdinalIgnoreCase))
         {
-            var existing = Streams.FirstOrDefault(stream => string.Equals(stream.StreamId, incoming.StreamId, StringComparison.OrdinalIgnoreCase));
+            existingById.TryGetValue(incoming.StreamId, out var existing);
             if (existing is null)
             {
                 Streams.Add(incoming);
@@ -148,6 +156,8 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
         Streams.Clear();
         Events.Clear();
         PtpEvents.Clear();
+        _diagnosticEventKeys.Clear();
+        _ptpEventKeys.Clear();
         SelectedStreamDetails = null;
         AnalogValues = new AnalogValuesSnapshot();
         Waveform = new WaveformSnapshot { StatusText = "Cleared. Waiting for new SV packets." };
@@ -158,53 +168,41 @@ public sealed class AnalyzerShellState : INotifyPropertyChanged
 
     public void MergeEvents(IReadOnlyList<DiagnosticEventItem> incomingItems)
     {
-        if (incomingItems.Count == 0)
-            return;
-
-        var existingKeys = Events
-            .Select(item => BuildEventKey(item.TimestampUtc, item.Severity, item.Message))
-            .ToHashSet(StringComparer.Ordinal);
-
         foreach (var item in incomingItems.OrderBy(x => x.TimestampUtc))
         {
-            var key = BuildEventKey(item.TimestampUtc, item.Severity, item.Message);
-            if (existingKeys.Contains(key))
+            var key = new DiagnosticEventKey(item.TimestampUtc, item.Severity, item.Message);
+            if (!_diagnosticEventKeys.Add(key))
                 continue;
 
             Events.Insert(0, item);
-            existingKeys.Add(key);
+            while (Events.Count > 200)
+            {
+                var removed = Events[^1];
+                _diagnosticEventKeys.Remove(new DiagnosticEventKey(
+                    removed.TimestampUtc, removed.Severity, removed.Message));
+                Events.RemoveAt(Events.Count - 1);
+            }
         }
-
-        while (Events.Count > 200)
-            Events.RemoveAt(Events.Count - 1);
     }
 
     private void MergePtpEvents(IReadOnlyList<PtpEventItem> incomingItems)
     {
-        if (incomingItems.Count == 0)
-            return;
-
-        var existingKeys = PtpEvents
-            .Select(item => $"{item.TimestampUtc.Ticks}|{item.Transport}|{item.MessageType}|{item.SequenceIdText}|{item.ClockIdentity}")
-            .ToHashSet(StringComparer.Ordinal);
-
         foreach (var item in incomingItems.OrderBy(x => x.TimestampUtc))
         {
-            var key = $"{item.TimestampUtc.Ticks}|{item.Transport}|{item.MessageType}|{item.SequenceIdText}|{item.ClockIdentity}";
-            if (existingKeys.Contains(key))
+            var key = new PtpEventKey(item.TimestampUtc, item.Transport, item.MessageType,
+                item.SequenceIdText, item.ClockIdentity);
+            if (!_ptpEventKeys.Add(key))
                 continue;
 
             PtpEvents.Insert(0, item);
-            existingKeys.Add(key);
+            while (PtpEvents.Count > 200)
+            {
+                var removed = PtpEvents[^1];
+                _ptpEventKeys.Remove(new PtpEventKey(removed.TimestampUtc, removed.Transport,
+                    removed.MessageType, removed.SequenceIdText, removed.ClockIdentity));
+                PtpEvents.RemoveAt(PtpEvents.Count - 1);
+            }
         }
-
-        while (PtpEvents.Count > 200)
-            PtpEvents.RemoveAt(PtpEvents.Count - 1);
-    }
-
-    private static string BuildEventKey(DateTime timestampUtc, string severity, string message)
-    {
-        return $"{timestampUtc.Ticks}|{severity}|{message}";
     }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

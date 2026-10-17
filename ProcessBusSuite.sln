@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProcessBus.Iec61850.Raw", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProcessBus.Tests", "tests\ProcessBus.Tests\ProcessBus.Tests.csproj", "{2F4B9C6E-7A31-4E8D-9B5A-6C1D82E4A0F7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProcessBus.InteropCli", "tools\ProcessBus.InteropCli\ProcessBus.InteropCli.csproj", "{6F21A42B-A4EE-4901-8336-05A85E40D15F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,14 @@ Global
 		{2F4B9C6E-7A31-4E8D-9B5A-6C1D82E4A0F7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2F4B9C6E-7A31-4E8D-9B5A-6C1D82E4A0F7}.Release|x64.ActiveCfg = Release|x64
 		{2F4B9C6E-7A31-4E8D-9B5A-6C1D82E4A0F7}.Release|x64.Build.0 = Release|x64
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Debug|x64.ActiveCfg = Debug|x64
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Debug|x64.Build.0 = Debug|x64
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Release|x64.ActiveCfg = Release|x64
+		{6F21A42B-A4EE-4901-8336-05A85E40D15F}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

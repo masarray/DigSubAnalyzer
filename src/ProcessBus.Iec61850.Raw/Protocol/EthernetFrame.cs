@@ -77,17 +77,20 @@ public sealed class EthernetFrame
 
     private static string FormatMac(ReadOnlySpan<byte> value)
     {
-        return string.Create(17, value.ToArray(), static (chars, bytes) =>
+        // Format from six bytes packed into a ulong. Avoid the two 6-byte
+        // ToArray() allocations on *every* 4k/4.8k fps Ethernet receive.
+        var packed = ((ulong)BinaryPrimitives.ReadUInt32BigEndian(value[..4]) << 16) |
+                     BinaryPrimitives.ReadUInt16BigEndian(value.Slice(4, 2));
+        return string.Create(17, packed, static (chars, mac) =>
         {
             const string hex = "0123456789ABCDEF";
-
             for (var i = 0; i < 6; i++)
             {
-                if (i > 0)
-                    chars[(i * 3) - 1] = ':';
-
-                chars[i * 3] = hex[bytes[i] >> 4];
-                chars[(i * 3) + 1] = hex[bytes[i] & 0x0F];
+                var octet = (byte)(mac >> ((5 - i) * 8));
+                if (i != 0)
+                    chars[i * 3 - 1] = ':';
+                chars[i * 3] = hex[octet >> 4];
+                chars[i * 3 + 1] = hex[octet & 0x0F];
             }
         });
     }

@@ -38,7 +38,7 @@ public class ProcessBusFrameParserTests
     }
 
     [Fact]
-    public void TryParse_DeclaredLengthBeyondCapture_TruncatesApduToAvailable()
+    public void TryParse_DeclaredLengthBeyondCapture_RejectsUntrustedFrame()
     {
         var apdu = GoldenFrames.SvApdu();
         var payload = GoldenFrames.Concat(
@@ -49,8 +49,7 @@ public class ProcessBusFrameParserTests
             apdu);
         var frame = GoldenFrames.EthernetFrame(GoldenFrames.SvEtherType, payload);
 
-        Assert.True(ProcessBusFrameParser.TryParse(frame, out var parsed));
-        Assert.Equal(apdu.Length, parsed.Apdu.Length);
+        Assert.False(ProcessBusFrameParser.TryParse(frame, out _));
     }
 }
 

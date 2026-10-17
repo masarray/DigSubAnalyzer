@@ -129,14 +129,14 @@ public static class GoldenFrames
     /// matches the analyzer's raw 4I4V candidate profile, so streams built with it decode to
     /// scope channels without any SCL mapping.
     /// </summary>
-    public static byte[] SvApduWithChannelSamples(ushort smpCnt, IReadOnlyList<int> channelValues, string svId = "MU01_SV1")
+    public static byte[] SvApduWithChannelSamples(ushort smpCnt, IReadOnlyList<int> channelValues, string svId = "MU01_SV1", uint qualityWord = 0, ushort? smpRate = null, ushort? smpMod = null)
     {
         var payload = new byte[16 * 4];
         for (var element = 0; element < 8; element++)
         {
             var value = element < channelValues.Count ? channelValues[element] : 0;
             BinaryPrimitives.WriteInt32BigEndian(payload.AsSpan(element * 8, 4), value);
-            // quality word (element*8 + 4) stays 0x00000000 = good
+            BinaryPrimitives.WriteUInt32BigEndian(payload.AsSpan(element * 8 + 4, 4), qualityWord);
         }
 
         var asdu = Tlv(0x30,
@@ -144,16 +144,18 @@ public static class GoldenFrames
             Tlv(0x82, U16(smpCnt)),
             Tlv(0x83, new byte[] { 0x01 }),
             Tlv(0x85, new byte[] { 0x02 }),
-            Tlv(0x87, payload));
+            smpRate.HasValue ? Tlv(0x86, U16(smpRate.Value)) : Array.Empty<byte>(),
+            Tlv(0x87, payload),
+            smpMod.HasValue ? Tlv(0x88, U16(smpMod.Value)) : Array.Empty<byte>());
 
         return Tlv(0x60,
             Tlv(0x80, new byte[] { 0x01 }),
             Tlv(0xA2, asdu));
     }
 
-    public static byte[] SvFrameWithChannelSamples(ushort smpCnt, IReadOnlyList<int> channelValues, string svId = "MU01_SV1", ushort appId = 0x4000)
+    public static byte[] SvFrameWithChannelSamples(ushort smpCnt, IReadOnlyList<int> channelValues, string svId = "MU01_SV1", ushort appId = 0x4000, uint qualityWord = 0, ushort? smpRate = null, ushort? smpMod = null)
     {
-        return EthernetFrame(SvEtherType, ProcessBusPayload(appId, SvApduWithChannelSamples(smpCnt, channelValues, svId)));
+        return EthernetFrame(SvEtherType, ProcessBusPayload(appId, SvApduWithChannelSamples(smpCnt, channelValues, svId, qualityWord, smpRate, smpMod)));
     }
 
     public static byte[] SvFrame(ushort appId = 0x4000, ushort? vlanTci = null)

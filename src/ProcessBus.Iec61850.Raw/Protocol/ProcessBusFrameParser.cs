@@ -166,11 +166,13 @@ public static class ProcessBusFrameParser
 
         // Ignore non-first fragments. PTP/UDP should not be fragmented in normal process-bus timing traffic.
         var flagsAndFragment = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(6, 2));
-        if ((flagsAndFragment & 0x1FFF) != 0)
+        if ((flagsAndFragment & 0x3FFF) != 0) // MF or fragment offset
             return false;
 
         var totalLength = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(2, 2));
-        var availableIpLength = Math.Min(totalLength == 0 ? ipPayload.Length : totalLength, ipPayload.Length);
+        if (totalLength < headerLength + 8 || totalLength > ipPayload.Length)
+            return false; // never trust truncated/zero IPv4 lengths
+        var availableIpLength = totalLength;
         if (availableIpLength < headerLength + 8)
             return false;
 
@@ -181,11 +183,9 @@ public static class ProcessBusFrameParser
             return false;
 
         var udpLength = BinaryPrimitives.ReadUInt16BigEndian(udp.Slice(4, 2));
-        var availableUdpLength = udpLength >= 8
-            ? Math.Min(udpLength, udp.Length)
-            : udp.Length;
-        if (availableUdpLength < 8)
+        if (udpLength < 8 || udpLength > udp.Length)
             return false;
+        var availableUdpLength = udpLength;
 
         var payloadLength = availableUdpLength - 8;
         if (payloadLength < 34)
@@ -221,19 +221,20 @@ public static class ProcessBusFrameParser
         if (version != 6 || span[6] != 17) // Direct UDP only; extension headers are not decoded in phase 1.
             return false;
 
+        var ipv6PayloadLength = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(4, 2));
+        if (ipv6PayloadLength < 8 || ipv6PayloadLength > ipPayload.Length - 40)
+            return false;
         var udpOffset = 40;
-        var udp = span[udpOffset..];
+        var udp = span.Slice(udpOffset, ipv6PayloadLength);
         var sourcePort = BinaryPrimitives.ReadUInt16BigEndian(udp[..2]);
         var destinationPort = BinaryPrimitives.ReadUInt16BigEndian(udp.Slice(2, 2));
         if (!IsPtpUdpPort(sourcePort) && !IsPtpUdpPort(destinationPort))
             return false;
 
         var udpLength = BinaryPrimitives.ReadUInt16BigEndian(udp.Slice(4, 2));
-        var availableUdpLength = udpLength >= 8
-            ? Math.Min(udpLength, udp.Length)
-            : udp.Length;
-        if (availableUdpLength < 8)
+        if (udpLength < 8 || udpLength > udp.Length)
             return false;
+        var availableUdpLength = udpLength;
 
         var payloadLength = availableUdpLength - 8;
         if (payloadLength < 34)
@@ -261,10 +262,11 @@ public static class ProcessBusFrameParser
             return -1;
 
         // IEC 61850 process-bus length includes APPID, length and reserved fields.
-        var declaredApduLength = declaredLength >= ProcessBusHeaderLength
-            ? declaredLength - ProcessBusHeaderLength
-            : availableApduLength;
-
-        return Math.Min(declaredApduLength, availableApduLength);
+        // Reject truncation instead of silently shortening malformed declared wire
+        // lengths and promoting partial BER payloads into measurement evidence.
+        if (declaredLength < ProcessBusHeaderLength)
+            return -1;
+        var declaredApduLength = declaredLength - ProcessBusHeaderLength;
+        return declaredApduLength <= availableApduLength ? declaredApduLength : -1;
     }
 }
