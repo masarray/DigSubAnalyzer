@@ -26,7 +26,9 @@ public sealed class PcapInteropInspector
         if (maximumFrames < 1 || maximumFrames > 50_000_000)
             throw new ArgumentOutOfRangeException(nameof(maximumFrames));
 
-        var observed = new Dictionary<string, SvEvidenceBuilder>(StringComparer.Ordinal);
+        // Value-key identity prevents 4k/4.8k FPS per-ASDU joined-string
+        // allocations. Only new publisher identities need a display string.
+        var observed = new Dictionary<SvWireKey, SvEvidenceBuilder>();
         var ptp = new PtpHealthTracker();
         long frames = 0, sv = 0, ptpCount = 0, goose = 0, rejected = 0, capped = 0;
         var frameLimitReached = false;
@@ -73,11 +75,10 @@ public sealed class PcapInteropInspector
             {
                 var vlan = packet.Frame.Ethernet.Vlan;
                 // This is the SAME strong wire identity domain as the live analyzer.
-                var key = string.Join("|", packet.Frame.Ethernet.SourceMac,
-                    packet.Frame.Ethernet.DestinationMac,
-                    vlan.HasValue ? $"v{vlan.Value.VlanId}/p{vlan.Value.PriorityCodePoint}" : "untagged",
-                    $"APPID={packet.Frame.AppId:X4}", $"svID={asdu.SvId ?? "unknown-sv"}",
-                    $"confRev={asdu.ConfRev?.ToString() ?? "noconf"}");
+                var key = new SvWireKey(packet.Frame.Ethernet.SourceMac,
+                    packet.Frame.Ethernet.DestinationMac, packet.Frame.AppId,
+                    asdu.SvId ?? "unknown-sv", asdu.ConfRev,
+                    vlan?.VlanId, vlan?.PriorityCodePoint);
 
                 if (!observed.TryGetValue(key, out var state))
                 {
@@ -86,7 +87,7 @@ public sealed class PcapInteropInspector
                         capped++;
                         continue;
                     }
-                    state = new SvEvidenceBuilder(key, packet.Frame.Ethernet.SourceMac,
+                    state = new SvEvidenceBuilder(key.DisplayText, packet.Frame.Ethernet.SourceMac,
                         packet.Frame.Ethernet.DestinationMac, packet.Frame.AppId,
                         asdu.SvId ?? string.Empty, asdu.ConfRev,
                         vlan?.VlanId, vlan?.PriorityCodePoint);
@@ -247,6 +248,17 @@ public sealed class PcapInteropInspector
 
     private static string NormalizeMac(string mac) =>
         new(mac.Where(c => char.IsAsciiHexDigit(c)).Select(char.ToUpperInvariant).ToArray());
+
+    private readonly record struct SvWireKey(
+        string SourceMac, string DestinationMac, ushort AppId, string SvId,
+        uint? ConfRev, ushort? VlanId, byte? VlanPriority)
+    {
+        public string DisplayText => string.Join("|",
+            SourceMac, DestinationMac,
+            VlanId.HasValue ? $"v{VlanId.Value}/p{VlanPriority}" : "untagged",
+            $"APPID={AppId:X4}", $"svID={SvId}",
+            $"confRev={ConfRev?.ToString() ?? "noconf"}");
+    }
 
     private sealed class SvEvidenceBuilder
     {
