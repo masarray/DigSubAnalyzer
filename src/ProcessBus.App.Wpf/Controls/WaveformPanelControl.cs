@@ -41,6 +41,8 @@ public sealed class WaveformPanelControl : FrameworkElement
     private double _currentAutoPeak;
     private DateTime _voltagePeakUpdatedUtc = DateTime.MinValue;
     private DateTime _currentPeakUpdatedUtc = DateTime.MinValue;
+    private string? _voltageUnit;
+    private string? _currentUnit;
     private const double AutoScaleHeadroom = 1.28;
     private const double AutoScaleSmoothing = 0.18;
     // Steady-state deadband: the observed window peak jitters a little every cycle, and an
@@ -63,6 +65,15 @@ public sealed class WaveformPanelControl : FrameworkElement
             typeof(WaveformSnapshot),
             typeof(WaveformPanelControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    // A reused WPF control must never carry a raw-count peak range into a
+    // different SV publisher. Stream identity is cheap state, not packet work.
+    public static readonly DependencyProperty StreamKeyProperty =
+        DependencyProperty.Register(
+            nameof(StreamKey), typeof(string), typeof(WaveformPanelControl),
+            new FrameworkPropertyMetadata(string.Empty,
+                FrameworkPropertyMetadataOptions.AffectsRender,
+                static (d, _) => ((WaveformPanelControl)d).ResetScaleState()));
 
     public static readonly DependencyProperty ShowModeProperty =
         DependencyProperty.Register(
@@ -110,6 +121,42 @@ public sealed class WaveformPanelControl : FrameworkElement
     {
         get => (WaveformSnapshot?)GetValue(SnapshotProperty);
         set => SetValue(SnapshotProperty, value);
+    }
+
+    public string StreamKey
+    {
+        get => (string)GetValue(StreamKeyProperty);
+        set => SetValue(StreamKeyProperty, value);
+    }
+
+    private void ResetScaleState()
+    {
+        _voltageAutoPeak = 0;
+        _currentAutoPeak = 0;
+        _voltagePeakUpdatedUtc = DateTime.MinValue;
+        _currentPeakUpdatedUtc = DateTime.MinValue;
+        _voltageUnit = null;
+        _currentUnit = null;
+    }
+
+    private void ResetLaneScaleWhenUnitsChange(bool isVoltage, string unit)
+    {
+        if (isVoltage)
+        {
+            if (string.Equals(_voltageUnit, unit, StringComparison.OrdinalIgnoreCase))
+                return;
+            _voltageUnit = unit;
+            _voltageAutoPeak = 0;
+            _voltagePeakUpdatedUtc = DateTime.MinValue;
+        }
+        else
+        {
+            if (string.Equals(_currentUnit, unit, StringComparison.OrdinalIgnoreCase))
+                return;
+            _currentUnit = unit;
+            _currentAutoPeak = 0;
+            _currentPeakUpdatedUtc = DateTime.MinValue;
+        }
     }
 
     public string ShowMode
@@ -355,6 +402,7 @@ public sealed class WaveformPanelControl : FrameworkElement
         // A raw-count voltage lane is still the voltage lane. Its history
         // must not share the current lane auto-range, nor adopt fixed A/V scales.
         var isVoltage = string.Equals(lane.Title, "Voltage", StringComparison.OrdinalIgnoreCase);
+        ResetLaneScaleWhenUnitsChange(isVoltage, lane.Unit);
         var hasPhysicalUnits = string.Equals(lane.Unit, isVoltage ? "V" : "A", StringComparison.OrdinalIgnoreCase);
         var scaleText = isVoltage ? VoltageScale : CurrentScale;
 
@@ -447,7 +495,12 @@ public sealed class WaveformPanelControl : FrameworkElement
 
         if (isVoltage)
         {
-            if (targetPeak >= _voltageAutoPeak || (now - _voltagePeakUpdatedUtc).TotalSeconds > PeakHoldSeconds)
+            // A 1000× counts-to-V conversion (or sudden real magnitude change)
+            // must not be hidden as a flat line for the entire hold timeout.
+            if (_voltageAutoPeak <= 0 ||
+                targetPeak < _voltageAutoPeak * 0.25 ||
+                targetPeak >= _voltageAutoPeak ||
+                (now - _voltagePeakUpdatedUtc).TotalSeconds > PeakHoldSeconds)
             {
                 _voltageAutoPeak = targetPeak;
                 _voltagePeakUpdatedUtc = now;
@@ -459,7 +512,10 @@ public sealed class WaveformPanelControl : FrameworkElement
             return Math.Max(_voltageAutoPeak, 1.0);
         }
 
-        if (targetPeak >= _currentAutoPeak || (now - _currentPeakUpdatedUtc).TotalSeconds > PeakHoldSeconds)
+        if (_currentAutoPeak <= 0 ||
+            targetPeak < _currentAutoPeak * 0.25 ||
+            targetPeak >= _currentAutoPeak ||
+            (now - _currentPeakUpdatedUtc).TotalSeconds > PeakHoldSeconds)
         {
             _currentAutoPeak = targetPeak;
             _currentPeakUpdatedUtc = now;
