@@ -19,6 +19,8 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
     private bool _isRunning;
     private bool _isDisposed;
     private long _capturedFrames;
+    private DateTime _lastDriverStatsPollUtc = DateTime.MinValue;
+    private NpcapCaptureStatistics? _driverStats;
 
     public string Name => "Raw Passive";
 
@@ -77,6 +79,8 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
             }
 
             _captureCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _driverStats = null;
+            _lastDriverStatsPollUtc = DateTime.MinValue;
             _frameSource = new NpcapRawFrameSource(_adapterRawDeviceName, EnqueueEvent);
             _captureTask = Task.Run(() => PumpAsync(_frameSource, _captureCts.Token), CancellationToken.None);
             _isRunning = true;
@@ -163,6 +167,7 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
             .Take(100)
             .ToArray();
         var diagnostics = snapshot.Diagnostics;
+        ApplyDriverDropEvidence(diagnostics);
         var selectedStreamDetails = snapshot.SelectedStreamDetails;
 
         if (snapshot.Streams.Count == 0)
@@ -191,6 +196,34 @@ public sealed class RawAnalyzerDataSource : IRawCaptureDataSource, IDisposable
             ProtocolMonitor = snapshot.ProtocolMonitor,
             PtpEvents = snapshot.PtpEvents
         });
+    }
+
+    private void ApplyDriverDropEvidence(SvDiagnosticsSnapshot diagnostics)
+    {
+        // Poll only once per second; never call pcap_stats for every SV frame.
+        // The reader and the counter query share the same native-handle lock.
+        NpcapRawFrameSource? source;
+        lock (_sync)
+        {
+            source = _frameSource as NpcapRawFrameSource;
+        }
+
+        var now = DateTime.UtcNow;
+        if (source is not null && now - _lastDriverStatsPollUtc >= TimeSpan.FromSeconds(1))
+        {
+            _lastDriverStatsPollUtc = now;
+            if (source.TryGetCaptureStatistics(out var observed))
+                _driverStats = observed;
+        }
+
+        if (_driverStats is { } stats)
+        {
+            diagnostics.CaptureDriverDroppedFrames = stats.DriverDropped;
+            diagnostics.CaptureInterfaceDroppedFrames = stats.InterfaceDropped;
+            diagnostics.CaptureDropEvidenceText =
+                $"Npcap driver drops: {stats.DriverDropped}; interface drops: {stats.InterfaceDropped} " +
+                "(reported by capture driver, not confirmed wire loss)";
+        }
     }
 
     public GooseMonitorSnapshot GetGooseSnapshot()
