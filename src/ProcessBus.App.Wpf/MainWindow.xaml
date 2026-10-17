@@ -2132,9 +2132,9 @@
           Grid.RowSpan="3"
           Opacity="0.94">
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="0.95*"/>
+                                        <RowDefinition Height="0.82*"/>
                                         <RowDefinition Height="12"/>
-                                        <RowDefinition Height="1.05*"/>
+                                        <RowDefinition Height="1.18*"/>
                                     </Grid.RowDefinitions>
 
                                     <Border Grid.Row="0"
@@ -2163,7 +2163,7 @@
                                             <!-- RUNTIME CONTROL (DIMATIKAN DI DESIGNER) -->
                                             <controls:PhasorDiagramControl Grid.Row="1"
                                        ItemsSource="{Binding Phasors}"
-                                       MinHeight="300"
+                                       MinHeight="210"
                                        SnapsToDevicePixels="True"
                                        d:Visibility="Collapsed"/>
 
@@ -2182,20 +2182,11 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Quiet, full-width phase ledger. One hierarchy, no competing micro-cards. -->
+                                    <!-- Compact four-column readout; all values belong to the selected coherent SV snapshot. -->
                                     <Border Grid.Row="2"
                                             Style="{StaticResource DenseGroupBorderStyle}"
                                             Padding="10"
                                             Background="{DynamicResource PanelBrush}">
-                                        <Border.Resources>
-                                            <Style x:Key="MeterPhaseRowStyle" TargetType="Border">
-                                                <Setter Property="Background" Value="#0E2032"/>
-                                                <Setter Property="BorderBrush" Value="#1A354E"/>
-                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                                <Setter Property="Padding" Value="6,8"/>
-                                                <Setter Property="MinHeight" Value="38"/>
-                                            </Style>
-                                        </Border.Resources>
                                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                                       HorizontalScrollBarVisibility="Disabled"
                                                       CanContentScroll="False">
@@ -2207,172 +2198,196 @@
                                                                Text="{Binding WaveformHeaderFrequencyText}"
                                                                FontSize="11" Foreground="#8CBDE4"/>
                                                 </DockPanel>
-                                                <DockPanel Margin="0,9,0,0">
+                                                <DockPanel Margin="0,7,0,2">
                                                     <Button DockPanel.Dock="Right" Content="Copy" Margin="7,0,0,0"
                                                             MinWidth="49" Height="28" Padding="7,0"
                                                             Style="{StaticResource ToolbarGhostButtonStyle}"
                                                             Command="{Binding CopyEvidenceCommand}"
-                                                            ToolTip="Copy detailed measurements and capture evidence"/>
+                                                            ToolTip="Copy original engineering values and passive capture evidence"/>
                                                     <ComboBox Height="28" MinWidth="140"
                                                               Style="{StaticResource CompactComboBoxStyle}"
                                                               ItemsSource="{Binding EngineeringScaleOptions}"
                                                               SelectedItem="{Binding SelectedEngineeringScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                               ToolTip="{Binding EngineeringScaleExplanation}"/>
                                                 </DockPanel>
-                                                <TextBlock Margin="0,10,0,4" Text="VOLTAGE     RMS                          ∠" FontSize="10.5"
-           FontWeight="SemiBold" Foreground="#88AAC7"/>
-<Border Style="{StaticResource MeterPhaseRowStyle}">
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="30"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="57"/>
-    </Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
-               Fill="{StaticResource PhaseRBrush}"/>
-      <TextBlock Text="Ua" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
-    </StackPanel>
-    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ua.RmsDisplayText}"
-               FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#F4FAFF"
-               TextAlignment="Right" VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ua.RmsDisplayText}"/>
-    <TextBlock Grid.Column="2" Margin="7,0,0,0"
-               Text="{Binding AnalogValues.Ua.AngleDisplayText}"
-               FontSize="11" FontFamily="Consolas" Foreground="#91AAC1" TextAlignment="Right"
-               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ua.AngleDisplayText}"/>
-  </Grid>
-</Border>
-<Border Style="{StaticResource MeterPhaseRowStyle}">
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="30"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="57"/>
-    </Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
-               Fill="{StaticResource PhaseSBrush}"/>
-      <TextBlock Text="Ub" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
-    </StackPanel>
-    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ub.RmsDisplayText}"
-               FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#F4FAFF"
-               TextAlignment="Right" VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ub.RmsDisplayText}"/>
-    <TextBlock Grid.Column="2" Margin="7,0,0,0"
-               Text="{Binding AnalogValues.Ub.AngleDisplayText}"
-               FontSize="11" FontFamily="Consolas" Foreground="#91AAC1" TextAlignment="Right"
-               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ub.AngleDisplayText}"/>
-  </Grid>
-</Border>
-<Border Style="{StaticResource MeterPhaseRowStyle}">
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="30"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="57"/>
-    </Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
-               Fill="{StaticResource PhaseTBrush}"/>
-      <TextBlock Text="Uc" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
-    </StackPanel>
-    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Uc.RmsDisplayText}"
-               FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#F4FAFF"
-               TextAlignment="Right" VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Uc.RmsDisplayText}"/>
-    <TextBlock Grid.Column="2" Margin="7,0,0,0"
-               Text="{Binding AnalogValues.Uc.AngleDisplayText}"
-               FontSize="11" FontFamily="Consolas" Foreground="#91AAC1" TextAlignment="Right"
-               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Uc.AngleDisplayText}"/>
-  </Grid>
-</Border>
-                                                <TextBlock Margin="0,10,0,4" Text="CURRENT      RMS                          ∠" FontSize="10.5"
-           FontWeight="SemiBold" Foreground="#88AAC7"/>
-<Border Style="{StaticResource MeterPhaseRowStyle}">
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="30"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="57"/>
-    </Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
-               Fill="{StaticResource PhaseRBrush}"/>
-      <TextBlock Text="Ia" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
-    </StackPanel>
-    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ia.RmsDisplayText}"
-               FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#F4FAFF"
-               TextAlignment="Right" VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ia.RmsDisplayText}"/>
-    <TextBlock Grid.Column="2" Margin="7,0,0,0"
-               Text="{Binding AnalogValues.Ia.AngleDisplayText}"
-               FontSize="11" FontFamily="Consolas" Foreground="#91AAC1" TextAlignment="Right"
-               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ia.AngleDisplayText}"/>
-  </Grid>
-</Border>
-<Border Style="{StaticResource MeterPhaseRowStyle}">
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="30"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="57"/>
-    </Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
-               Fill="{StaticResource PhaseSBrush}"/>
-      <TextBlock Text="Ib" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
-    </StackPanel>
-    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ib.RmsDisplayText}"
-               FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#F4FAFF"
-               TextAlignment="Right" VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ib.RmsDisplayText}"/>
-    <TextBlock Grid.Column="2" Margin="7,0,0,0"
-               Text="{Binding AnalogValues.Ib.AngleDisplayText}"
-               FontSize="11" FontFamily="Consolas" Foreground="#91AAC1" TextAlignment="Right"
-               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ib.AngleDisplayText}"/>
-  </Grid>
-</Border>
-<Border Style="{StaticResource MeterPhaseRowStyle}">
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="30"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="57"/>
-    </Grid.ColumnDefinitions>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
-               Fill="{StaticResource PhaseTBrush}"/>
-      <TextBlock Text="Ic" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
-    </StackPanel>
-    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ic.RmsDisplayText}"
-               FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#F4FAFF"
-               TextAlignment="Right" VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ic.RmsDisplayText}"/>
-    <TextBlock Grid.Column="2" Margin="7,0,0,0"
-               Text="{Binding AnalogValues.Ic.AngleDisplayText}"
-               FontSize="11" FontFamily="Consolas" Foreground="#91AAC1" TextAlignment="Right"
-               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-               ToolTip="{Binding AnalogValues.Ic.AngleDisplayText}"/>
-  </Grid>
-</Border>
+                                                <Grid Margin="5,9,5,3">
+                                                    <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="V" Foreground="#91B3CF" FontSize="10.5" ToolTip="Voltage phases"/>
+                                                    <TextBlock Grid.Column="1" Text="RMS" TextAlignment="Right"
+                                                               Foreground="#91B3CF" FontSize="10.5"/>
+                                                    <TextBlock Grid.Column="2" Margin="7,0,0,0" Text="Unit" Foreground="#91B3CF" FontSize="10.5"/>
+                                                    <TextBlock Grid.Column="3" Text="Angle" TextAlignment="Right"
+                                                               Foreground="#91B3CF" FontSize="10.5"/>
+                                                </Grid>
+
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                     Fill="{StaticResource PhaseRBrush}"/>
+                                                            <TextBlock Text="Ua" FontSize="12" Foreground="#D7E9F9"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource MeterReadoutNumberStyle}"
+                                                                   Text="{Binding AnalogValues.Ua.RmsNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ua.RmsDisplayText}"/>
+                                                        <TextBlock Grid.Column="2" Margin="7,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutUnitStyle}"
+                                                                   Text="{Binding AnalogValues.Ua.RmsUnitText}"/>
+                                                        <TextBlock Grid.Column="3" Margin="2,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutAngleStyle}"
+                                                                   Text="{Binding AnalogValues.Ua.AngleNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ua.AngleDisplayText}"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                     Fill="{StaticResource PhaseSBrush}"/>
+                                                            <TextBlock Text="Ub" FontSize="12" Foreground="#D7E9F9"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource MeterReadoutNumberStyle}"
+                                                                   Text="{Binding AnalogValues.Ub.RmsNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ub.RmsDisplayText}"/>
+                                                        <TextBlock Grid.Column="2" Margin="7,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutUnitStyle}"
+                                                                   Text="{Binding AnalogValues.Ub.RmsUnitText}"/>
+                                                        <TextBlock Grid.Column="3" Margin="2,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutAngleStyle}"
+                                                                   Text="{Binding AnalogValues.Ub.AngleNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ub.AngleDisplayText}"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                     Fill="{StaticResource PhaseTBrush}"/>
+                                                            <TextBlock Text="Uc" FontSize="12" Foreground="#D7E9F9"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource MeterReadoutNumberStyle}"
+                                                                   Text="{Binding AnalogValues.Uc.RmsNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Uc.RmsDisplayText}"/>
+                                                        <TextBlock Grid.Column="2" Margin="7,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutUnitStyle}"
+                                                                   Text="{Binding AnalogValues.Uc.RmsUnitText}"/>
+                                                        <TextBlock Grid.Column="3" Margin="2,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutAngleStyle}"
+                                                                   Text="{Binding AnalogValues.Uc.AngleNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Uc.AngleDisplayText}"/>
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Margin="5,10,0,4" Text="CURRENT"
+                                                           FontSize="10.5" FontWeight="SemiBold" Foreground="#91B3CF"/>
+
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                     Fill="{StaticResource PhaseRBrush}"/>
+                                                            <TextBlock Text="Ia" FontSize="12" Foreground="#D7E9F9"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource MeterReadoutNumberStyle}"
+                                                                   Text="{Binding AnalogValues.Ia.RmsNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ia.RmsDisplayText}"/>
+                                                        <TextBlock Grid.Column="2" Margin="7,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutUnitStyle}"
+                                                                   Text="{Binding AnalogValues.Ia.RmsUnitText}"/>
+                                                        <TextBlock Grid.Column="3" Margin="2,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutAngleStyle}"
+                                                                   Text="{Binding AnalogValues.Ia.AngleNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ia.AngleDisplayText}"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                     Fill="{StaticResource PhaseSBrush}"/>
+                                                            <TextBlock Text="Ib" FontSize="12" Foreground="#D7E9F9"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource MeterReadoutNumberStyle}"
+                                                                   Text="{Binding AnalogValues.Ib.RmsNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ib.RmsDisplayText}"/>
+                                                        <TextBlock Grid.Column="2" Margin="7,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutUnitStyle}"
+                                                                   Text="{Binding AnalogValues.Ib.RmsUnitText}"/>
+                                                        <TextBlock Grid.Column="3" Margin="2,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutAngleStyle}"
+                                                                   Text="{Binding AnalogValues.Ib.AngleNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ib.AngleDisplayText}"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="32"/>
+    <ColumnDefinition Width="*" MinWidth="66"/>
+    <ColumnDefinition Width="52"/>
+    <ColumnDefinition Width="78"/>
+</Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                     Fill="{StaticResource PhaseTBrush}"/>
+                                                            <TextBlock Text="Ic" FontSize="12" Foreground="#D7E9F9"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource MeterReadoutNumberStyle}"
+                                                                   Text="{Binding AnalogValues.Ic.RmsNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ic.RmsDisplayText}"/>
+                                                        <TextBlock Grid.Column="2" Margin="7,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutUnitStyle}"
+                                                                   Text="{Binding AnalogValues.Ic.RmsUnitText}"/>
+                                                        <TextBlock Grid.Column="3" Margin="2,0,0,0"
+                                                                   Style="{StaticResource MeterReadoutAngleStyle}"
+                                                                   Text="{Binding AnalogValues.Ic.AngleNumberText}"
+                                                                   ToolTip="{Binding AnalogValues.Ic.AngleDisplayText}"/>
+                                                    </Grid>
+                                                </Border>
                                                 <Expander Margin="0,8,0,0" Header="Power &amp; calibration"
                                                           IsExpanded="False"
                                                           Foreground="#B9D7EE">
@@ -2854,7 +2869,23 @@
                                                Style="{StaticResource PanelTitleTextStyle}"
                                                Margin="0,0,0,8"/>
 
+
+                                        <Expander DockPanel.Dock="Bottom" Margin="0,8,0,0"
+                                                  Header="Selected finding · complete evidence" IsExpanded="False"
+                                                  Foreground="#9DBCD7">
+                                            <TextBox Text="{Binding SelectedDiagnosticEvent.Message, Mode=OneWay}"
+                                                     MinHeight="52" MaxHeight="110"
+                                                     Background="#0A1B2B" Foreground="#DDEEFF"
+                                                     BorderThickness="0" Padding="8,6"
+                                                     IsReadOnly="True" TextWrapping="Wrap"
+                                                     VerticalScrollBarVisibility="Auto"/>
+                                        </Expander>
+
                                         <ListView ItemsSource="{Binding Events}"
+                                              SelectedItem="{Binding SelectedDiagnosticEvent, Mode=TwoWay}"
+                                              VirtualizingPanel.IsVirtualizing="True"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              ScrollViewer.CanContentScroll="True"
                                               Background="Transparent"
                                               BorderThickness="0"
                                               Foreground="#EAF6FF"
@@ -2866,8 +2897,9 @@
                                                 <DataTemplate>
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="108"/>
-                                                            <ColumnDefinition Width="74"/>
+                                                            <ColumnDefinition Width="105"/>
+                                                            <ColumnDefinition Width="76"/>
+                                                            <ColumnDefinition Width="130"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
 
@@ -2890,12 +2922,16 @@
                                                                    FontSize="10.5"/>
                                                         </Border>
 
-                                                        <TextBlock Grid.Column="2"
-                                                               Text="{Binding Message}"
-                                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontSize="11.5"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding SourceText}"
+                                                                   Foreground="#9EBBD4" FontSize="11"
+                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding Message}" Margin="0,0,8,0"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding FindingText}"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   FontSize="11.5" FontWeight="SemiBold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   VerticalAlignment="Center"
+                                                                   ToolTip="{Binding Message}"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ListView.ItemTemplate>
