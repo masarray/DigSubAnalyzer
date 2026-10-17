@@ -1516,6 +1516,12 @@ public sealed class RawProcessBusAnalyzer
             // window is visually stretched into a long, slow line. Keep the ARSVIN slot-locking
             // rule, but publish only when the whole two-cycle slot window is available. Until
             // then ToWaveform()/ToAnalogValues() hold the last published snapshot.
+            // Analog/RMS and waveform projections from the same publication generation
+            // reuse one immutable coherent window. Avoid duplicate frame copies and slot
+            // reconstruction during the same UI tick, without sacrificing stream ownership.
+            if (_cachedWindowIndex == _scopeFrameIndex && _cachedWindowCycles == _scopeCycles)
+                return _cachedWindow;
+
             var frames = _scopeFrames.ToArray();
             if (frames.Length == 0)
                 return Array.Empty<ScopeSampleFrame>();
@@ -1549,7 +1555,10 @@ public sealed class RawProcessBusAnalyzer
                 result.Add(frame with { Index = slot });
             }
 
-            return result.ToArray();
+            _cachedWindow = result.ToArray();
+            _cachedWindowIndex = _scopeFrameIndex;
+            _cachedWindowCycles = _scopeCycles;
+            return _cachedWindow;
         }
 
         private static int ResolveArsvinPointsPerCycle(int samplesPerCycle)
