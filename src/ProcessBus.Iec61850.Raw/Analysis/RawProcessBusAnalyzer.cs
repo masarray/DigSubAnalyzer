@@ -558,7 +558,7 @@ public sealed class RawProcessBusAnalyzer
             JitterStatusText = selected.JitterStatusText,
             LastPacketTimestampUtc = selected.LastSeenUtc,
             SmpSynchText = selected.SmpSynchText,
-            ValidityText = "Raw payload not quality-mapped yet",
+            ValidityText = selected.QualityStatusText,
             DecodeStatusText = "Raw SV APDU decoded",
             PacketRateMeaningText = selected.RecentPacketRatePps.HasValue
                 ? "Raw SV frames observed in a rolling capture window"
@@ -818,6 +818,13 @@ public sealed class RawProcessBusAnalyzer
         private readonly Queue<DateTime> _recentJitterExcursions = new();
         private readonly Queue<DateTime> _recentPacketTimes = new();
         private readonly Queue<ScopeSampleFrame> _scopeFrames = new(WaveformSampleCapacity + 8);
+        private ReadOnlyMemory<byte> _latestSamplePayload;
+        private SvChannelMappingProfile? _lastDecodedMapping;
+        private int _lastDecodedElementCount = -1;
+        private bool _qualityAccepted = true;
+        private long _cachedWindowIndex = -1;
+        private int _cachedWindowCycles;
+        private IReadOnlyList<ScopeSampleFrame> _cachedWindow = Array.Empty<ScopeSampleFrame>();
         private readonly Dictionary<string, RollingChannelSamples> _channelSamples = CreateChannelBuffers();
         private readonly Dictionary<string, double?> _displayAngles = CreateAngleState();
         private long _scopeFrameIndex;
@@ -895,7 +902,10 @@ public sealed class RawProcessBusAnalyzer
         public int DecodedElementCount { get; private set; }
         public string MappingProfileName { get; private set; } = "Unmapped";
         public string MappedChannelNamesText { get; private set; } = "Not mapped yet";
-        public string RawValuesText { get; private set; } = "[]";
+        // Format debug evidence on snapshot reads, never for every high-rate ASDU.
+        public string RawValuesText => BuildRawValuesText(DecodeInt32Elements(_latestSamplePayload.Span));
+        public long QualityRejectedSamples { get; private set; }
+        public string QualityStatusText { get; private set; } = "Quality mapping not verified";
         public string JitterStatusText { get; private set; } = "Arrival variation pending";
         public string SequenceStatusText { get; private set; } = "First sample";
         public DateTime LastSeenUtc { get; private set; }
@@ -904,6 +914,8 @@ public sealed class RawProcessBusAnalyzer
         public void ResetRenderMappingState()
         {
             _activeMappingSignature = null;
+            _lastDecodedMapping = null;
+            _lastDecodedElementCount = -1;
             ClearRenderBuffers();
         }
 
@@ -1131,10 +1143,48 @@ public sealed class RawProcessBusAnalyzer
 
         private void ObserveSamples(ReadOnlyMemory<byte> samplePayload, ushort? smpCnt, SvChannelMappingProfile? mappingProfile, bool acceptForDisplay)
         {
-            var decoded = DecodeInt32Elements(samplePayload.Span);
-            DecodedElementCount = decoded.Count;
-            RawValuesText = BuildRawValuesText(decoded);
-            ApplyMappingSignature(BuildMappingSignature(mappingProfile, decoded.Count));
+            _latestSamplePayload = samplePayload;
+            var payload = samplePayload.Span;
+            var elementCount = payload.Length / sizeof(int);
+            DecodedElementCount = elementCount;
+
+            // Never assume an arbitrary 64-byte SCL DataSet is eight instMag/q pairs.
+            var knownFourI4VLayout = payload.Length == 64 &&
+                (mappingProfile is null ||
+                 (mappingProfile.Elements.Count >= 3 && mappingProfile.Elements.All(e =>
+                     e.ElementIndex >= 0 && e.ElementIndex < 16 && e.ElementIndex % 2 == 0 &&
+                     (e.SignalReference.Contains("instMag", StringComparison.OrdinalIgnoreCase) ||
+                      e.TypeText.Contains("instMag", StringComparison.OrdinalIgnoreCase)))));
+            var quality = knownFourI4VLayout
+                ? FourI4VQuality.Assess(payload)
+                : FourI4VQuality.MeasurementState.UnknownLayout;
+            QualityStatusText = quality switch
+            {
+                FourI4VQuality.MeasurementState.Good => "4I+4V quality good",
+                FourI4VQuality.MeasurementState.Test => "4I+4V TEST data (laboratory stimulus)",
+                FourI4VQuality.MeasurementState.OperatorBlocked => "4I+4V operator-blocked data",
+                FourI4VQuality.MeasurementState.Untrusted => "4I+4V quality invalid: measurement withheld",
+                _ => "Quality mapping not verified"
+            };
+            if (quality == FourI4VQuality.MeasurementState.Untrusted)
+            {
+                QualityRejectedSamples++;
+                if (_qualityAccepted)
+                {
+                    _qualityAccepted = false;
+                    // Invalidate immediately, rather than leaving apparently valid stale RMS.
+                    ClearRenderBuffers();
+                }
+                return;
+            }
+            _qualityAccepted = true;
+
+            if (!ReferenceEquals(_lastDecodedMapping, mappingProfile) || _lastDecodedElementCount != elementCount)
+            {
+                ApplyMappingSignature(BuildMappingSignature(mappingProfile, elementCount));
+                _lastDecodedMapping = mappingProfile;
+                _lastDecodedElementCount = elementCount;
+            }
             var displayValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
             if (mappingProfile?.HasRenderableChannels == true)
@@ -1144,15 +1194,15 @@ public sealed class RawProcessBusAnalyzer
 
                 foreach (var element in mappingProfile.Elements)
                 {
-                    if (element.ElementIndex < 0 || element.ElementIndex >= decoded.Count)
+                    if (element.ElementIndex < 0 || element.ElementIndex >= elementCount)
                         continue;
                     if (!_channelSamples.TryGetValue(element.ChannelName, out var samples))
                         continue;
 
                     if (acceptForDisplay)
                     {
-                        samples.Add(smpCnt, decoded[element.ElementIndex].Value, ResolveSamplesPerCycle());
-                        displayValues[element.ChannelName] = decoded[element.ElementIndex].Value;
+                        samples.Add(smpCnt, BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4)), ResolveSamplesPerCycle());
+                        displayValues[element.ChannelName] = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4));
                     }
 
                     sclMapped.Add($"{element.ChannelName}<-element[{element.ElementIndex}]");
@@ -1171,7 +1221,7 @@ public sealed class RawProcessBusAnalyzer
                 }
             }
 
-            if (decoded.Count < 15)
+            if (elementCount < 15)
             {
                 MappingProfileName = "Raw SV payload evidence";
                 MappedChannelNamesText = "Not mapped yet";
@@ -1183,13 +1233,13 @@ public sealed class RawProcessBusAnalyzer
 
             foreach (var (channel, elementIndex) in OmicronInstMagQualityMap)
             {
-                if (elementIndex >= decoded.Count)
+                if (elementIndex >= elementCount)
                     continue;
 
                 if (acceptForDisplay)
                 {
-                    _channelSamples[channel].Add(smpCnt, decoded[elementIndex].Value, ResolveSamplesPerCycle());
-                    displayValues[channel] = decoded[elementIndex].Value;
+                    _channelSamples[channel].Add(smpCnt, BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4)), ResolveSamplesPerCycle());
+                    displayValues[channel] = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4));
                 }
 
                 mapped.Add(channel);
@@ -1248,6 +1298,8 @@ public sealed class RawProcessBusAnalyzer
         {
             _scopeFrames.Clear();
             _scopeFrameIndex = 0;
+            _cachedWindowIndex = -1;
+            _cachedWindow = Array.Empty<ScopeSampleFrame>();
             _lastScopeSampleCounter = null;
             _maxSeenScopeSampleCounter = 0;
             if (clearPublishedSnapshot)
