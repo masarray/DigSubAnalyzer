@@ -25,6 +25,14 @@ public static class SvEngineeringScaleFactors
             ? "counts"
             : channel.StartsWith("U", StringComparison.OrdinalIgnoreCase) ? "V" : "A";
 
+    // Offer engineering-friendly nominal units only when the receive decoder
+    // has identified the exact 16-entry 4I+4V instMag/q layout. This is an
+    // ASSUMED profile, not SCL-certified calibration or universal SV scaling.
+    // Never use svID, APPID or raw frame length alone for scale authority.
+    public static bool IsRecognizedNominalCandidate(string? mappingText) =>
+        !string.IsNullOrWhiteSpace(mappingText) &&
+        mappingText.Contains("raw 4I4V instMag/q", StringComparison.OrdinalIgnoreCase);
+
     public static bool IsPhysical(SvEngineeringScale mode)
         => mode == SvEngineeringScale.Nominal4I4V;
 }
