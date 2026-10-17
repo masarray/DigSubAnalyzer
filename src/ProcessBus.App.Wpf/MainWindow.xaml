@@ -3974,7 +3974,7 @@
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Engineering streams" Style="{StaticResource PanelTitleTextStyle}"/>
                                                     <TextBlock Margin="0,4,0,0"
-                                                               Text="Filtered by selected IED in the SCL Explorer."
+                                                               Text="Choose an IED to compare expected streams with capture."
                                                                Foreground="#8FAAC3"
                                                                FontSize="11"/>
                                                 </StackPanel>
@@ -4211,7 +4211,25 @@
                                                 <TextBlock Margin="0,5,0,0" Text="{Binding SclSelectedDetailSubtitle}" Foreground="#8FAAC3" FontSize="11.5" TextWrapping="Wrap"/>
                                             </StackPanel>
 
-                                            <Grid Grid.Row="2">
+                                            <Border Grid.Row="2" Background="#0E263A" BorderBrush="#315575"
+                                                    BorderThickness="1" CornerRadius="8" Padding="12,10">
+                                                <StackPanel>
+                                                    <TextBlock Text="IDENTITY VERIFICATION" FontSize="10.5"
+                                                               Foreground="#8FC0E4" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding SclSelectedVerdictText}"
+                                                               Foreground="#F6D781" FontSize="14" FontWeight="SemiBold"
+                                                               Margin="0,5,0,3" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding SclSelectedVerdictDetailText}"
+                                                               Foreground="#BCD6E9" FontSize="11.5"
+                                                               TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Expander Grid.Row="4" Header="Expected / observed · technical details"
+                                                      IsExpanded="False" Foreground="#9FBBD5"
+                                                      ToolTip="Full source attributes and original matching evidence are retained">
+                                                <StackPanel>
+                                                    <Grid Margin="0,8,0,8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="10"/>
@@ -4230,18 +4248,11 @@
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
-
-                                            <Border Grid.Row="4" Style="{StaticResource PremiumSectionCardStyle}">
-                                                <StackPanel>
-                                                    <TextBlock Text="Binding Evidence" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold"/>
-                                                    <TextBlock Margin="0,7,0,0"
-                                                               Text="{Binding SclSelectedBindingText}"
-                                                               Foreground="#D6E8F8"
-                                                               FontSize="12"
-                                                               TextWrapping="Wrap"
-                                                               LineHeight="17"/>
+                                                    <TextBlock Text="{Binding SclSelectedBindingText}"
+                                                               Foreground="#ACCAE0" FontSize="11"
+                                                               Margin="3,0,0,5" TextWrapping="Wrap"/>
                                                 </StackPanel>
-                                            </Border>
+                                            </Expander>
 
                                             <Border Grid.Row="6" Style="{StaticResource PremiumSectionCardStyle}">
                                                 <Grid>
