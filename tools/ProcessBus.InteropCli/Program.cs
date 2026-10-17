@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Diagnostics;
 using ProcessBus.Core.Models.Scl;
 using ProcessBus.Core.Services.Scl;
 using ProcessBus.Iec61850.Raw.Interop;
@@ -53,11 +54,25 @@ try
     }
 
     using var stream = File.OpenRead(path);
+    // Local performance screening only: file-cache, CPU and disk affect these numbers.
+    // Do not confuse offline replay throughput with live NIC drop-free performance.
+    var process = Process.GetCurrentProcess();
+    var initialCpu = process.TotalProcessorTime;
+    var initialBytes = GC.GetTotalAllocatedBytes(precise: true);
+    var watch = Stopwatch.StartNew();
     var report = new PcapInteropInspector().Inspect(stream, expected, frameLimit);
+    watch.Stop();
+    var replayCpu = process.TotalProcessorTime - initialCpu;
+    var allocated = GC.GetTotalAllocatedBytes(precise: true) - initialBytes;
+    var replayFps = report.FramesRead / Math.Max(0.001, watch.Elapsed.TotalSeconds);
+    var allocatedPerFrame = allocated / Math.Max(1, report.FramesRead);
 
     Console.WriteLine($"Capture: {report.FramesRead} frames | {report.SvFrames} SV | " +
         $"{report.PtpMessages} PTP | {report.GooseFrames} GOOSE | " +
         $"{report.RejectedOrUnsupportedFrames} rejected/unsupported");
+    Console.WriteLine($"Local replay screening: {replayFps:0} frames/s, " +
+        $"CPU {replayCpu.TotalSeconds:0.##} s, " +
+        $"allocated {allocatedPerFrame:0} bytes/frame (not live NIC benchmark)");
     Console.WriteLine($"SV identities: {report.SvStreams.Count} | " +
         $"capacity-rejected ASDUs: {report.CapacityRejectedAsdus}");
     foreach (var item in report.SvStreams)
