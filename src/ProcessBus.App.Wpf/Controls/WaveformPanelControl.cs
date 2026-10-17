@@ -143,7 +143,7 @@ public sealed class WaveformPanelControl : FrameworkElement
     {
         if (isVoltage)
         {
-            if (string.Equals(_voltageUnit, unit, StringComparison.OrdinalIgnoreCase))
+            if (!WaveformAutoRangePolicy.UnitsChanged(_voltageUnit, unit))
                 return;
             _voltageUnit = unit;
             _voltageAutoPeak = 0;
@@ -151,7 +151,7 @@ public sealed class WaveformPanelControl : FrameworkElement
         }
         else
         {
-            if (string.Equals(_currentUnit, unit, StringComparison.OrdinalIgnoreCase))
+            if (!WaveformAutoRangePolicy.UnitsChanged(_currentUnit, unit))
                 return;
             _currentUnit = unit;
             _currentAutoPeak = 0;
@@ -497,9 +497,7 @@ public sealed class WaveformPanelControl : FrameworkElement
         {
             // A 1000× counts-to-V conversion (or sudden real magnitude change)
             // must not be hidden as a flat line for the entire hold timeout.
-            if (_voltageAutoPeak <= 0 ||
-                targetPeak < _voltageAutoPeak * 0.25 ||
-                targetPeak >= _voltageAutoPeak ||
+            if (WaveformAutoRangePolicy.ShouldReleasePeakHold(_voltageAutoPeak, targetPeak) ||
                 (now - _voltagePeakUpdatedUtc).TotalSeconds > PeakHoldSeconds)
             {
                 _voltageAutoPeak = targetPeak;
@@ -512,9 +510,7 @@ public sealed class WaveformPanelControl : FrameworkElement
             return Math.Max(_voltageAutoPeak, 1.0);
         }
 
-        if (_currentAutoPeak <= 0 ||
-            targetPeak < _currentAutoPeak * 0.25 ||
-            targetPeak >= _currentAutoPeak ||
+        if (WaveformAutoRangePolicy.ShouldReleasePeakHold(_currentAutoPeak, targetPeak) ||
             (now - _currentPeakUpdatedUtc).TotalSeconds > PeakHoldSeconds)
         {
             _currentAutoPeak = targetPeak;
