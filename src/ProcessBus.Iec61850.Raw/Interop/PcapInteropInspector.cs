@@ -28,11 +28,15 @@ public sealed class PcapInteropInspector
         var observed = new Dictionary<string, SvEvidenceBuilder>(StringComparer.Ordinal);
         var ptp = new PtpHealthTracker();
         long frames = 0, sv = 0, ptpCount = 0, goose = 0, rejected = 0, capped = 0;
+        var frameLimitReached = false;
         DateTime? first = null, last = null;
         foreach (var record in _reader.Read(pcap, cancellationToken))
         {
             if (frames >= maximumFrames)
+            {
+                frameLimitReached = true; // More records exist but were not evaluated.
                 break;
+            }
             frames++;
             first ??= record.CaptureTimeUtc;
             last = record.CaptureTimeUtc;
@@ -90,6 +94,18 @@ public sealed class PcapInteropInspector
             .Select(x => x.Finish()).ToArray();
         var expected = expectations ?? Array.Empty<SclSvStreamModel>();
         var comparison = expected.Select(x => Compare(x, facts)).ToArray();
+        if (capped > 0 || frameLimitReached)
+        {
+            // The reader did not examine every identity/frame. A partial
+            // capture must not be reported as a complete positive comparison.
+            comparison = comparison.Select(x => x with
+            {
+                Status = "CAPTURE_INCOMPLETE",
+                Explanation = $"{x.Status}: {x.Explanation}. " +
+                    (frameLimitReached ? "Frame limit reached. " : "") +
+                    (capped > 0 ? "Stream catalog saturated. " : "")
+            }).ToArray();
+        }
         var status = ptp.CreateSnapshot(last ?? DateTime.UtcNow);
 
         return new PcapInteropReport(
@@ -99,7 +115,7 @@ public sealed class PcapInteropInspector
             status.UnmatchedFollowUpCount,
             "Capture-file screening only. VLAN visibility depends on capture hardware; " +
             "PTP visibility is not clock lock. Independent TAP/SPAN, hardware timing " +
-            "and subscriber/IED acceptance remain unverified.");
+            "and subscriber/IED acceptance remain unverified.", frameLimitReached);
     }
 
     private static SclInteropComparison Compare(SclSvStreamModel expectation, IReadOnlyList<SvWireEvidence> observed)
@@ -123,7 +139,12 @@ public sealed class PcapInteropInspector
 
         var candidatesWithMismatches = candidates
             .Select(x => (Stream: x, Errors: CompareFields(expectation, x))).ToArray();
-        var exact = candidatesWithMismatches.FirstOrDefault(x => x.Errors.Count == 0);
+        var matching = candidatesWithMismatches.Where(x => x.Errors.Count == 0).ToArray();
+        if (matching.Length > 1)
+            return new(expectation.ControlBlockReference, "AMBIGUOUS_WIRE",
+                $"{matching.Length} independent observed publisher identities match the same SCL stream; select and investigate the true source");
+
+        var exact = matching.FirstOrDefault();
         if (exact.Stream is not null)
         {
             // Missing SCL fields cannot be turned into verified equality.
@@ -132,10 +153,25 @@ public sealed class PcapInteropInspector
                              expectation.ConfRev <= 0 ||
                              expectation.NofAsdu <= 0 ||
                              (string.IsNullOrWhiteSpace(expectation.VlanId) && exact.Stream.VlanId.HasValue);
-            return new(expectation.ControlBlockReference,
-                incomplete ? "INCOMPLETE_INTENT" : "WIRE_FIELDS_MATCH",
-                incomplete ? "Matching observed fields, but mandatory SCL intent is incomplete"
-                           : "Observed frame fields match configured identity; capture path and IED not verified",
+            if (incomplete)
+                return new(expectation.ControlBlockReference, "INCOMPLETE_INTENT",
+                    "Matching observed fields, but mandatory SCL intent is incomplete", exact.Stream.Key);
+
+            if (exact.Stream.AsduCount < 2)
+                return new(expectation.ControlBlockReference, "LIMITED_EVIDENCE",
+                    "One ASDU cannot establish sequence progression; record more than one sample", exact.Stream.Key);
+
+            if (exact.Stream.DuplicateCounters > 0 || exact.Stream.NonUnitCounterSteps > 0)
+                return new(expectation.ControlBlockReference, "SEQUENCE_WARNING",
+                    $"Observed duplicates={exact.Stream.DuplicateCounters}, non-unit steps={exact.Stream.NonUnitCounterSteps}. " +
+                    "Do not silently accept interrupted/ambiguous sample continuity", exact.Stream.Key);
+
+            if (exact.Stream.MinPayloadBytes != exact.Stream.MaxPayloadBytes)
+                return new(expectation.ControlBlockReference, "LAYOUT_DRIFT",
+                    $"Observed sample payload size changed: {exact.Stream.MinPayloadBytes}–{exact.Stream.MaxPayloadBytes} bytes", exact.Stream.Key);
+
+            return new(expectation.ControlBlockReference, "WIRE_FIELDS_MATCH",
+                "Observed identity fields agree and sequential evidence exists; capture path and IED still unverified",
                 exact.Stream.Key);
         }
 
@@ -279,7 +315,7 @@ public sealed record PcapInteropReport(
     IReadOnlyList<SvWireEvidence> SvStreams,
     IReadOnlyList<SclInteropComparison> Comparisons,
     int PtpSources, long MatchedTwoStep, long UnmatchedFollowUp,
-    string EvidenceLimitations)
+    string EvidenceLimitations, bool FrameLimitReached = false)
 {
     public bool IsPhysicallyAccepted => false; // offline software cannot certify this
 }
