@@ -822,6 +822,8 @@ public sealed class RawProcessBusAnalyzer
         private SvChannelMappingProfile? _lastDecodedMapping;
         private int _lastDecodedElementCount = -1;
         private bool _qualityAccepted = true;
+        private bool _knownFourI4VMapping;
+        private bool _lastMappingDisplayAccepted = true;
         private long _cachedWindowIndex = -1;
         private int _cachedWindowCycles;
         private IReadOnlyList<ScopeSampleFrame> _cachedWindow = Array.Empty<ScopeSampleFrame>();
@@ -1148,14 +1150,20 @@ public sealed class RawProcessBusAnalyzer
             var elementCount = payload.Length / sizeof(int);
             DecodedElementCount = elementCount;
 
-            // Never assume an arbitrary 64-byte SCL DataSet is eight instMag/q pairs.
-            var knownFourI4VLayout = payload.Length == 64 &&
-                (mappingProfile is null ||
-                 (mappingProfile.Elements.Count >= 3 && mappingProfile.Elements.All(e =>
-                     e.ElementIndex >= 0 && e.ElementIndex < 16 && e.ElementIndex % 2 == 0 &&
-                     (e.SignalReference.Contains("instMag", StringComparison.OrdinalIgnoreCase) ||
-                      e.TypeText.Contains("instMag", StringComparison.OrdinalIgnoreCase)))));
-            var quality = knownFourI4VLayout
+            var mappingChanged = !ReferenceEquals(_lastDecodedMapping, mappingProfile) ||
+                                 _lastDecodedElementCount != elementCount;
+            if (mappingChanged)
+            {
+                // Quality semantics are layout-specific. Never infer pair order for an
+                // arbitrary DataSet merely because it occupies 64 bytes.
+                _knownFourI4VMapping = mappingProfile is null ||
+                    (mappingProfile.Elements.Count >= 3 && mappingProfile.Elements.All(e =>
+                        e.ElementIndex >= 0 && e.ElementIndex < 16 && e.ElementIndex % 2 == 0 &&
+                        (e.SignalReference.Contains("instMag", StringComparison.OrdinalIgnoreCase) ||
+                         e.TypeText.Contains("instMag", StringComparison.OrdinalIgnoreCase))));
+            }
+
+            var quality = payload.Length == 64 && _knownFourI4VMapping
                 ? FourI4VQuality.Assess(payload)
                 : FourI4VQuality.MeasurementState.UnknownLayout;
             QualityStatusText = quality switch
@@ -1166,95 +1174,100 @@ public sealed class RawProcessBusAnalyzer
                 FourI4VQuality.MeasurementState.Untrusted => "4I+4V quality invalid: measurement withheld",
                 _ => "Quality mapping not verified"
             };
+
             if (quality == FourI4VQuality.MeasurementState.Untrusted)
             {
                 QualityRejectedSamples++;
                 if (_qualityAccepted)
                 {
                     _qualityAccepted = false;
-                    // Invalidate immediately, rather than leaving apparently valid stale RMS.
                     ClearRenderBuffers();
                 }
                 return;
             }
             _qualityAccepted = true;
 
-            if (!ReferenceEquals(_lastDecodedMapping, mappingProfile) || _lastDecodedElementCount != elementCount)
+            if (mappingChanged)
             {
                 ApplyMappingSignature(BuildMappingSignature(mappingProfile, elementCount));
                 _lastDecodedMapping = mappingProfile;
                 _lastDecodedElementCount = elementCount;
             }
-            var displayValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            // This stack-local value record replaces a per-frame Dictionary + eight
+            // dynamic entries. Stream ordering and strong identity remain unchanged.
+            var values = new ScopeSampleValues();
+            var samplesPerCycle = acceptForDisplay ? ResolveSamplesPerCycle() : 0;
 
             if (mappingProfile?.HasRenderableChannels == true)
             {
-                var sclMapped = new List<string>(mappingProfile.Elements.Count);
-                var sclUsed = new List<int>(mappingProfile.Elements.Count);
-
+                var mappedCount = 0;
                 foreach (var element in mappingProfile.Elements)
                 {
-                    if (element.ElementIndex < 0 || element.ElementIndex >= elementCount)
-                        continue;
-                    if (!_channelSamples.TryGetValue(element.ChannelName, out var samples))
+                    if (element.ElementIndex < 0 || element.ElementIndex >= elementCount ||
+                        !_channelSamples.TryGetValue(element.ChannelName, out var samples))
                         continue;
 
+                    mappedCount++;
                     if (acceptForDisplay)
                     {
-                        samples.Add(smpCnt, BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4)), ResolveSamplesPerCycle());
-                        displayValues[element.ChannelName] = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4));
+                        var sample = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4));
+                        samples.Add(smpCnt, sample, samplesPerCycle);
+                        values.Set(element.ChannelName, sample);
                     }
-
-                    sclMapped.Add($"{element.ChannelName}<-element[{element.ElementIndex}]");
-                    sclUsed.Add(element.ElementIndex);
                 }
 
-                if (sclMapped.Count > 0)
+                if (mappedCount > 0)
                 {
                     if (acceptForDisplay)
-                        AddScopeFrame(smpCnt, displayValues);
+                        AddScopeFrame(smpCnt, values);
 
-                    MappingProfileName = $"{mappingProfile.SourceText} / {mappingProfile.ControlBlockReference}";
-                    var displayGateText = acceptForDisplay ? string.Empty : " | display held by SV sequence gate";
-                    MappedChannelNamesText = $"{string.Join(", ", sclMapped)} | SCL DataSet {mappingProfile.DataSetReference} | Used elements: {string.Join(", ", sclUsed)}{displayGateText}";
+                    if (mappingChanged || _lastMappingDisplayAccepted != acceptForDisplay)
+                    {
+                        var eligible = mappingProfile.Elements.Where(e =>
+                            e.ElementIndex >= 0 && e.ElementIndex < elementCount &&
+                            _channelSamples.ContainsKey(e.ChannelName)).ToArray();
+                        MappingProfileName = $"{mappingProfile.SourceText} / {mappingProfile.ControlBlockReference}";
+                        MappedChannelNamesText = $"{string.Join(", ", eligible.Select(e => $"{e.ChannelName}<-element[{e.ElementIndex}]"))} | " +
+                            $"SCL DataSet {mappingProfile.DataSetReference} | Used elements: {string.Join(", ", eligible.Select(e => e.ElementIndex))}" +
+                            (acceptForDisplay ? "" : " | display held by SV sequence gate");
+                        _lastMappingDisplayAccepted = acceptForDisplay;
+                    }
                     return;
                 }
             }
 
-            if (elementCount < 15)
+            // Without an authoritative SCL binding, recognize ONLY the exact 64-byte
+            // eight instMag/q layout, not a truncated or arbitrary larger payload.
+            if (elementCount != 16)
             {
-                MappingProfileName = "Raw SV payload evidence";
-                MappedChannelNamesText = "Not mapped yet";
+                if (mappingChanged)
+                {
+                    MappingProfileName = "Raw SV payload evidence";
+                    MappedChannelNamesText = "Not mapped yet";
+                }
                 return;
             }
 
-            var mapped = new List<string>(OmicronInstMagQualityMap.Length);
-            var used = new List<int>(OmicronInstMagQualityMap.Length);
-
             foreach (var (channel, elementIndex) in OmicronInstMagQualityMap)
             {
-                if (elementIndex >= elementCount)
+                if (!acceptForDisplay)
                     continue;
-
-                if (acceptForDisplay)
-                {
-                    _channelSamples[channel].Add(smpCnt, BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4)), ResolveSamplesPerCycle());
-                    displayValues[channel] = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4));
-                }
-
-                mapped.Add(channel);
-                used.Add(elementIndex);
+                var sample = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4));
+                _channelSamples[channel].Add(smpCnt, sample, samplesPerCycle);
+                values.Set(channel, sample);
             }
 
-            if (mapped.Count > 0 && acceptForDisplay)
-                AddScopeFrame(smpCnt, displayValues);
+            if (acceptForDisplay)
+                AddScopeFrame(smpCnt, values);
 
-            MappingProfileName = IsOmicronStream(SvId)
-                ? $"OMICRON raw 4I4V instMag/q profile / {SvId}"
-                : "Raw 4I4V instMag/q candidate profile";
-            MappedChannelNamesText = mapped.Count == 0
-                ? "Not mapped yet"
-                : $"{string.Join(", ", mapped)} | Used elements: {string.Join(", ", used)}";
+            if (mappingChanged)
+            {
+                MappingProfileName = IsOmicronStream(SvId)
+                    ? $"OMICRON raw 4I4V instMag/q profile / {SvId}"
+                    : "Raw 4I4V instMag/q candidate profile";
+                MappedChannelNamesText = "Ia, Ib, Ic, In, Ua, Ub, Uc, Un | Used elements: 0, 2, 4, 6, 8, 10, 12, 14";
+            }
         }
 
         private static string BuildMappingSignature(SvChannelMappingProfile? mappingProfile, int decodedElementCount)
@@ -1268,7 +1281,7 @@ public sealed class RawProcessBusAnalyzer
                 return $"scl|{mappingProfile.ProfileKey}|{elementSignature}";
             }
 
-            return decodedElementCount >= 15
+            return decodedElementCount == 16
                 ? "raw|4i4v-instmag-q"
                 : "raw|unmapped";
         }
@@ -1430,7 +1443,7 @@ public sealed class RawProcessBusAnalyzer
             return lockedShape;
         }
 
-        private void AddScopeFrame(ushort? smpCnt, IReadOnlyDictionary<string, double> displayValues)
+        private void AddScopeFrame(ushort? smpCnt, ScopeSampleValues displayValues)
         {
             if (displayValues.Count == 0)
                 return;
@@ -1486,25 +1499,10 @@ public sealed class RawProcessBusAnalyzer
                 _lastScopeSampleCounter = null;
             }
 
-            _scopeFrames.Enqueue(new ScopeSampleFrame(
-                Index: _scopeFrameIndex,
-                SampleCounter: smpCnt,
-                Ia: TryGetDisplayValue(displayValues, "Ia"),
-                Ib: TryGetDisplayValue(displayValues, "Ib"),
-                Ic: TryGetDisplayValue(displayValues, "Ic"),
-                In: TryGetDisplayValue(displayValues, "In"),
-                Ua: TryGetDisplayValue(displayValues, "Ua"),
-                Ub: TryGetDisplayValue(displayValues, "Ub"),
-                Uc: TryGetDisplayValue(displayValues, "Uc"),
-                Un: TryGetDisplayValue(displayValues, "Un")));
+            _scopeFrames.Enqueue(displayValues.ToFrame(_scopeFrameIndex, smpCnt));
 
             while (_scopeFrames.Count > WaveformSampleCapacity)
                 _scopeFrames.Dequeue();
-        }
-
-        private static double? TryGetDisplayValue(IReadOnlyDictionary<string, double> values, string channel)
-        {
-            return values.TryGetValue(channel, out var value) ? value : null;
         }
 
         private IReadOnlyList<ScopeSampleFrame> BuildCoherentScopeWindow(int samplesPerCycle, int visibleSamples)
@@ -2349,6 +2347,32 @@ public sealed class RawProcessBusAnalyzer
                 2 => "SAMPLES_PER_PERIOD",
                 _ => smpMod?.ToString() ?? "N/A"
             };
+        }
+
+        // Fixed-size struct, no per-frame heap dictionary for the eight logical channels.
+        private struct ScopeSampleValues
+        {
+            public int Count { get; private set; }
+            public double? Ia, Ib, Ic, In, Ua, Ub, Uc, Un;
+            public void Set(string channel, double value)
+            {
+                switch (channel)
+                {
+                    case "Ia": Ia = value; break;
+                    case "Ib": Ib = value; break;
+                    case "Ic": Ic = value; break;
+                    case "In": In = value; break;
+                    case "Ua": Ua = value; break;
+                    case "Ub": Ub = value; break;
+                    case "Uc": Uc = value; break;
+                    case "Un": Un = value; break;
+                    default: return;
+                }
+                Count++;
+            }
+
+            public ScopeSampleFrame ToFrame(long index, ushort? count) =>
+                new(index, count, Ia, Ib, Ic, In, Ua, Ub, Uc, Un);
         }
 
         private readonly record struct ScopeSampleFrame(
