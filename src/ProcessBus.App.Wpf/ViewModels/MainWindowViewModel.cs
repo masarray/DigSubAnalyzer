@@ -69,6 +69,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private int _currentWorkspaceTabIndex;
     private bool _refreshInFlight;
     private DateTime _lastRefreshUtc = DateTime.MinValue;
+    private DateTime _lastSclEvaluationUtc = DateTime.MinValue;
     private long _lastObservedPacketCount = -1;
     private DateTime _lastPacketAdvanceUtc = DateTime.MinValue;
     private DateTime _lastGlobalRaiseUtc = DateTime.MinValue;
@@ -2244,18 +2245,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         var ptpObserved = Diagnostics.PtpObserved || _state.ProtocolMonitor.PtpFrames > 0;
+        var ptpStale = ptpObserved &&
+            (Diagnostics.PtpStatusText.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+             (Diagnostics.LastPtpMessageTimestampUtc is { } lastPtp &&
+              DateTime.UtcNow - lastPtp > TimeSpan.FromSeconds(6)));
         rows.Add(new TrafficHealthTargetRow
         {
             Protocol = "PTP",
             TargetKey = "PTP|reference",
             DisplayName = ptpObserved ? Diagnostics.PtpGrandmasterIdentity : "Timing reference",
             Subtitle = ptpObserved ? $"{Diagnostics.PtpTransportText}  -  {PtpDomainText}" : "No PTP observed",
-            StatusText = ptpObserved ? "OBSERVED" : "WAIT",
-            StatusBrush = ptpObserved ? "#70D7A7" : "#8FA8BF",
-            StatusSoftBrush = ptpObserved ? "#173528" : "#1C2A38",
-            IssueSummaryText = ptpObserved ? PtpRateText : "No PTP packets detected in current capture",
+            StatusText = ptpStale ? "STALE" : ptpObserved ? "OBSERVED" : "WAIT",
+            StatusBrush = ptpStale ? "#F0B533" : ptpObserved ? "#70D7A7" : "#8FA8BF",
+            StatusSoftBrush = ptpStale ? "#3A2B12" : ptpObserved ? "#173528" : "#1C2A38",
+            IssueSummaryText = ptpStale ? "PTP evidence expired; check source/domain and capture path" :
+                ptpObserved ? PtpRateText : "No PTP packets detected in current capture",
             LastSeenUtc = Diagnostics.LastPtpMessageTimestampUtc,
-            SeverityRank = ptpObserved ? 0 : 1,
+            SeverityRank = ptpStale || !ptpObserved ? 1 : 0,
             SourceId = "PTP"
         });
 
@@ -2949,6 +2955,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void RebuildSclBindingMatrix(bool force = false)
     {
+        // SCL expected-vs-observed joins can be O(expected * observed) and do not
+        // belong on every 8 FPS oscilloscope UI tick. Explicit SCL edits bypass the
+        // coalescing interval; passive evidence updates remain bounded to 500 ms.
+        var now = DateTime.UtcNow;
+        if (!force && now - _lastSclEvaluationUtc < TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
+            return;
+        _lastSclEvaluationUtc = now;
         var previousKey = _selectedSclBindingMatrixRow?.BindingKey;
         var rows = BuildSclBindingRows();
         var signature = string.Join("|", rows.Select(x => x.SignatureText));
