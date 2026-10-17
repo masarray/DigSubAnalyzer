@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -42,13 +41,6 @@ public sealed class WaveformPanelControl : FrameworkElement
     private double _currentAutoPeak;
     private DateTime _voltagePeakUpdatedUtc = DateTime.MinValue;
     private DateTime _currentPeakUpdatedUtc = DateTime.MinValue;
-    private readonly Stopwatch _smoothClock = new();
-    private WaveformSnapshot? _fromSnapshot;
-    private WaveformSnapshot? _targetSnapshot;
-    private WaveformSnapshot? _visualSnapshot;
-    private TimeSpan _lastVisualRender = TimeSpan.Zero;
-    private bool _renderLoopAttached;
-
     private const double AutoScaleHeadroom = 1.28;
     private const double AutoScaleSmoothing = 0.18;
     // Steady-state deadband: the observed window peak jitters a little every cycle, and an
@@ -57,15 +49,12 @@ public sealed class WaveformPanelControl : FrameworkElement
     private const double AutoScaleDeadband = 0.02;
     private const double PeakHoldSeconds = 6.0;
     private const double SamplesPerPixel = 0.8;
-    private const double VisualSmoothingMilliseconds = 120.0;
-    private const double VisualRenderFps = 30.0;
 
     public WaveformPanelControl()
     {
         Focusable = true;
         Cursor = Cursors.Cross;
-        // Raw SV scope renders atomically on Snapshot changes; no CompositionTarget animation loop.
-        Unloaded += (_, _) => DetachRenderLoop();
+        // Render only the latest immutable waveform snapshot; never tween real SV samples.
     }
 
     public static readonly DependencyProperty SnapshotProperty =
@@ -73,10 +62,7 @@ public sealed class WaveformPanelControl : FrameworkElement
             nameof(Snapshot),
             typeof(WaveformSnapshot),
             typeof(WaveformPanelControl),
-            new FrameworkPropertyMetadata(
-                null,
-                FrameworkPropertyMetadataOptions.AffectsRender,
-                OnSnapshotChanged));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty ShowModeProperty =
         DependencyProperty.Register(
@@ -124,32 +110,6 @@ public sealed class WaveformPanelControl : FrameworkElement
     {
         get => (WaveformSnapshot?)GetValue(SnapshotProperty);
         set => SetValue(SnapshotProperty, value);
-    }
-
-    private static void OnSnapshotChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)
-    {
-        if (dependencyObject is not WaveformPanelControl control)
-            return;
-
-        var next = args.NewValue as WaveformSnapshot;
-        if (next is null)
-        {
-            control._fromSnapshot = null;
-            control._targetSnapshot = null;
-            control._visualSnapshot = null;
-            control.DetachRenderLoop();
-            control.InvalidateVisual();
-            return;
-        }
-
-        // Raw SV scope must not tween/interpolate between snapshots. Interpolation makes a
-        // stable phase-locked waveform crawl and creates fake transient shapes between two
-        // real SV sample windows. Render the latest snapshot atomically, ARSVIN-style.
-        control.DetachRenderLoop();
-        control._fromSnapshot = null;
-        control._targetSnapshot = next;
-        control._visualSnapshot = next;
-        control.InvalidateVisual();
     }
 
     public string ShowMode
@@ -202,7 +162,7 @@ public sealed class WaveformPanelControl : FrameworkElement
         var bounds = new Rect(new Point(0, 0), RenderSize);
         dc.DrawRectangle(PanelBrush, null, bounds);
 
-        var snapshot = _visualSnapshot ?? Snapshot;
+        var snapshot = Snapshot;
         if (snapshot is null || (snapshot.VoltageSeries.Count == 0 && snapshot.CurrentSeries.Count == 0))
         {
             DrawCenteredMessage(dc, bounds, "Waveform data pending");
@@ -236,141 +196,6 @@ public sealed class WaveformPanelControl : FrameworkElement
             DrawLane(dc, laneRect, lane, snapshot);
             top += laneHeight + laneGap;
         }
-    }
-
-    private void AttachRenderLoopIfNeeded()
-    {
-        if (_renderLoopAttached || !IsLoaded)
-            return;
-
-        CompositionTarget.Rendering += OnCompositionRendering;
-        _renderLoopAttached = true;
-    }
-
-    private void DetachRenderLoop()
-    {
-        if (!_renderLoopAttached)
-            return;
-
-        CompositionTarget.Rendering -= OnCompositionRendering;
-        _renderLoopAttached = false;
-    }
-
-    private void OnCompositionRendering(object? sender, EventArgs e)
-    {
-        if (_fromSnapshot is null || _targetSnapshot is null)
-        {
-            DetachRenderLoop();
-            return;
-        }
-
-        var elapsed = _smoothClock.Elapsed;
-        if (elapsed - _lastVisualRender < TimeSpan.FromMilliseconds(1000.0 / VisualRenderFps))
-            return;
-
-        _lastVisualRender = elapsed;
-        var progress = Math.Clamp(elapsed.TotalMilliseconds / VisualSmoothingMilliseconds, 0.0, 1.0);
-        var eased = EaseOutCubic(progress);
-        _visualSnapshot = progress >= 1.0
-            ? _targetSnapshot
-            : InterpolateSnapshot(_fromSnapshot, _targetSnapshot, eased);
-
-        InvalidateVisual();
-
-        if (progress >= 1.0)
-            DetachRenderLoop();
-    }
-
-    private static bool HasAnySeries(WaveformSnapshot snapshot)
-    {
-        return snapshot.VoltageSeries.Count > 0 || snapshot.CurrentSeries.Count > 0;
-    }
-
-    private static WaveformSnapshot InterpolateSnapshot(WaveformSnapshot from, WaveformSnapshot to, double amount)
-    {
-        return new WaveformSnapshot
-        {
-            VoltageSeries = InterpolateSeries(from.VoltageSeries, to.VoltageSeries, amount),
-            CurrentSeries = InterpolateSeries(from.CurrentSeries, to.CurrentSeries, amount),
-            SampleRateHz = Lerp(from.SampleRateHz, to.SampleRateHz, amount),
-            MeasuredFrequencyHz = Lerp(from.MeasuredFrequencyHz, to.MeasuredFrequencyHz, amount),
-            WindowDurationMilliseconds = Lerp(from.WindowDurationMilliseconds, to.WindowDurationMilliseconds, amount),
-            StatusText = to.StatusText,
-            ShapeSeverity = to.ShapeSeverity,
-            ShapeStatusText = to.ShapeStatusText,
-            HasShapeWarning = to.HasShapeWarning,
-            SamplesPerCycle = to.SamplesPerCycle,
-            IsReconstructed = to.IsReconstructed
-        };
-    }
-
-    private static IReadOnlyList<WaveformSeriesModel> InterpolateSeries(
-        IReadOnlyList<WaveformSeriesModel> fromSeries,
-        IReadOnlyList<WaveformSeriesModel> toSeries,
-        double amount)
-    {
-        if (toSeries.Count == 0)
-            return Array.Empty<WaveformSeriesModel>();
-
-        var fromByName = fromSeries.ToDictionary(item => item.Name, StringComparer.OrdinalIgnoreCase);
-        var result = new WaveformSeriesModel[toSeries.Count];
-        for (var i = 0; i < toSeries.Count; i++)
-        {
-            var target = toSeries[i];
-            if (!fromByName.TryGetValue(target.Name, out var source) || source.Samples.Count == 0 || target.Samples.Count == 0)
-            {
-                result[i] = target;
-                continue;
-            }
-
-            var samples = new double[target.Samples.Count];
-            for (var sampleIndex = 0; sampleIndex < samples.Length; sampleIndex++)
-            {
-                var fraction = samples.Length <= 1 ? 0.0 : sampleIndex / (samples.Length - 1.0);
-                var sourceValue = SampleAt(source.Samples, fraction);
-                samples[sampleIndex] = Lerp(sourceValue, target.Samples[sampleIndex], amount);
-            }
-
-            result[i] = new WaveformSeriesModel
-            {
-                Name = target.Name,
-                Unit = target.Unit,
-                Samples = samples,
-                ShapeSeverity = target.ShapeSeverity,
-                ShapeStatusText = target.ShapeStatusText,
-                ShapeResidualPercent = target.ShapeResidualPercent,
-                CrestFactor = target.CrestFactor,
-                HasShapeDistortion = target.HasShapeDistortion
-            };
-        }
-
-        return result;
-    }
-
-    private static double SampleAt(IReadOnlyList<double> samples, double fraction)
-    {
-        if (samples.Count == 0)
-            return 0;
-
-        if (samples.Count == 1)
-            return samples[0];
-
-        var position = Math.Clamp(fraction, 0.0, 1.0) * (samples.Count - 1);
-        var left = (int)Math.Floor(position);
-        var right = Math.Min(samples.Count - 1, left + 1);
-        var amount = position - left;
-        return Lerp(samples[left], samples[right], amount);
-    }
-
-    private static double Lerp(double from, double to, double amount)
-    {
-        return from + ((to - from) * amount);
-    }
-
-    private static double EaseOutCubic(double amount)
-    {
-        var inverse = 1.0 - Math.Clamp(amount, 0.0, 1.0);
-        return 1.0 - (inverse * inverse * inverse);
     }
 
     private void DrawLane(DrawingContext dc, Rect rect, LaneDefinition lane, WaveformSnapshot snapshot)
