@@ -17,6 +17,9 @@ public sealed class RawProcessBusAnalyzer
     private readonly Dictionary<string, SvStreamState> _svStreams = new(StringComparer.OrdinalIgnoreCase);
     // Per-stream operator evidence, never inferred from svID, APPID or payload count.
     private readonly Dictionary<string, SvEngineeringScale> _svScales = new(StringComparer.OrdinalIgnoreCase);
+    // Mapping eligibility is stable until the operator reloads SCL/mapping context.
+    // Avoid scoring + LINQ allocations for every 4,000/4,800 Hz ASDU.
+    private readonly Dictionary<string, SvChannelMappingProfile?> _resolvedSvMappings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, AggregatedEventState> _aggregatedEvents = new(StringComparer.OrdinalIgnoreCase);
     private readonly PtpHealthTracker _ptpTracker = new();
@@ -144,6 +147,7 @@ public sealed class RawProcessBusAnalyzer
         {
             _svStreams.Clear();
             _svScales.Clear();
+            _resolvedSvMappings.Clear();
             _gooseStates.Clear();
             _events.Clear();
             _aggregatedEvents.Clear();
@@ -206,6 +210,7 @@ public sealed class RawProcessBusAnalyzer
         lock (_gate)
         {
             var nextMappings = profiles.Where(x => x.HasRenderableChannels).ToArray();
+            _resolvedSvMappings.Clear();
             var nextSignature = BuildMappingSetSignature(nextMappings);
             if (string.Equals(_svChannelMappingSetSignature, nextSignature, StringComparison.Ordinal))
             {
@@ -246,7 +251,12 @@ public sealed class RawProcessBusAnalyzer
                 AddEvent("Info", $"Raw SV stream detected: {DescribeSv(packet.Frame, asdu)}.");
             }
 
-            state.Observe(packet.Frame, asdu, ResolveSvMappingProfile(packet.Frame, asdu));
+            if (!_resolvedSvMappings.TryGetValue(key, out var mapping))
+            {
+                mapping = ResolveSvMappingProfile(packet.Frame, asdu);
+                _resolvedSvMappings[key] = mapping;
+            }
+            state.Observe(packet.Frame, asdu, mapping);
             if (state.ConsumeJitterEvidence() is { } jitterEvidence)
             {
                 AddAggregatedEvent(
@@ -804,7 +814,7 @@ public sealed class RawProcessBusAnalyzer
             ("Un", 14)
         ];
 
-        private readonly Queue<double> _absJitterWindow = new();
+        private readonly RollingJitterWindow _jitterWindow = new(JitterWindowCapacity);
         private readonly Queue<DateTime> _recentJitterExcursions = new();
         private readonly Queue<DateTime> _recentPacketTimes = new();
         private readonly Queue<ScopeSampleFrame> _scopeFrames = new(WaveformSampleCapacity + 8);
@@ -816,7 +826,6 @@ public sealed class RawProcessBusAnalyzer
         private ushort _maxSeenScopeSampleCounter;
         private WaveformSnapshot? _lastScopeWaveform;
         private AnalogValuesSnapshot? _lastAnalogValues;
-        private double _absJitterWindowTotalMicroseconds;
         private double _totalDeltaMicroseconds;
         private long _deltaCount;
         private ushort? _previousSmpCnt;
@@ -1643,10 +1652,8 @@ public sealed class RawProcessBusAnalyzer
                     var absJitter = Math.Abs(signedJitter);
                     CurrentJitterMicroseconds = signedJitter;
                     AddJitter(absJitter);
-                    AverageAbsJitterMicroseconds = _absJitterWindow.Count == 0
-                        ? null
-                        : _absJitterWindowTotalMicroseconds / _absJitterWindow.Count;
-                    MaxAbsJitterMicroseconds = _absJitterWindow.Count == 0 ? null : _absJitterWindow.Max();
+                    AverageAbsJitterMicroseconds = _jitterWindow.Average;
+                    MaxAbsJitterMicroseconds = _jitterWindow.Maximum;
 
                     if (absJitter >= JitterAlertThresholdMicroseconds)
                     {
@@ -1707,11 +1714,7 @@ public sealed class RawProcessBusAnalyzer
 
         private void AddJitter(double absJitterUs)
         {
-            _absJitterWindow.Enqueue(absJitterUs);
-            _absJitterWindowTotalMicroseconds += absJitterUs;
-
-            while (_absJitterWindow.Count > JitterWindowCapacity)
-                _absJitterWindowTotalMicroseconds -= _absJitterWindow.Dequeue();
+            _jitterWindow.Add(absJitterUs);
         }
 
         private void TrackRecentJitterExcursion(DateTime nowUtc)
