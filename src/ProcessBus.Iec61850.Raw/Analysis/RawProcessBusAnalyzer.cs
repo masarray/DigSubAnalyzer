@@ -2350,9 +2350,8 @@ public sealed class RawProcessBusAnalyzer
         /// </summary>
         private int ResolveSequenceWrapBase()
         {
-            if (SmpRate is > 0)
-                return SmpRate.Value;
-
+            // SmpRate/SmpMod express sampling semantics, NOT a universal counter
+            // modulus. Never reinterpret an 80-samples/cycle field as 80-count wrap.
             // A highest *observed* counter is not a verified wrap modulus.
             // Missing the last packet(s) of a second makes maxSeen+1 one or
             // more counts too small and falsely classifies a gap as contiguous.
