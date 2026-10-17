@@ -1343,6 +1343,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string SclSelectedBindingText => SelectedSclBindingMatrixRow?.StatusSummaryText
         ?? SelectedSclStreamCatalog?.LiveStatusText
         ?? "Binding pending";
+    public string SclSelectedVerdictText => SelectedSclBindingMatrixRow?.OperatorVerdictText
+        ?? "Select a stream to inspect its live identity.";
+    public string SclSelectedVerdictDetailText => SelectedSclBindingMatrixRow?.OperatorEvidenceText
+        ?? "Compare the selected SCL stream with captured publisher identity.";
     public string SclSelectedExpectedText => SelectedSclBindingMatrixRow?.ExpectedDetailText
         ?? SelectedSclStreamCatalog?.TransportText
         ?? "No expected stream selected";
@@ -3967,6 +3971,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclSelectedTransportText));
         OnPropertyChanged(nameof(SclSelectedDatasetText));
         OnPropertyChanged(nameof(SclSelectedBindingText));
+        OnPropertyChanged(nameof(SclSelectedVerdictText));
+        OnPropertyChanged(nameof(SclSelectedVerdictDetailText));
         OnPropertyChanged(nameof(SclSelectedExpectedText));
         OnPropertyChanged(nameof(SclSelectedObservedText));
         OnPropertyChanged(nameof(SelectedSclBindingMatrixRow));
@@ -4991,7 +4997,26 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
         _ => "#8FA8BF"
     };
 
-    public string StatusSummaryText => $"{StatusText}  -  confidence {Score}%  -  {EvidenceText}";
+    // Similarity score ranks observed candidates; it is NOT the probability
+    // that the publisher matches the engineering configuration.
+    public string StatusSummaryText => $"{StatusText} · match score {Score}% · {EvidenceText}";
+    public string OperatorVerdictText => StatusText switch
+    {
+        "MISMATCH" when Protocol == "SV" &&
+                        !string.Equals(ExpectedName, ObservedName, StringComparison.OrdinalIgnoreCase)
+            => "MISMATCH · svID differs",
+        "MISMATCH" => "MISMATCH · publisher attributes differ",
+        "MATCHED" => "MATCHED · observed identity agrees",
+        "MATCHED_WITH_WARNING" => "MATCHED · design warning",
+        "MISSING" => "NOT OBSERVED · expected stream",
+        "UNEXPECTED" => "UNEXPECTED · not defined in SCL",
+        "AMBIGUOUS" => "AMBIGUOUS · multiple identity candidates",
+        "CONFLICT" => "CONFLICT · identity collision",
+        _ => $"{StatusText} · verify identity"
+    };
+    public string OperatorEvidenceText => string.IsNullOrWhiteSpace(EvidencePrimaryText)
+        ? "Inspect the original expected/observed attributes."
+        : EvidencePrimaryText + " · Match score " + Score.ToString(System.Globalization.CultureInfo.InvariantCulture) + "% (not probability)";
     public string StatusBackgroundBrush => StatusText switch
     {
         "MATCHED" => "#17382C",
@@ -5005,7 +5030,7 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
         _ => "#142235"
     };
 
-    public string ScoreText => Score > 0 ? $"{Score}% confidence" : "No score";
+    public string ScoreText => Score > 0 ? $"Match score {Score}%" : "No score";
     public string ExpectedMetaText => string.Join(" - ", new[] { IedName, AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public string ObservedMetaText => string.IsNullOrWhiteSpace(LiveKey) ? "Not seen on selected adapter" : string.Join(" - ", new[] { AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public string EvidencePrimaryText => SplitEvidence(EvidenceText).Primary;
