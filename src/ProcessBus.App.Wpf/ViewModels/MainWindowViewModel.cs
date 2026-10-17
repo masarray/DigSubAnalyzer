@@ -1760,6 +1760,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public string PtpTwoStepEvidenceText => !Diagnostics.PtpObserved
+        ? "Two-step pairing: no PTP observed"
+        : $"Two-step pairs: {Diagnostics.PtpMatchedTwoStepCount}; unmatched Follow_Up: {Diagnostics.PtpUnmatchedFollowUpCount} (passive evidence)";
+
     public string PtpTransportText => Diagnostics.PtpObserved
         ? $"Transport: {Diagnostics.PtpTransportText}"
         : "Transport: N/A";
@@ -2581,6 +2585,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(PtpDomainText));
         OnPropertyChanged(nameof(PtpClockQualityText));
         OnPropertyChanged(nameof(PtpRateText));
+        OnPropertyChanged(nameof(PtpTwoStepEvidenceText));
         OnPropertyChanged(nameof(PtpProfileText));
         OnPropertyChanged(nameof(PtpTransportText));
         OnPropertyChanged(nameof(TimingReferenceText));
@@ -2622,6 +2627,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(PtpDomainText));
         OnPropertyChanged(nameof(PtpClockQualityText));
         OnPropertyChanged(nameof(PtpRateText));
+        OnPropertyChanged(nameof(PtpTwoStepEvidenceText));
         OnPropertyChanged(nameof(PtpProfileText));
         OnPropertyChanged(nameof(PtpTransportText));
         OnPropertyChanged(nameof(TimingReferenceText));
