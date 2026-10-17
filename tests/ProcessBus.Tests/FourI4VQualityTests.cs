@@ -11,6 +11,8 @@ public class FourI4VQualityTests
     [InlineData(1u, FourI4VQuality.MeasurementState.Untrusted)]
     [InlineData(3u, FourI4VQuality.MeasurementState.Untrusted)]
     [InlineData(1u << 6, FourI4VQuality.MeasurementState.Untrusted)]
+    [InlineData(1u << 10, FourI4VQuality.MeasurementState.Untrusted)]
+    [InlineData(1u << 30, FourI4VQuality.MeasurementState.Untrusted)]
     [InlineData(1u << 11, FourI4VQuality.MeasurementState.Test)]
     [InlineData(1u << 12, FourI4VQuality.MeasurementState.OperatorBlocked)]
     public void QualityInterpretationMatchesArstackWireFlags(
