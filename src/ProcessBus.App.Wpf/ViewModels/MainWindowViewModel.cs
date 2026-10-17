@@ -315,6 +315,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     // This collection contains capture-wide evidence; do not label it as
     // filtered to the diagnostic target when the backend has not supplied such a filter.
+    // One bounded operator hint derived from actual SV evidence; not an
+    // automated root-cause diagnosis or an accusation against the publisher.
+    public string DiagnosticOperatorGuidanceText
+    {
+        get
+        {
+            if (!string.Equals(SelectedDiagnosticTarget?.Protocol, "SV", StringComparison.OrdinalIgnoreCase))
+                return "Inspect selected protocol evidence below; passive capture cannot verify subscriber operation.";
+            if (Diagnostics.SequenceErrors > 0 || Diagnostics.MissingSamples > 0)
+                return "smpCnt discontinuities observed. Compare publisher counters and capture-path drops before assigning the cause.";
+            if (Diagnostics.RecentJitterOver300MicrosecondsCount > 0)
+                return "Arrival excursions in the last 5 s. Inspect adapter/USB timestamping or SPAN/TAP before attributing publisher jitter.";
+            if (Diagnostics.SmpSynchText == "0")
+                return "Publisher reports unsynchronized samples (smpSynch=0); observed PTP packets do not establish clock lock.";
+            return "No current sample-sequence alert; inspect the capture timeline for historical excursions.";
+        }
+    }
+
     public string DiagnosticFindingsHeaderText => "Recent capture findings · all sources";
 
 
@@ -2495,6 +2513,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(DiagnosticTargetHealthText));
         OnPropertyChanged(nameof(DiagnosticAffectedSummaryText));
         OnPropertyChanged(nameof(DiagnosticFindingsHeaderText));
+        OnPropertyChanged(nameof(DiagnosticOperatorGuidanceText));
     }
 
     private static string ShortenMac(string value)
@@ -2656,6 +2675,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // Without this notification direct bindings (e.g. PTP matched pair count)
         // froze at zero while independently-notified summary text kept advancing.
         OnPropertyChanged(nameof(Diagnostics));
+        OnPropertyChanged(nameof(DiagnosticOperatorGuidanceText));
         OnPropertyChanged(nameof(HealthIcon));
         OnPropertyChanged(nameof(HealthBackgroundBrush));
         OnPropertyChanged(nameof(IsHealthy));
