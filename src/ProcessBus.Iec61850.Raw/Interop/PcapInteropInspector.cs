@@ -170,6 +170,12 @@ public sealed class PcapInteropInspector
                 return new(expectation.ControlBlockReference, "LAYOUT_DRIFT",
                     $"Observed sample payload size changed: {exact.Stream.MinPayloadBytes}–{exact.Stream.MaxPayloadBytes} bytes", exact.Stream.Key);
 
+            if (exact.Stream.Candidate4000Wraps > 0 || exact.Stream.Candidate4800Wraps > 0)
+                return new(expectation.ControlBlockReference, "COUNTER_POLICY_UNRESOLVED",
+                    $"Observed {exact.Stream.Candidate4000Wraps} × 4000 and {exact.Stream.Candidate4800Wraps} × 4800 smpCnt wrap candidates. " +
+                    "Sampling rate alone cannot authorize a counter modulus; validate applicable profile/capture authority",
+                    exact.Stream.Key);
+
             return new(expectation.ControlBlockReference, "WIRE_FIELDS_MATCH",
                 "Observed identity fields agree and sequential evidence exists; capture path and IED still unverified",
                 exact.Stream.Key);
