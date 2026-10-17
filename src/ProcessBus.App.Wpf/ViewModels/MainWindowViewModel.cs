@@ -1512,6 +1512,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     // ===== HEALTH =====
     private bool HasDiagnosticWarning =>
         Diagnostics.DecodeErrors > 0 ||
+        Diagnostics.CaptureDriverDroppedFrames > 0 ||
         Diagnostics.SequenceErrors > 0 ||
         Diagnostics.MissingSamples > 0 ||
         Diagnostics.RecentJitterOver300MicrosecondsCount > 0 ||
@@ -1694,9 +1695,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private string OperatorSvGuidanceText
+    {
+        get
+        {
+            if (SelectedStream is null)
+                return "Waiting for SV";
+            if (SelectedStream.IssueSummaryText.Contains("diagnostic mirror", StringComparison.OrdinalIgnoreCase))
+                return "Lab mirror only  •  Canonical SV unverified";
+            if (Diagnostics.ValidityText.Contains("invalid", StringComparison.OrdinalIgnoreCase))
+                return "Invalid SV quality  •  Measurements withheld";
+            if (!SelectedStream.IsActive)
+                return "Stream stale  •  Check publisher or capture path";
+            return "Host arrival timing only  •  Not calibrated";
+        }
+    }
+
     public string WorkspaceFooterLeftText => CurrentWorkspaceTabIndex switch
     {
-        0 => $"SV  -  {SelectedStreamDetails?.MappedChannelNamesText ?? "No SV stream selected"}",
+        0 => SelectedStream is null
+            ? "SV  •  Select a stream from the explorer"
+            : $"SV  •  {SelectedStream.SvId}  •  {SelectedStream.AppId}  •  {SelectedStream.DisplayStatusText}",
         1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
         2 => $"GOOSE  -  {_gooseMessages.Count} publisher(s)  -  {_gooseHistory.Count} event(s)",
         3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
@@ -1708,7 +1727,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string WorkspaceFooterRightText => CurrentWorkspaceTabIndex switch
     {
-        0 => "SV scope locked to selected stream",
+        0 => OperatorSvGuidanceText,
         1 => TimingConfidenceBadgeText,
         2 => GooseFilterSummaryText,
         3 => TimingConfidenceBadgeText,
