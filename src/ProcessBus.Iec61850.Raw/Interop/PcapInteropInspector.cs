@@ -20,7 +20,8 @@ public sealed class PcapInteropInspector
         Stream pcap,
         IReadOnlyList<SclSvStreamModel>? expectations = null,
         int maximumFrames = 1_000_000,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<PcapInspectionProgress>? progress = null)
     {
         if (maximumFrames < 1 || maximumFrames > 50_000_000)
             throw new ArgumentOutOfRangeException(nameof(maximumFrames));
@@ -38,6 +39,13 @@ public sealed class PcapInteropInspector
                 break;
             }
             frames++;
+            if ((frames & 0x3FFF) == 0)
+            {
+                // One progress notification per 16k frames; not per sample.
+                // The caller owns UI scheduling and may cancel independently.
+                progress?.Report(new PcapInspectionProgress(frames, pcap.CanSeek ? pcap.Position : null,
+                    pcap.CanSeek ? pcap.Length : null));
+            }
             first ??= record.CaptureTimeUtc;
             last = record.CaptureTimeUtc;
 
@@ -107,6 +115,8 @@ public sealed class PcapInteropInspector
             }).ToArray();
         }
         var status = ptp.CreateSnapshot(last ?? DateTime.UtcNow);
+        progress?.Report(new PcapInspectionProgress(frames, pcap.CanSeek ? pcap.Position : null,
+            pcap.CanSeek ? pcap.Length : null));
 
         return new PcapInteropReport(
             frames, sv, goose, ptpCount, rejected, capped,
@@ -324,4 +334,12 @@ public sealed record PcapInteropReport(
     string EvidenceLimitations, bool FrameLimitReached = false)
 {
     public bool IsPhysicallyAccepted => false; // offline software cannot certify this
+}
+
+/// <summary>Throttled offline PCAP progress; bytes are nullable on non-seekable streams.</summary>
+public readonly record struct PcapInspectionProgress(long FramesRead, long? BytesRead, long? TotalBytes)
+{
+    public int? Percent => BytesRead.HasValue && TotalBytes > 0
+        ? (int)Math.Clamp(BytesRead.Value * 100.0 / TotalBytes.Value, 0, 100)
+        : null;
 }
