@@ -1606,6 +1606,24 @@ public sealed class RawProcessBusAnalyzer
             if (frames.Length < window)
                 return Array.Empty<ScopeSampleFrame>();
 
+            // Prefer a real positive-going Ua zero crossing for the visible
+            // window. Take a contiguous chronological slice from existing SV
+            // frames; never rotate, interpolate, or synthesize wire samples.
+            // Leave up to one measured cycle of slack for an aligned 1/2/4/8
+            // cycle window, otherwise retain the established slot-locked fallback.
+            var alignedStart = FindUaRisingStart(frames, window, pointsPerCycle);
+            if (alignedStart >= 0)
+            {
+                var aligned = new ScopeSampleFrame[window];
+                for (var index = 0; index < window; index++)
+                    aligned[index] = frames[alignedStart + index] with { Index = index };
+
+                _cachedWindow = aligned;
+                _cachedWindowIndex = _scopeFrameIndex;
+                _cachedWindowCycles = _scopeCycles;
+                return _cachedWindow;
+            }
+
             var slots = new ScopeSampleFrame?[window];
             foreach (var frame in frames)
             {
@@ -1631,6 +1649,50 @@ public sealed class RawProcessBusAnalyzer
             _cachedWindowIndex = _scopeFrameIndex;
             _cachedWindowCycles = _scopeCycles;
             return _cachedWindow;
+        }
+
+        // Called only when publishing a snapshot, never per received packet.
+        // Index continuity is mandatory: otherwise a sample loss could become
+        // a visually convincing periodic signal by compressing the time axis.
+        private static int FindUaRisingStart(
+            IReadOnlyList<ScopeSampleFrame> frames, int window, int samplesPerCycle)
+        {
+            var latestStart = frames.Count - window;
+            if (latestStart < 1 || samplesPerCycle < 2)
+                return -1;
+
+            var firstCandidate = Math.Max(1, latestStart - samplesPerCycle);
+            for (var start = latestStart; start >= firstCandidate; start--)
+            {
+                var previous = frames[start - 1].GetValue("Ua");
+                var current = frames[start].GetValue("Ua");
+                if (!previous.HasValue || !current.HasValue ||
+                    !double.IsFinite(previous.Value) || !double.IsFinite(current.Value) ||
+                    previous.Value > 0 || current.Value < 0 ||
+                    (previous.Value == 0 && current.Value == 0))
+                    continue;
+
+                var contiguous = frames[start].Index == frames[start - 1].Index + 1;
+                var peak = 0.0;
+                for (var i = 0; contiguous && i < window; i++)
+                {
+                    var frame = frames[start + i];
+                    var value = frame.GetValue("Ua");
+                    if (!value.HasValue || !double.IsFinite(value.Value) ||
+                        (i > 0 && frame.Index != frames[start + i - 1].Index + 1))
+                    {
+                        contiguous = false;
+                        break;
+                    }
+                    peak = Math.Max(peak, Math.Abs(value.Value));
+                }
+
+                // Flat/noisy Ua is not a meaningful phase reference.
+                if (contiguous && peak > 1e-6)
+                    return start;
+            }
+
+            return -1;
         }
 
         private static int ResolveArsvinPointsPerCycle(int samplesPerCycle)
