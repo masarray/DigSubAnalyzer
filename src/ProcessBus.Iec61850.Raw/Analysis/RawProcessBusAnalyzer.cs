@@ -238,9 +238,14 @@ public sealed class RawProcessBusAnalyzer
             return;
         }
 
+        // Multiple ASDUs share one Ethernet capture timestamp. Track sequence per ASDU,
+        // but never treat intra-frame sample intervals as observed RX timing.
+        var multipleAsdus = packet.Asdus.Count > 1;
+        HashSet<string>? frameStreams = multipleAsdus ? new(StringComparer.OrdinalIgnoreCase) : null;
         foreach (var asdu in packet.Asdus)
         {
             var key = BuildSvKey(packet.Frame, asdu);
+            var firstForStreamInFrame = frameStreams?.Add(key) ?? true;
 
             if (!_svStreams.TryGetValue(key, out var state))
             {
@@ -256,7 +261,7 @@ public sealed class RawProcessBusAnalyzer
                 mapping = ResolveSvMappingProfile(packet.Frame, asdu);
                 _resolvedSvMappings[key] = mapping;
             }
-            state.Observe(packet.Frame, asdu, mapping);
+            state.Observe(packet.Frame, asdu, mapping, firstForStreamInFrame, multipleAsdus);
             if (state.ConsumeJitterEvidence() is { } jitterEvidence)
             {
                 AddAggregatedEvent(
@@ -541,8 +546,8 @@ public sealed class RawProcessBusAnalyzer
         {
             IsRunning = true,
             StreamStatusText = "Raw SV stream active",
-            PacketRatePps = selected.RecentPacketRatePps ?? selected.PacketCount / elapsedSeconds,
-            TotalPackets = selected.PacketCount,
+            PacketRatePps = selected.RecentPacketRatePps ?? selected.FrameCount / elapsedSeconds,
+            TotalPackets = selected.FrameCount,
             DecodeErrors = _decodeErrors,
             SequenceErrors = selected.SequenceErrors,
             MissingSamples = selected.MissingSamples,
@@ -822,6 +827,7 @@ public sealed class RawProcessBusAnalyzer
         private SvChannelMappingProfile? _lastDecodedMapping;
         private int _lastDecodedElementCount = -1;
         private bool _qualityAccepted = true;
+        private bool _previousMultiAsduFrame;
         private bool _knownFourI4VMapping;
         private bool _lastMappingDisplayAccepted = true;
         private long _cachedWindowIndex = -1;
@@ -888,7 +894,8 @@ public sealed class RawProcessBusAnalyzer
         public ushort? SmpMod { get; private set; }
         public byte? SmpSynch { get; private set; }
         public int LastPayloadBytes { get; private set; }
-        public long PacketCount { get; private set; }
+        public long PacketCount { get; private set; } // decoded ASDUs
+        public long FrameCount { get; private set; } // observed Ethernet frames for this SV identity
         public long SequenceErrors { get; private set; }
         public long MissingSamples { get; private set; }
         public double? CurrentDeltaMicroseconds { get; private set; }
@@ -921,9 +928,12 @@ public sealed class RawProcessBusAnalyzer
             ClearRenderBuffers();
         }
 
-        public void Observe(ProcessBusFrame frame, SampledValueAsdu asdu, SvChannelMappingProfile? mappingProfile)
+        public void Observe(ProcessBusFrame frame, SampledValueAsdu asdu, SvChannelMappingProfile? mappingProfile,
+            bool firstAsduInFrame, bool multipleAsdus)
         {
             PacketCount++;
+            if (firstAsduInFrame)
+                FrameCount++;
             SvId = ValueOrFallback(asdu.SvId, "N/A");
             DataSet = ValueOrFallback(asdu.DataSet, "N/A");
             AppId = FormatAppId(frame.AppId);
@@ -939,11 +949,12 @@ public sealed class RawProcessBusAnalyzer
             SmpSynch = asdu.SmpSynch;
             LastPayloadBytes = asdu.SamplePayload.Length;
             LastSeenUtc = frame.CaptureTimeUtc;
-            TrackRecentPacketRate(frame.CaptureTimeUtc);
+            if (firstAsduInFrame)
+                TrackRecentPacketRate(frame.CaptureTimeUtc);
 
             var acceptForDisplay = true;
             if (asdu.SmpCnt.HasValue)
-                acceptForDisplay = ObserveTiming(frame.CaptureTicks, frame.CaptureTimeUtc, asdu.SmpCnt.Value);
+                acceptForDisplay = ObserveTiming(frame.CaptureTicks, frame.CaptureTimeUtc, asdu.SmpCnt.Value, multipleAsdus);
 
             ObserveSamples(asdu.SamplePayload, asdu.SmpCnt, mappingProfile, acceptForDisplay);
         }
@@ -1670,7 +1681,7 @@ public sealed class RawProcessBusAnalyzer
             return result;
         }
 
-        private bool ObserveTiming(long captureTicks, DateTime captureTimeUtc, ushort smpCnt)
+        private bool ObserveTiming(long captureTicks, DateTime captureTimeUtc, ushort smpCnt, bool multipleAsdus)
         {
             TrimRecentJitterExcursions(captureTimeUtc);
             var acceptForDisplay = true;
@@ -1696,45 +1707,58 @@ public sealed class RawProcessBusAnalyzer
                     _counterVerifiedSampleRateHz = _previousSmpCnt.Value + 1;
                 }
 
-                var actualUs = (captureTicks - _previousCaptureTicks.Value) * 1_000_000.0 / Stopwatch.Frequency;
-                CurrentDeltaMicroseconds = actualUs;
-                _totalDeltaMicroseconds += actualUs;
-                _deltaCount++;
-                AverageDeltaMicroseconds = _totalDeltaMicroseconds / _deltaCount;
-
-                var expectedUs = ResolveExpectedDeltaUs(sequence.SampleStep);
-                ExpectedDeltaMicroseconds = expectedUs;
-
-                if (expectedUs.HasValue)
+                if (!multipleAsdus && !_previousMultiAsduFrame)
                 {
-                    var signedJitter = actualUs - expectedUs.Value;
-                    var absJitter = Math.Abs(signedJitter);
-                    CurrentJitterMicroseconds = signedJitter;
-                    AddJitter(absJitter);
-                    AverageAbsJitterMicroseconds = _jitterWindow.Average;
-                    MaxAbsJitterMicroseconds = _jitterWindow.Maximum;
-
-                    if (absJitter >= JitterAlertThresholdMicroseconds)
+                    var actualUs = (captureTicks - _previousCaptureTicks.Value) * 1_000_000.0 / Stopwatch.Frequency;
+                    CurrentDeltaMicroseconds = actualUs;
+                    _totalDeltaMicroseconds += actualUs;
+                    _deltaCount++;
+                    AverageDeltaMicroseconds = _totalDeltaMicroseconds / _deltaCount;
+    
+                    var expectedUs = ResolveExpectedDeltaUs(sequence.SampleStep);
+                    ExpectedDeltaMicroseconds = expectedUs;
+    
+                    if (expectedUs.HasValue)
                     {
-                        JitterOver300MicrosecondsCount++;
-                        TrackRecentJitterExcursion(captureTimeUtc);
-                        _pendingJitterEvidence = BuildJitterEvidence(
-                            previousSmpCnt: _previousSmpCnt.Value,
-                            currentSmpCnt: smpCnt,
-                            actualUs: actualUs,
-                            expectedUs: expectedUs.Value,
-                            signedJitterUs: signedJitter,
-                            absJitterUs: absJitter,
-                            sampleStep: sequence.SampleStep);
+                        var signedJitter = actualUs - expectedUs.Value;
+                        var absJitter = Math.Abs(signedJitter);
+                        CurrentJitterMicroseconds = signedJitter;
+                        AddJitter(absJitter);
+                        AverageAbsJitterMicroseconds = _jitterWindow.Average;
+                        MaxAbsJitterMicroseconds = _jitterWindow.Maximum;
+    
+                        if (absJitter >= JitterAlertThresholdMicroseconds)
+                        {
+                            JitterOver300MicrosecondsCount++;
+                            TrackRecentJitterExcursion(captureTimeUtc);
+                            _pendingJitterEvidence = BuildJitterEvidence(
+                                previousSmpCnt: _previousSmpCnt.Value,
+                                currentSmpCnt: smpCnt,
+                                actualUs: actualUs,
+                                expectedUs: expectedUs.Value,
+                                signedJitterUs: signedJitter,
+                                absJitterUs: absJitter,
+                                sampleStep: sequence.SampleStep);
+                        }
+    
+                        JitterStatusText = absJitter >= JitterAlertThresholdMicroseconds
+                            ? $"Arrival variation alert: {absJitter:0.#} us >= {JitterAlertThresholdMicroseconds:0} us"
+                            : $"Arrival variation nominal: {absJitter:0.#} us";
                     }
-
-                    JitterStatusText = absJitter >= JitterAlertThresholdMicroseconds
-                        ? $"Arrival variation alert: {absJitter:0.#} us >= {JitterAlertThresholdMicroseconds:0} us"
-                        : $"Arrival variation nominal: {absJitter:0.#} us";
+                    else
+                    {
+                        JitterStatusText = "Arrival variation pending: sample rate unknown";
+                    }
                 }
                 else
                 {
-                    JitterStatusText = "Arrival variation pending: sample rate unknown";
+                    // One RX timestamp represents the entire frame, not each ASDU.
+                    // Fake zero deltas and frame-duration deltas must not pollute
+                    // jitter, latency or current sample-timing diagnostics.
+                    CurrentDeltaMicroseconds = null;
+                    CurrentJitterMicroseconds = null;
+                    ExpectedDeltaMicroseconds = null;
+                    JitterStatusText = "Multi-ASDU: per-sample arrival timing not observable";
                 }
             }
 
@@ -1743,6 +1767,7 @@ public sealed class RawProcessBusAnalyzer
 
             _previousSmpCnt = smpCnt;
             _previousCaptureTicks = captureTicks;
+            _previousMultiAsduFrame = multipleAsdus;
             return acceptForDisplay;
         }
 
