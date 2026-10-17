@@ -1363,8 +1363,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ?? "Binding pending";
     public string SclSelectedVerdictText => SelectedSclBindingMatrixRow?.OperatorVerdictText
         ?? "Select a stream to inspect its live identity.";
-    public string SclSelectedVerdictDetailText => SelectedSclBindingMatrixRow?.OperatorEvidenceText
-        ?? "Compare the selected SCL stream with captured publisher identity.";
+    // One scan-friendly identity comparison. Full correlation evidence is
+    // available in the expanded technical details and copy evidence command.
+    public string SclSelectedVerdictDetailText => SelectedSclBindingMatrixRow is { } row
+        ? $"Expected: {row.ExpectedName}  →  Observed: {row.ObservedName}"
+        : "Select a stream for expected versus observed identity.";
     public string SclSelectedExpectedText => SelectedSclBindingMatrixRow?.ExpectedDetailText
         ?? SelectedSclStreamCatalog?.TransportText
         ?? "No expected stream selected";
@@ -5054,6 +5057,15 @@ public sealed class SclBindingMatrixRow : INotifyPropertyChanged
     public string ExpectedMetaText => string.Join(" - ", new[] { IedName, AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public string ObservedMetaText => string.IsNullOrWhiteSpace(LiveKey) ? "Not seen on selected adapter" : string.Join(" - ", new[] { AppIdText, VlanText }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public string EvidencePrimaryText => SplitEvidence(EvidenceText).Primary;
+    public string CompactEvidenceText => OperatorVerdictText switch
+    {
+        "MISMATCH · svID differs" => "svID differs",
+        "MATCHED · observed identity agrees" => "Identity match",
+        "MATCHED · design warning" => "Design warning",
+        "NOT OBSERVED · expected stream" => "Not observed",
+        "UNEXPECTED · not defined in SCL" => "Unexpected stream",
+        _ => StatusText
+    };
     public string EvidenceSecondaryText => SplitEvidence(EvidenceText).Secondary;
     public string SignatureText => $"{BindingKey}:{StatusText}:{ObservedName}:{Score}:{EvidenceText}";
 
