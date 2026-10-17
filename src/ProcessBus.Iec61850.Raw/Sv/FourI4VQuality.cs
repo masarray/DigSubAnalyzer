@@ -22,7 +22,10 @@ public static class FourI4VQuality
             var q = BinaryPrimitives.ReadUInt32BigEndian(payload.Slice(offset, 4));
             // Validity and detail-quality bits (validity, overflow, outOfRange,
             // badReference, oscillatory, failure, oldData, inconsistent, inaccurate).
-            if ((q & 0x03FFU) != 0)
+            // Only explicitly modeled TEST/operatorBlocked flags may accompany
+            // a trusted normal value. Unknown/reserved flags fail closed instead
+            // of silently treating ambiguous quality bits as "good".
+            if ((q & ~((1U << 11) | (1U << 12))) != 0)
                 return MeasurementState.Untrusted;
             test |= (q & (1U << 11)) != 0;
             blocked |= (q & (1U << 12)) != 0;
