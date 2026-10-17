@@ -910,97 +910,7 @@
                                Text="SV Stream Explorer"/>
                                 </StackPanel>
 
-                                <TextBlock Margin="0,2,0,0"
-                           Style="{StaticResource PanelSubtitleTextStyle}"
-                           Text="Online streams first · sorted by SV name"/>
-
-                                <Border Margin="0,7,0,9"
-                                        Style="{StaticResource CompactExplorerCardStyle}">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <DockPanel LastChildFill="True">
-                                            <Border DockPanel.Dock="Right"
-                                    Padding="6,1"
-                                    Background="{Binding SelectedStream.StatusSoftBrush}"
-                                    BorderBrush="{Binding SelectedStream.StatusBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8">
-                                                <TextBlock Text="{Binding SelectedStream.DisplayStatusText}"
-                                           Foreground="{Binding SelectedStream.StatusBrush}"
-                                           FontSize="9.5"
-                                           FontWeight="Bold"/>
-                                            </Border>
-
-                                            <StackPanel Orientation="Horizontal">
-                                                <Border Width="7"
-                                        Height="20"
-                                        Margin="0,0,8,0"
-                                        CornerRadius="3"
-                                        Background="{Binding SelectedStream.StatusBrush}"/>
-                                                <TextBlock Text="{Binding SelectedStreamDetails.StreamName}"
-                                           FontWeight="SemiBold"
-                                           FontSize="12.5"
-                                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                                            </StackPanel>
-                                        </DockPanel>
-
-                                        <TextBlock Grid.Row="1"
-                                   Margin="15,2,0,8"
-                                   Text="{Binding SelectedStreamDetails.SvId, StringFormat=svID {0}}"
-                                   FontSize="11"
-                                   Foreground="#B8CDE0"/>
-
-                                        <WrapPanel Grid.Row="2"
-                                   Margin="0,0,0,2">
-                                            <Border Style="{StaticResource MetricChipBorderStyle}">
-                                                <TextBlock Text="{Binding SelectedStreamDetails.AppId, StringFormat=APPID {0}}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="SemiBold"/>
-                                            </Border>
-
-                                            <Border Style="{StaticResource MetricChipBorderStyle}">
-                                                <TextBlock Text="{Binding SelectedStreamDetails.ConfRevText, StringFormat=ConfRev {0}}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="SemiBold"/>
-                                            </Border>
-
-                                            <Border Style="{StaticResource MetricChipBorderStyle}">
-                                                <TextBlock Text="{Binding SelectedStreamDetails.SampleValueCountText, StringFormat=Val {0}}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontWeight="SemiBold"/>
-                                            </Border>
-                                        </WrapPanel>
-
-                                        <StackPanel Grid.Row="3" Margin="0,6,0,0">
-                                            <TextBlock Text="{Binding SvMappingSourceCompactText}"
-                                                       FontSize="10.5"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#F6D781"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-
-                                        <DockPanel Grid.Row="4"
-                                   Margin="0,6,0,0">
-                                            <TextBlock DockPanel.Dock="Left"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       FontSize="10"
-                                       Margin="0,1,5,0"
-                                       Foreground="#6F8FAF"
-                                       Text="&#xE823;"/>
-                                            <TextBlock FontSize="10"
-                                       Foreground="{StaticResource TextMutedBrush}"
-                                       Text="{Binding SelectedStreamDetails.LastSeenText, StringFormat=Last update {0}}"/>
-                                        </DockPanel>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
+                                </StackPanel>
 
                             <TextBox Grid.Row="1"
                      Margin="0,6,0,6"
@@ -1170,8 +1080,7 @@
 
                             <Expander Grid.Row="3"
                       Style="{StaticResource DenseExpanderStyle}"
-                      Header="Source detail"
-                      Visibility="Collapsed"
+                      Header="Stream details"
                       IsExpanded="False">
                                 <Border Margin="0,6,0,0"
                         Padding="8"
@@ -1180,6 +1089,12 @@
                         BorderThickness="1"
                         CornerRadius="6">
                                     <StackPanel>
+                                        <TextBlock Text="{Binding SelectedStreamDetails.SvId, StringFormat=svID: {0}}"
+                                                   Foreground="#D6E8F8" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Margin="0,3,0,0" Text="{Binding SelectedStreamDetails.AppId, StringFormat=APPID: {0}}"
+                                                   Foreground="#9FB8D2"/>
+                                        <TextBlock Margin="0,3,0,5" Text="{Binding SelectedStreamDetails.ConfRevText, StringFormat=confRev: {0}}"
+                                                   Foreground="#9FB8D2"/>
                                         <TextBlock Style="{StaticResource CompactLabelTextStyle}"
                                    Text="Mapped channels"/>
                                         <TextBlock Margin="0,2,0,0"
@@ -2039,17 +1954,7 @@
                                         <Border Style="{StaticResource MetricChipBorderStyle}">
                                             <TextBlock Foreground="{StaticResource AccentBrush}"
                            FontWeight="SemiBold"
-                           Text="{Binding WaveformHeaderSamplesPerCycleText}"/>
-                                        </Border>
-                                        <Border Style="{StaticResource MetricChipBorderStyle}">
-                                            <TextBlock Foreground="{StaticResource AccentBrush}"
-                           FontWeight="SemiBold"
                            Text="{Binding WaveformHeaderWindowText}"/>
-                                        </Border>
-                                        <Border Style="{StaticResource MetricChipBorderStyle}">
-                                            <TextBlock Foreground="{StaticResource AccentBrush}"
-                           FontWeight="SemiBold"
-                           Text="Reference: Ua"/>
                                         </Border>
                                         <Border Style="{StaticResource MetricChipBorderStyle}">
                                             <TextBlock Foreground="#F0B533"
@@ -2117,18 +2022,9 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False">
                                             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                                                 <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,1,8,0" Foreground="{StaticResource AccentStrongBrush}" Text="&#xE9D9;"/>
-                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="SV-Scope (IEC 61850 Digital Oscilloscope)"/>
+                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Waveforms"/>
                                             </StackPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <Border Padding="7,2"
-                                                        Margin="0,0,8,0"
-                                                        Background="#0D8CFF"
-                                                        CornerRadius="10">
-                                                    <TextBlock Text="FOCUS"
-                                                               FontSize="9"
-                                                               FontWeight="Bold"
-                                                               Foreground="White"/>
-                                                </Border>
 
                                                 <Border Padding="7,2"
                                                         Margin="0,0,8,0"
@@ -2176,10 +2072,6 @@
                                                                    Foreground="#B9FFE0"/>
                                                     </StackPanel>
                                                 </Border>
-
-                                                <TextBlock Style="{StaticResource PanelSubtitleTextStyle}"
-                                                           VerticalAlignment="Center"
-                                                           Text="SV scope · selected stream"/>
                                             </StackPanel>
                                         </DockPanel>
 
@@ -2300,10 +2192,6 @@
                            Text="&#xE9D5;"/>
                                                     <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Phasor Diagram"/>
                                                 </StackPanel>
-
-                                                <TextBlock DockPanel.Dock="Right"
-                       Style="{StaticResource PanelSubtitleTextStyle}"
-                       Text="Vector relation and angle check"/>
                                             </DockPanel>
 
                                             <!-- RUNTIME CONTROL (DIMATIKAN DI DESIGNER) -->
