@@ -24,7 +24,11 @@ try {
         "COPYRIGHT.md",
         "TRADEMARK.md",
         "THIRD_PARTY_NOTICES.md",
-        "Licensing.md"
+        "Licensing.md",
+        "Bench/ProcessBus.InteropCli.exe",
+        "Bench/M4_ARSTACK_INTEROP_ACCEPTANCE.md",
+        "Bench/START_HERE.md",
+        "Bench/measure-m4-bench.ps1"
     )
     foreach ($relative in $required) {
         if (-not (Test-Path (Join-Path $temp $relative))) {
@@ -66,6 +70,24 @@ try {
     if ($exeFiles.Count -ne 1 -or $exeFiles[0].Name -ne "$AppName.exe") {
         $names = ($exeFiles | Select-Object -ExpandProperty Name) -join ', '
         throw "Package verification failed. Expected exactly one root EXE: $AppName.exe. Found: $names"
+    }
+
+    # The GUI remains the only ROOT executable. A separate, self-contained
+    # read-only inspector is required so field users can screen their actual
+    # PCAP+SCL evidence without installing the developer SDK.
+    $interopExe = Join-Path $temp "Bench/ProcessBus.InteropCli.exe"
+    if ((Get-Item $interopExe).Length -lt 1024) {
+        throw "Package verification failed. The interop CLI executable is too small."
+    }
+    $interopHelp = & $interopExe --help 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0 -or $interopHelp -notmatch 'offline interop screening') {
+        throw "Package verification failed. Bundled offline interop CLI cannot run --help."
+    }
+    $benchGuide = Get-Content (Join-Path $temp "Bench/START_HERE.md") -Raw
+    foreach ($marker in @('ProcessBus.InteropCli.exe', '60-minute', 'TAP/SPAN', 'AR_DIAG_SV1')) {
+        if ($benchGuide -notmatch [regex]::Escape($marker)) {
+            throw "Package verification failed. Physical bench quickstart is missing: $marker"
+        }
     }
 
     $size = (Get-Item (Join-Path $temp "$AppName.exe")).Length
