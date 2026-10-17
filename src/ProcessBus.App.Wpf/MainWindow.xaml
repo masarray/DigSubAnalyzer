@@ -3910,7 +3910,7 @@
                                         <StackPanel>
                                             <TextBlock Text="SCL Engineering Context" Style="{StaticResource PanelTitleTextStyle}"/>
                                             <TextBlock Margin="0,4,0,0"
-                                                       Text="Import SCD / CID / ICD / IID files, inspect IED cards, and build semantic mapping for SV and GOOSE streams."
+                                                       Text="Import an SCL file to compare expected streams with live traffic."
                                                        Style="{StaticResource PanelSubtitleTextStyle}"
                                                        TextWrapping="Wrap"/>
                                             
@@ -3960,7 +3960,7 @@
                                                         BorderThickness="1"
                                                         CornerRadius="10"
                                                         Padding="10,5">
-                                                    <TextBlock Text="{Binding SclWorkspaceStatusText}" Foreground="#8FCBFF" FontSize="11" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding SclWorkspaceStatusText}" Foreground="#8FCBFF" FontSize="10.5" FontWeight="SemiBold" MaxWidth="180" TextTrimming="CharacterEllipsis" ToolTip="{Binding SclWorkspaceStatusText}"/>
                                                 </Border>
                                             </DockPanel>
 
@@ -4059,7 +4059,7 @@
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Live Binding Matrix" Style="{StaticResource PanelTitleTextStyle}"/>
                                                     <TextBlock Margin="0,4,0,0"
-                                                               Text="Expected configuration compared with live capture."
+                                                               Text="Identity comparison"
                                                                Foreground="#8FAAC3"
                                                                FontSize="11"/>
                                                 </StackPanel>
@@ -4070,7 +4070,7 @@
                                                         BorderThickness="1"
                                                         CornerRadius="10"
                                                         Padding="10,5">
-                                                    <TextBlock Text="{Binding SclBindingSummaryText}" Foreground="#F6D781" FontSize="11" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding SclBindingSummaryText}" Foreground="#F6D781" FontSize="10.5" FontWeight="SemiBold" MaxWidth="230" TextTrimming="CharacterEllipsis" ToolTip="{Binding SclBindingSummaryText}"/>
                                                 </Border>
                                             </DockPanel>
 
@@ -4085,8 +4085,8 @@
                                                       CanUserDeleteRows="False"
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
-                                                      RowHeight="{x:Static sys:Double.NaN}"
-                                                      MinRowHeight="72"
+                                                      RowHeight="48"
+                                                      MinRowHeight="48"
                                                       RowStyle="{StaticResource EngineeringDataGridRowStyle}"
                                                       CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="11.5"
@@ -4098,8 +4098,8 @@
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                                 <DataGrid.Resources>
                                                     <Style x:Key="SclBindingCellTextStyle" TargetType="TextBlock">
-                                                        <Setter Property="TextWrapping" Value="Wrap"/>
-                                                        <Setter Property="TextTrimming" Value="None"/>
+                                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                                         <Setter Property="VerticalAlignment" Value="Top"/>
                                                         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
                                                         <Setter Property="LineHeight" Value="16"/>
@@ -4136,8 +4136,8 @@
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding ExpectedName}" Foreground="#F4FAFF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
-                                                                    <TextBlock Margin="0,3,0,0" Text="{Binding ExpectedMetaText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
+                                                                    <TextBlock Text="{Binding ExpectedName}" Foreground="#F4FAFF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}" ToolTip="{Binding ExpectedDetailText}"/>
+                                                                    
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
@@ -4146,19 +4146,20 @@
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding ObservedName}" Foreground="#F6D781" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
-                                                                    <TextBlock Margin="0,3,0,0" Text="{Binding ObservedMetaText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
+                                                                    <TextBlock Text="{Binding ObservedName}" Foreground="#F6D781" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}" ToolTip="{Binding ObservedDetailText}"/>
+                                                                    
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>
-                                                    <DataGridTemplateColumn Header="Evidence" Width="2.15*">
+                                                    <DataGridTemplateColumn Header="Identity check" Width="1.4*">
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
-                                                                <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding EvidencePrimaryText}" Foreground="#EAF6FF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
-                                                                    <TextBlock Margin="0,3,0,0" Text="{Binding EvidenceSecondaryText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
-                                                                </StackPanel>
+                                                                <TextBlock Text="{Binding CompactEvidenceText}"
+                                                                           Foreground="#C5DEEF" FontSize="11"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding EvidenceText}"/>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>
