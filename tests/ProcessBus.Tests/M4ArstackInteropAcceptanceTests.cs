@@ -148,6 +148,67 @@ public sealed class M4ArstackInteropAcceptanceTests
 
     [Fact]
     [Trait("Category", "M4Interop")]
+    public void SingleObservedAsduDoesNotClaimSequenceEvidence()
+    {
+        using var capture = Pcap([(Epoch, Canonical(1))]);
+        var comparison = Assert.Single(new PcapInteropInspector().Inspect(capture, [Expected()]).Comparisons);
+        Assert.Equal("LIMITED_EVIDENCE", comparison.Status);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void RepeatedAndSkippedCountersMustNotYieldCleanWireMatch()
+    {
+        using var capture = Pcap(new[]
+        {
+            (Epoch, Canonical(1)),
+            (Epoch.AddTicks(2500), Canonical(1)),
+            (Epoch.AddTicks(5000), Canonical(4))
+        });
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.Equal("SEQUENCE_WARNING", result.Comparisons[0].Status);
+        Assert.Equal(1, result.SvStreams[0].DuplicateCounters);
+        Assert.Equal(1, result.SvStreams[0].NonUnitCounterSteps);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void TwoPublishersWithSameSclIdentityRequireOperatorResolution()
+    {
+        var other = Canonical(2);
+        other[6] = 0x99; // different source MAC; same SCL svID/APPID/destination
+        using var capture = Pcap(new[]
+        {
+            (Epoch, Canonical(1)),
+            (Epoch.AddTicks(100), other),
+            (Epoch.AddTicks(2500), Canonical(2)),
+            (Epoch.AddTicks(2600), Canonical(3) is { } canonical ? WithOtherSource(canonical) : throw new Exception())
+        });
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.Equal(2, result.SvStreams.Count);
+        Assert.Equal("AMBIGUOUS_WIRE", result.Comparisons[0].Status);
+    }
+
+    private static byte[] WithOtherSource(byte[] frame)
+    {
+        frame[6] = 0x99;
+        return frame;
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void ReplayFrameLimitDowngradesOtherwiseCleanComparison()
+    {
+        using var capture = Pcap(Enumerable.Range(0, 10)
+            .Select(i => (Epoch.AddTicks(i * 2500), Canonical((ushort)i))));
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()], maximumFrames: 2);
+        Assert.True(result.FrameLimitReached);
+        Assert.Equal(2, result.FramesRead);
+        Assert.Equal("CAPTURE_INCOMPLETE", result.Comparisons[0].Status);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
     public void InvalidCaptureDoesNotBecomePositivePtpEvidence()
     {
         var malformed = Canonical(0);
