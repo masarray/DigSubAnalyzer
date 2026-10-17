@@ -12,6 +12,8 @@ namespace ProcessBus.Iec61850.Raw.Analysis;
 public sealed class RawProcessBusAnalyzer
 {
     private static readonly TimeSpan MalformedEventInterval = TimeSpan.FromSeconds(2);
+    private const int MaximumTrackedSvStreams = 256;
+    private static readonly TimeSpan StaleStreamRetention = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan JitterEventInterval = TimeSpan.FromSeconds(5);
     private readonly object _gate = new();
     private readonly Dictionary<string, SvStreamState> _svStreams = new(StringComparer.OrdinalIgnoreCase);
@@ -249,6 +251,30 @@ public sealed class RawProcessBusAnalyzer
 
             if (!_svStreams.TryGetValue(key, out var state))
             {
+                if (_svStreams.Count >= MaximumTrackedSvStreams)
+                {
+                    // Keep active and operator-selected streams. Under identity churn,
+                    // reclaim only stale unselected state rather than leaking indefinitely.
+                    var oldestStale = _svStreams.Values
+                        .Where(candidate =>
+                            !string.Equals(candidate.Key, _selectedSvKey, StringComparison.OrdinalIgnoreCase) &&
+                            packet.Frame.CaptureTimeUtc - candidate.LastSeenUtc > StaleStreamRetention)
+                        .OrderBy(candidate => candidate.LastSeenUtc)
+                        .FirstOrDefault();
+                    if (oldestStale is null)
+                    {
+                        AddAggregatedEvent(
+                            "sv.stream-capacity", "Warning", "SV stream capacity reached",
+                            "256 active identities retained; new publisher ignored until stale state expires.",
+                            TimeSpan.FromSeconds(10));
+                        continue;
+                    }
+
+                    _svStreams.Remove(oldestStale.Key);
+                    _resolvedSvMappings.Remove(oldestStale.Key);
+                    _aggregatedEvents.Remove($"sv.jitter.{oldestStale.Key}");
+                }
+
                 state = new SvStreamState(key, ++_svFirstSeenSequence, _requestedScopeCycles);
                 if (_svScales.TryGetValue(key, out var scale))
                     state.SetEngineeringScale(scale);
