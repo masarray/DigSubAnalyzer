@@ -1957,10 +1957,14 @@
                            FontWeight="SemiBold"
                            Text="{Binding WaveformHeaderWindowText}"/>
                                         </Border>
-                                        <Border Style="{StaticResource MetricChipBorderStyle}">
-                                            <TextBlock Foreground="#F0B533"
-                           FontWeight="SemiBold"
-                           Text="{Binding WaveformShapeStatusText}"/>
+                                        <!-- Advanced waveform-shape inference is diagnostic, not a
+                                             primary oscilloscope KPI. Keep it on hover, not as a
+                                             constantly competing warning-colored pill. -->
+                                        <Border Style="{StaticResource MetricChipBorderStyle}"
+                                                Visibility="Collapsed"
+                                                ToolTip="{Binding WaveformShapeStatusText}">
+                                            <TextBlock Foreground="#B1CBE0"
+                                                       Text="{Binding WaveformShapeStatusText}"/>
                                         </Border>
                                     </WrapPanel>
                                 </Border>
@@ -1972,12 +1976,7 @@
             BorderBrush="#0D8CFF"
             BorderThickness="1.2"
             Background="#0B2035">
-                                    <Border.Effect>
-                                        <DropShadowEffect Color="#0D8CFF"
-                                                          BlurRadius="18"
-                                                          ShadowDepth="0"
-                                                          Opacity="0.22"/>
-                                    </Border.Effect>
+                                    <!-- Flat scope border: no GPU blur per render. -->
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
