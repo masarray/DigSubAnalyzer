@@ -2328,321 +2328,228 @@
                                         </Grid>
                                     </Border>
 
+                                    <!-- Quiet, full-width phase ledger. One hierarchy, no competing micro-cards. -->
                                     <Border Grid.Row="2"
-                Style="{StaticResource DenseGroupBorderStyle}"
-                Padding="6"
-                Background="{DynamicResource PanelBrush}">
-                                        <StackPanel>
-                                                <DockPanel Margin="0,0,0,8" LastChildFill="False">
-                                                    <StackPanel DockPanel.Dock="Left">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,1,8,0" Foreground="{StaticResource AccentStrongBrush}" Text="&#xE9D2;"/>
-                                                            <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Metering"/>
-                                                        </StackPanel>
-
-                                                    </StackPanel>
-
-                                                    <Border DockPanel.Dock="Right"
-                                                        Padding="6,1"
-                                                        Background="{StaticResource AccentSoftBrush}"
-                                                        BorderBrush="#1C5F91"
-                                                        BorderThickness="1"
-                                                        CornerRadius="8">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding WaveformHeaderFrequencyText}" Value="N/A">
-                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <TextBlock FontSize="10"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource AccentBrush}"
-                                                               Text="{Binding WaveformHeaderFrequencyText}"/>
-                                                    </Border>
+                                            Style="{StaticResource DenseGroupBorderStyle}"
+                                            Padding="10"
+                                            Background="{DynamicResource PanelBrush}">
+                                        <Border.Resources>
+                                            <Style x:Key="MeterPhaseRowStyle" TargetType="Border">
+                                                <Setter Property="Background" Value="#0E2032"/>
+                                                <Setter Property="BorderBrush" Value="#1A354E"/>
+                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                <Setter Property="Padding" Value="7,6"/>
+                                                <Setter Property="MinHeight" Value="34"/>
+                                            </Style>
+                                        </Border.Resources>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      CanContentScroll="False">
+                                            <StackPanel>
+                                                <DockPanel LastChildFill="False">
+                                                    <TextBlock DockPanel.Dock="Left" Text="Metering"
+                                                               Style="{StaticResource PanelTitleTextStyle}"/>
+                                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                               Text="{Binding WaveformHeaderFrequencyText}"
+                                                               FontSize="11" Foreground="#8CBDE4"/>
                                                 </DockPanel>
-
-                                                <WrapPanel Margin="0,0,0,6">
-                                                    <TextBlock Text="SV units" Foreground="#B3C9DD" Margin="0,6,8,0" FontSize="11"/>
-                                                    <ComboBox Width="260"
+                                                <DockPanel Margin="0,9,0,0">
+                                                    <Button DockPanel.Dock="Right" Content="Copy" Margin="7,0,0,0"
+                                                            MinWidth="49" Height="28" Padding="7,0"
+                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
+                                                            Command="{Binding CopyEvidenceCommand}"
+                                                            ToolTip="Copy detailed measurements and capture evidence"/>
+                                                    <ComboBox Height="28" MinWidth="140"
                                                               Style="{StaticResource CompactComboBoxStyle}"
                                                               ItemsSource="{Binding EngineeringScaleOptions}"
                                                               SelectedItem="{Binding SelectedEngineeringScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                              ToolTip="Choose the physical scale for this selected SV stream. No SCL required; raw counts is safest until the profile is verified."/>
-                                                    <Button Content="Copy diagnostics" Command="{Binding CopyEvidenceCommand}"
-                                                            Width="138" Height="27" Margin="0,3,6,3"
-                                                            ToolTip="Copy selected stream, packet counters, scaling, RMS and power evidence to clipboard."/>
-                                                    <TextBlock Text="{Binding EvidenceCopyStatusText}"
-                                                               Foreground="#9BB8D0" Margin="0,8,0,0" FontSize="10"/>
-                                                </WrapPanel>
-                                                <TextBlock Text="{Binding EngineeringScaleExplanation}"
-                                                           Foreground="#F0B533" TextWrapping="Wrap" FontSize="10.5"
-                                                           Margin="0,0,0,9"/>
-
-                                                <Border Margin="0,0,0,8"
-                                                    Visibility="Collapsed"
-                                                    Padding="8,6"
-                                                    Background="#0D2740"
-                                                    BorderBrush="#1C5F91"
-                                                    BorderThickness="1"
-                                                    CornerRadius="8">
-                                                    <DockPanel LastChildFill="False">
-                                                        <TextBlock DockPanel.Dock="Left"
-                                                               FontSize="11.5"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource AccentBrush}"
-                                                               Text="{Binding Diagnostics.TimebaseStatusText}"/>
-                                                        <TextBlock DockPanel.Dock="Right"
-                                                               FontSize="11.5"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="#D6E8F8"
-                                                               Text="{Binding Diagnostics.FrequencyEstimateValid, StringFormat=Freq valid: {0}}"/>
-                                                    </DockPanel>
-                                                </Border>
-
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <Border Grid.Column="0" Padding="6" Background="#0B1A2A" BorderBrush="#1B344F" BorderThickness="1" CornerRadius="10">
-                                                        <StackPanel>
-                                                            <TextBlock Margin="0,0,0,5" FontSize="10" FontWeight="Bold" Foreground="#D6E8F8" Text="VOLTAGE"/>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseRBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ua" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ua.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseRBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ua.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseSBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ub" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ub.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseSBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ub.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseTBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Uc" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Uc.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseTBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Uc.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <Border Grid.Column="2" Padding="6" Background="#0B1A2A" BorderBrush="#1B344F" BorderThickness="1" CornerRadius="10">
-                                                        <StackPanel>
-                                                            <TextBlock Margin="0,0,0,5" FontSize="10" FontWeight="Bold" Foreground="#D6E8F8" Text="CURRENT"/>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseRBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ia" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ia.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseRBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ia.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Margin="0,0,0,4" Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseSBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ib" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ib.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseSBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ib.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                            <Border Padding="6,4" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                                <Grid>
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="18"/>
-                                                                        <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="Auto"/>
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <Ellipse Width="10" Height="10" Fill="{StaticResource PhaseTBrush}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Text="Ic" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                                        <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding AnalogValues.Ic.RmsDisplayText}"/>
-                                                                        <TextBlock FontSize="9" Foreground="{StaticResource PhaseTBrush}" HorizontalAlignment="Right" Text="{Binding AnalogValues.Ic.AngleDisplayText}"/>
-                                                                    </StackPanel>
-                                                                </Grid>
-                                                            </Border>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Grid>
-
-                                                <Grid Margin="0,6,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="8"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-
-                                                    <Border Grid.Row="0" Grid.Column="0" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="P" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,2,0,0" Text="{Binding TotalActivePowerText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border Grid.Row="0" Grid.Column="2" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="Q" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,2,0,0" Text="{Binding TotalReactivePowerText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border Grid.Row="2" Grid.Column="0" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="S" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,2,0,0" Text="{Binding TotalApparentPowerText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border Grid.Row="2" Grid.Column="2" Padding="7,5" Background="#0E2032" BorderBrush="#1C3854" BorderThickness="1" CornerRadius="8">
-                                                        <StackPanel>
-                                                            <TextBlock Text="PF" FontSize="10" FontWeight="Bold" Foreground="#8FB8D8"/>
-                                                            <TextBlock Margin="0,3,0,0" Text="{Binding PowerFactorText}" FontSize="14" FontWeight="Bold" Foreground="#F4FAFF"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Grid>
-
-                                                <Border Margin="0,8,0,0"
-                                                    Visibility="Collapsed"
-                                                    Padding="10"
-                                                    Background="#0B1A2A"
-                                                    BorderBrush="#1B344F"
-                                                    BorderThickness="1"
-                                                    CornerRadius="10">
-                                                    <StackPanel>
-                                                        <DockPanel LastChildFill="False">
-                                                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                                                                <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                                       FontSize="13"
-                                                                       Margin="0,1,8,0"
-                                                                       Foreground="{StaticResource AccentStrongBrush}"
-                                                                       Text="&#xE9D2;"/>
-                                                                <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="Analysis Insight"/>
+                                                              ToolTip="{Binding EngineeringScaleExplanation}"/>
+                                                </DockPanel>
+                                                <TextBlock Margin="0,10,0,4" Text="VOLTAGE · RMS / ANGLE" FontSize="10.5"
+           FontWeight="SemiBold" Foreground="#88AAC7"/>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseRBrush}"/>
+      <TextBlock Text="Ua" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ua.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ua.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ua.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ua.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseSBrush}"/>
+      <TextBlock Text="Ub" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ub.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ub.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ub.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ub.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseTBrush}"/>
+      <TextBlock Text="Uc" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Uc.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Uc.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Uc.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Uc.AngleDisplayText}"/>
+  </Grid>
+</Border>
+                                                <TextBlock Margin="0,10,0,4" Text="CURRENT · RMS / ANGLE" FontSize="10.5"
+           FontWeight="SemiBold" Foreground="#88AAC7"/>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseRBrush}"/>
+      <TextBlock Text="Ia" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ia.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ia.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ia.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ia.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseSBrush}"/>
+      <TextBlock Text="Ib" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ib.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ib.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ib.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ib.AngleDisplayText}"/>
+  </Grid>
+</Border>
+<Border Style="{StaticResource MeterPhaseRowStyle}">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="38"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="67"/>
+    </Grid.ColumnDefinitions>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+               Fill="{StaticResource PhaseTBrush}"/>
+      <TextBlock Text="Ic" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#D3E5F5" VerticalAlignment="Center"/>
+    </StackPanel>
+    <TextBlock Grid.Column="1" Text="{Binding AnalogValues.Ic.RmsDisplayText}"
+               FontSize="13" FontWeight="SemiBold" Foreground="#F4FAFF"
+               TextAlignment="Right" VerticalAlignment="Center"
+               TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ic.RmsDisplayText}"/>
+    <TextBlock Grid.Column="2" Margin="7,0,0,0"
+               Text="{Binding AnalogValues.Ic.AngleDisplayText}"
+               FontSize="10" Foreground="#91AAC1" TextAlignment="Right"
+               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+               ToolTip="{Binding AnalogValues.Ic.AngleDisplayText}"/>
+  </Grid>
+</Border>
+                                                <Expander Margin="0,8,0,0" Header="Power &amp; scaling details"
+                                                          IsExpanded="False"
+                                                          Foreground="#B9D7EE">
+                                                    <StackPanel Margin="3,7,3,0">
+                                                        <TextBlock Text="{Binding EngineeringScaleExplanation}"
+                                                                   Foreground="#F4C66D" FontSize="11"
+                                                                   TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                                        <UniformGrid Columns="2">
+                                                            <StackPanel Margin="0,0,4,6">
+                                                                <TextBlock Text="P" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding TotalActivePowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
-                                                            <Border DockPanel.Dock="Right"
-                                                                Padding="6,1"
-                                                                Background="#3A2B12"
-                                                                BorderBrush="#A8791C"
-                                                                BorderThickness="1"
-                                                                CornerRadius="8">
-                                                                <TextBlock Text="Full"
-                                                                       FontSize="9"
-                                                                       FontWeight="Bold"
-                                                                       Foreground="#F5D47A"/>
-                                                            </Border>
-                                                        </DockPanel>
-                                                        <TextBlock Margin="0,8,0,0"
-                                                               Text="Root-cause hints, recommendation engine, report narration, and event correlation are available in the full engineering platform."
-                                                               TextWrapping="Wrap"
-                                                               LineHeight="17"
-                                                               Foreground="#9FB8D2"
-                                                               FontSize="11.5"/>
-                                                        <Button Margin="0,10,0,0"
-                                                            Height="30"
-                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
-                                                            Tag="Analysis Insight"
-                                                            Click="LockedFeature_Click">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                                       FontSize="12"
-                                                                       Margin="0,0,7,0"
-                                                                       Text="&#xE946;"
-                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                                                <TextBlock Text="Open Insight"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                            <StackPanel Margin="0,0,0,6">
+                                                                <TextBlock Text="Q" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding TotalReactivePowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
-                                                        </Button>
+                                                            <StackPanel Margin="0,0,4,0">
+                                                                <TextBlock Text="S" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding TotalApparentPowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                            <StackPanel>
+                                                                <TextBlock Text="PF" Foreground="#89AFCB" FontSize="10"/>
+                                                                <TextBlock Text="{Binding PowerFactorText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                        </UniformGrid>
+                                                        <TextBlock Text="{Binding EvidenceCopyStatusText}" Foreground="#89AFCB"
+                                                                   FontSize="10" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
-                                                </Border>
-
-                                                <Border Margin="0,8,0,0"
-                                                    Visibility="Collapsed"
-                                                    Padding="10"
-                                                    Background="#0B1A2A"
-                                                    BorderBrush="#1B344F"
-                                                    BorderThickness="1"
-                                                    CornerRadius="10">
-                                                    <DockPanel LastChildFill="False">
-                                                        <TextBlock DockPanel.Dock="Left"
-                                                               Style="{StaticResource CompactValueTextStyle}"
-                                                               FontWeight="SemiBold"
-                                                               Text="Scaling"/>
-                                                        <Button DockPanel.Dock="Right"
-                                                            Width="84"
-                                                            Height="28"
-                                                            Padding="8,0"
-                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
-                                                            Tag="Primary / Secondary Scaling"
-                                                            Click="LockedFeature_Click">
-                                                            <TextBlock Text="Configure"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                                        </Button>
-                                                        <WrapPanel Margin="0,0,8,0">
-                                                            <Border Style="{StaticResource MetricChipBorderStyle}" Background="#102236">
-                                                                <TextBlock Text="Raw" Foreground="#CFE7FF" FontWeight="SemiBold"/>
-                                                            </Border>
-                                                            <Border Style="{StaticResource MetricChipBorderStyle}" Background="#1C2A38" BorderBrush="#5B7188">
-                                                                <TextBlock Text="Secondary" Foreground="#8FA8BF" FontWeight="SemiBold"/>
-                                                            </Border>
-                                                            <Border Style="{StaticResource MetricChipBorderStyle}" Background="#1C2A38" BorderBrush="#5B7188">
-                                                                <TextBlock Text="Primary" Foreground="#8FA8BF" FontWeight="SemiBold"/>
-                                                            </Border>
-                                                        </WrapPanel>
-                                                    </DockPanel>
-                                                </Border>
-
-                                        </StackPanel>
+                                                </Expander>
+                                            </StackPanel>
+                                        </ScrollViewer>
                                     </Border>
                                 </Grid>
                             </Grid>
