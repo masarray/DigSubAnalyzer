@@ -2352,35 +2352,62 @@
                                                                    ToolTip="{Binding AnalogValues.Ic.AngleDisplayText}"/>
                                                     </Grid>
                                                 </Border>
-                                                <Expander Margin="0,8,0,0" Header="Power &amp; calibration"
-                                                          IsExpanded="False"
-                                                          Foreground="#B9D7EE">
-                                                    <StackPanel Margin="3,7,3,0">
-                                                        <TextBlock Text="{Binding EngineeringScaleExplanation}"
-                                                                   Foreground="#F4C66D" FontSize="11"
-                                                                   TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                                        <UniformGrid Columns="2">
-                                                            <StackPanel Margin="0,0,4,6">
-                                                                <TextBlock Text="P" Foreground="#89AFCB" FontSize="10"/>
-                                                                <TextBlock Text="{Binding TotalActivePowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                <!-- Estimated from nominal engineering scaling; confidence remains explicit. -->
+                                                <Border Margin="0,8,0,0" Padding="4,7"
+                                                        BorderThickness="0,1,0,0" BorderBrush="#24415B">
+                                                    <StackPanel>
+                                                        <DockPanel Margin="0,0,0,5" LastChildFill="False">
+                                                            <TextBlock DockPanel.Dock="Left" Text="Power estimate"
+                                                                       Foreground="#A6CBE3" FontSize="11"
+                                                                       FontWeight="SemiBold"/>
+                                                            <TextBlock DockPanel.Dock="Right" Text="UNVERIFIED"
+                                                                       Foreground="#D4B36C" FontSize="9.5"
+                                                                       ToolTip="{Binding EngineeringScaleExplanation}"/>
+                                                        </DockPanel>
+                                                        <UniformGrid Columns="4">
+                                                            <StackPanel Margin="0,0,3,0">
+                                                                <TextBlock Text="P" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="{Binding TotalActivePowerText}" Foreground="#EEF8FF"
+                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding TotalActivePowerText}"/>
                                                             </StackPanel>
-                                                            <StackPanel Margin="0,0,0,6">
-                                                                <TextBlock Text="Q" Foreground="#89AFCB" FontSize="10"/>
-                                                                <TextBlock Text="{Binding TotalReactivePowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            <StackPanel Margin="0,0,3,0">
+                                                                <TextBlock Text="Q" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="{Binding TotalReactivePowerText}" Foreground="#EEF8FF"
+                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding TotalReactivePowerText}"/>
                                                             </StackPanel>
-                                                            <StackPanel Margin="0,0,4,0">
-                                                                <TextBlock Text="S" Foreground="#89AFCB" FontSize="10"/>
-                                                                <TextBlock Text="{Binding TotalApparentPowerText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            <StackPanel Margin="0,0,3,0">
+                                                                <TextBlock Text="S" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="{Binding TotalApparentPowerText}" Foreground="#EEF8FF"
+                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding TotalApparentPowerText}"/>
                                                             </StackPanel>
-                                                            <StackPanel>
-                                                                <TextBlock Text="PF" Foreground="#89AFCB" FontSize="10"/>
-                                                                <TextBlock Text="{Binding PowerFactorText}" Foreground="#F4FAFF" TextTrimming="CharacterEllipsis"/>
+                                                            <StackPanel Margin="0,0,3,0">
+                                                                <TextBlock Text="PF" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="{Binding PowerFactorText}" Foreground="#EEF8FF"
+                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip="{Binding PowerFactorText}"/>
                                                             </StackPanel>
                                                         </UniformGrid>
-                                                        <TextBlock Text="{Binding EvidenceCopyStatusText}" Foreground="#89AFCB"
-                                                                   FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                                        <Expander Margin="0,7,0,0" Header="Scaling &amp; evidence"
+                                                                  Foreground="#B7D1E5" IsExpanded="False">
+                                                            <StackPanel Margin="5,6,4,4">
+                                                                <TextBlock Text="{Binding EngineeringScaleExplanation}"
+                                                                           Foreground="#C2D9EA" FontSize="11"
+                                                                           TextWrapping="Wrap"/>
+                                                                <TextBlock Text="{Binding EvidenceCopyStatusText}"
+                                                                           Foreground="#94B4CC" FontSize="10"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Margin="0,4,0,0"/>
+                                                            </StackPanel>
+                                                        </Expander>
                                                     </StackPanel>
-                                                </Expander>
+                                                </Border>
                                             </StackPanel>
                                         </ScrollViewer>
                                     </Border>
