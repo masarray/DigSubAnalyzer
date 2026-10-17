@@ -144,6 +144,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly ObservableCollection<TrafficHealthTargetRow> _diagnosticTargets = new();
     private TrafficHealthTargetRow? _selectedDiagnosticTarget;
+    private bool _nonSvDiagnosticTargetPinnedByOperator;
     private DiagnosticEventItem? _selectedDiagnosticEvent;
 
     public DiagnosticEventItem? SelectedDiagnosticEvent
@@ -181,6 +182,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             BeginWorkspaceTargetTransition();
             _selectedDiagnosticTarget = value;
+            _nonSvDiagnosticTargetPinnedByOperator = value is { Protocol: "PTP" or "GOOSE" };
             ApplyDiagnosticTargetSelection(value);
             OnPropertyChanged();
             RaiseDiagnosticScopeProperties();
@@ -2077,7 +2079,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 ? int.MaxValue
                 : (int)Diagnostics.SequenceErrors;
 
-            _smcCntOk = Diagnostics.LastSampleCount > 0;
+            _smcCntOk = Diagnostics.LastSampleCount.HasValue;
             _frequencyStable = Diagnostics.FrequencyEstimateValid;
 
             SynchronizeSelectedStreamRow();
@@ -2357,14 +2359,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         SyncDiagnosticTargetRows(rows);
 
-        var next = !string.IsNullOrWhiteSpace(previousKey)
+        var previouslySelected = !string.IsNullOrWhiteSpace(previousKey)
             ? _diagnosticTargets.FirstOrDefault(x => string.Equals(x.TargetKey, previousKey, StringComparison.OrdinalIgnoreCase))
             : null;
-
-        next ??= _diagnosticTargets.FirstOrDefault(x => x.SeverityRank > 0);
-        next ??= SelectedStream is null
+        var analyzerStreamTarget = SelectedStream is null
             ? null
             : _diagnosticTargets.FirstOrDefault(x => string.Equals(x.TargetKey, $"SV|{SelectedStream.StreamId}", StringComparison.OrdinalIgnoreCase));
+
+        // Automatically prefer the actual selected SV stream when it appears;
+        // the previous PTP placeholder must not hijack Diagnostics forever.
+        // Preserve only a user-requested PTP/GOOSE target until they select SV.
+        var next = _nonSvDiagnosticTargetPinnedByOperator &&
+                   previouslySelected is { Protocol: "PTP" or "GOOSE" }
+            ? previouslySelected
+            : analyzerStreamTarget ?? previouslySelected;
+        next ??= _diagnosticTargets.FirstOrDefault(x => x.SeverityRank > 0);
         next ??= _diagnosticTargets.FirstOrDefault();
 
         if (!ReferenceEquals(_selectedDiagnosticTarget, next))
