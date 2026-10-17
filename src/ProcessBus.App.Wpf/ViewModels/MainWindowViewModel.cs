@@ -144,6 +144,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly ObservableCollection<TrafficHealthTargetRow> _diagnosticTargets = new();
     private TrafficHealthTargetRow? _selectedDiagnosticTarget;
+    private bool _nonSvDiagnosticTargetPinnedByOperator;
     private DiagnosticEventItem? _selectedDiagnosticEvent;
 
     public DiagnosticEventItem? SelectedDiagnosticEvent
@@ -181,6 +182,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             BeginWorkspaceTargetTransition();
             _selectedDiagnosticTarget = value;
+            _nonSvDiagnosticTargetPinnedByOperator = value is { Protocol: "PTP" or "GOOSE" };
             ApplyDiagnosticTargetSelection(value);
             OnPropertyChanged();
             RaiseDiagnosticScopeProperties();
@@ -2364,12 +2366,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ? null
             : _diagnosticTargets.FirstOrDefault(x => string.Equals(x.TargetKey, $"SV|{SelectedStream.StreamId}", StringComparison.OrdinalIgnoreCase));
 
-        // An automatically chosen SV diagnostic target must follow the Analyzer's
-        // authoritative stream selection. Preserve explicit PTP/GOOSE target selection.
-        var next = previouslySelected?.Protocol == "SV"
-            ? analyzerStreamTarget ?? previouslySelected
-            : previouslySelected;
-        next ??= analyzerStreamTarget;
+        // Automatically prefer the actual selected SV stream when it appears;
+        // the previous PTP placeholder must not hijack Diagnostics forever.
+        // Preserve only a user-requested PTP/GOOSE target until they select SV.
+        var next = _nonSvDiagnosticTargetPinnedByOperator &&
+                   previouslySelected is { Protocol: "PTP" or "GOOSE" }
+            ? previouslySelected
+            : analyzerStreamTarget ?? previouslySelected;
         next ??= _diagnosticTargets.FirstOrDefault(x => x.SeverityRank > 0);
         next ??= _diagnosticTargets.FirstOrDefault();
 
