@@ -148,6 +148,139 @@ public sealed class M4ArstackInteropAcceptanceTests
 
     [Fact]
     [Trait("Category", "M4Interop")]
+    public void SingleObservedAsduDoesNotClaimSequenceEvidence()
+    {
+        using var capture = Pcap([(Epoch, Canonical(1))]);
+        var comparison = Assert.Single(new PcapInteropInspector().Inspect(capture, [Expected()]).Comparisons);
+        Assert.Equal("LIMITED_EVIDENCE", comparison.Status);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void RepeatedAndSkippedCountersMustNotYieldCleanWireMatch()
+    {
+        using var capture = Pcap(new[]
+        {
+            (Epoch, Canonical(1)),
+            (Epoch.AddTicks(2500), Canonical(1)),
+            (Epoch.AddTicks(5000), Canonical(4))
+        });
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.Equal("SEQUENCE_WARNING", result.Comparisons[0].Status);
+        Assert.Equal(1, result.SvStreams[0].DuplicateCounters);
+        Assert.Equal(1, result.SvStreams[0].NonUnitCounterSteps);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void TwoPublishersWithSameSclIdentityRequireOperatorResolution()
+    {
+        var other = Canonical(2);
+        other[6] = 0x99; // different source MAC; same SCL svID/APPID/destination
+        using var capture = Pcap(new[]
+        {
+            (Epoch, Canonical(1)),
+            (Epoch.AddTicks(100), other),
+            (Epoch.AddTicks(2500), Canonical(2)),
+            (Epoch.AddTicks(2600), WithOtherSource(Canonical(3)))
+        });
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.Equal(2, result.SvStreams.Count);
+        Assert.Equal("AMBIGUOUS_WIRE", result.Comparisons[0].Status);
+    }
+
+    private static byte[] WithOtherSource(byte[] frame)
+    {
+        frame[6] = 0x99;
+        return frame;
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void ReplayFrameLimitDowngradesOtherwiseCleanComparison()
+    {
+        using var capture = Pcap(Enumerable.Range(0, 10)
+            .Select(i => (Epoch.AddTicks(i * 2500), Canonical((ushort)i))));
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()], maximumFrames: 2);
+        Assert.True(result.FrameLimitReached);
+        Assert.Equal(2, result.FramesRead);
+        Assert.Equal("CAPTURE_INCOMPLETE", result.Comparisons[0].Status);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void CounterWrapIsAProfileCandidateNotPositiveConformanceEvidence()
+    {
+        using var capture = Pcap(new[]
+        {
+            (Epoch, Canonical(3999)),
+            (Epoch.AddTicks(2500), Canonical(0)),
+            (Epoch.AddTicks(5000), Canonical(1))
+        });
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.Equal("COUNTER_POLICY_UNRESOLVED", result.Comparisons[0].Status);
+        Assert.Equal(1, result.SvStreams[0].Candidate4000Wraps);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void PayloadSizeChangeIsNotAValidStableSclDataLayout()
+    {
+        var narrow = GoldenFrames.EthernetFrame(GoldenFrames.SvEtherType,
+            GoldenFrames.ProcessBusPayload(0x4000,
+                GoldenFrames.SvApdu("ARSTACK_SV01", smpCnt: 2, samplePayloadLength: 8)),
+            0x8064);
+        using var capture = Pcap(new[]
+        {
+            (Epoch, Canonical(1)),
+            (Epoch.AddTicks(2500), narrow)
+        });
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.Equal("LAYOUT_DRIFT", result.Comparisons[0].Status);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void StreamCatalogPressureCannotBeHiddenBehindSuccessfulFirstPublisher()
+    {
+        var frames = new List<(DateTime, byte[])>();
+        for (var i = 0; i < 131; i++)
+        {
+            var first = Canonical(1);
+            var second = Canonical(2);
+            first[6] = second[6] = (byte)i;
+            frames.Add((Epoch.AddTicks(i * 5000), first));
+            frames.Add((Epoch.AddTicks(i * 5000 + 2500), second));
+        }
+        using var capture = Pcap(frames);
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()]);
+        Assert.True(result.CapacityRejectedAsdus > 0);
+        Assert.Equal(128, result.SvStreams.Count);
+        Assert.Equal("CAPTURE_INCOMPLETE", result.Comparisons[0].Status);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
+    public void ProgressIsThrottledAndNeverCreatesPerFrameUiWork()
+    {
+        using var capture = Pcap(Enumerable.Range(0, 250)
+            .Select(i => (Epoch.AddTicks(i * 2500), Canonical((ushort)i))));
+        var updates = new List<PcapInspectionProgress>();
+        var progress = new InlineProgress<PcapInspectionProgress>(x => updates.Add(x));
+        var result = new PcapInteropInspector().Inspect(capture, [Expected()], progress: progress);
+        Assert.Equal("WIRE_FIELDS_MATCH", result.Comparisons[0].Status);
+        Assert.Single(updates);
+        Assert.Equal(250, updates[0].FramesRead);
+        Assert.Equal(100, updates[0].Percent);
+    }
+
+    private sealed class InlineProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
+    }
+
+    [Fact]
+    [Trait("Category", "M4Interop")]
     public void InvalidCaptureDoesNotBecomePositivePtpEvidence()
     {
         var malformed = Canonical(0);

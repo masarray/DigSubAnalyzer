@@ -20,20 +20,34 @@ public sealed class PcapInteropInspector
         Stream pcap,
         IReadOnlyList<SclSvStreamModel>? expectations = null,
         int maximumFrames = 1_000_000,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<PcapInspectionProgress>? progress = null)
     {
         if (maximumFrames < 1 || maximumFrames > 50_000_000)
             throw new ArgumentOutOfRangeException(nameof(maximumFrames));
 
-        var observed = new Dictionary<string, SvEvidenceBuilder>(StringComparer.Ordinal);
+        // Value-key identity prevents 4k/4.8k FPS per-ASDU joined-string
+        // allocations. Only new publisher identities need a display string.
+        var observed = new Dictionary<SvWireKey, SvEvidenceBuilder>();
         var ptp = new PtpHealthTracker();
         long frames = 0, sv = 0, ptpCount = 0, goose = 0, rejected = 0, capped = 0;
+        var frameLimitReached = false;
         DateTime? first = null, last = null;
         foreach (var record in _reader.Read(pcap, cancellationToken))
         {
             if (frames >= maximumFrames)
+            {
+                frameLimitReached = true; // More records exist but were not evaluated.
                 break;
+            }
             frames++;
+            if ((frames & 0x3FFF) == 0)
+            {
+                // One progress notification per 16k frames; not per sample.
+                // The caller owns UI scheduling and may cancel independently.
+                progress?.Report(new PcapInspectionProgress(frames, pcap.CanSeek ? pcap.Position : null,
+                    pcap.CanSeek ? pcap.Length : null));
+            }
             first ??= record.CaptureTimeUtc;
             last = record.CaptureTimeUtc;
 
@@ -61,11 +75,10 @@ public sealed class PcapInteropInspector
             {
                 var vlan = packet.Frame.Ethernet.Vlan;
                 // This is the SAME strong wire identity domain as the live analyzer.
-                var key = string.Join("|", packet.Frame.Ethernet.SourceMac,
-                    packet.Frame.Ethernet.DestinationMac,
-                    vlan.HasValue ? $"v{vlan.Value.VlanId}/p{vlan.Value.PriorityCodePoint}" : "untagged",
-                    $"APPID={packet.Frame.AppId:X4}", $"svID={asdu.SvId ?? "unknown-sv"}",
-                    $"confRev={asdu.ConfRev?.ToString() ?? "noconf"}");
+                var key = new SvWireKey(packet.Frame.Ethernet.SourceMac,
+                    packet.Frame.Ethernet.DestinationMac, packet.Frame.AppId,
+                    asdu.SvId ?? "unknown-sv", asdu.ConfRev,
+                    vlan?.VlanId, vlan?.PriorityCodePoint);
 
                 if (!observed.TryGetValue(key, out var state))
                 {
@@ -74,7 +87,7 @@ public sealed class PcapInteropInspector
                         capped++;
                         continue;
                     }
-                    state = new SvEvidenceBuilder(key, packet.Frame.Ethernet.SourceMac,
+                    state = new SvEvidenceBuilder(key.DisplayText, packet.Frame.Ethernet.SourceMac,
                         packet.Frame.Ethernet.DestinationMac, packet.Frame.AppId,
                         asdu.SvId ?? string.Empty, asdu.ConfRev,
                         vlan?.VlanId, vlan?.PriorityCodePoint);
@@ -90,7 +103,21 @@ public sealed class PcapInteropInspector
             .Select(x => x.Finish()).ToArray();
         var expected = expectations ?? Array.Empty<SclSvStreamModel>();
         var comparison = expected.Select(x => Compare(x, facts)).ToArray();
+        if (capped > 0 || frameLimitReached)
+        {
+            // The reader did not examine every identity/frame. A partial
+            // capture must not be reported as a complete positive comparison.
+            comparison = comparison.Select(x => x with
+            {
+                Status = "CAPTURE_INCOMPLETE",
+                Explanation = $"{x.Status}: {x.Explanation}. " +
+                    (frameLimitReached ? "Frame limit reached. " : "") +
+                    (capped > 0 ? "Stream catalog saturated. " : "")
+            }).ToArray();
+        }
         var status = ptp.CreateSnapshot(last ?? DateTime.UtcNow);
+        progress?.Report(new PcapInspectionProgress(frames, pcap.CanSeek ? pcap.Position : null,
+            pcap.CanSeek ? pcap.Length : null));
 
         return new PcapInteropReport(
             frames, sv, goose, ptpCount, rejected, capped,
@@ -99,7 +126,7 @@ public sealed class PcapInteropInspector
             status.UnmatchedFollowUpCount,
             "Capture-file screening only. VLAN visibility depends on capture hardware; " +
             "PTP visibility is not clock lock. Independent TAP/SPAN, hardware timing " +
-            "and subscriber/IED acceptance remain unverified.");
+            "and subscriber/IED acceptance remain unverified.", frameLimitReached);
     }
 
     private static SclInteropComparison Compare(SclSvStreamModel expectation, IReadOnlyList<SvWireEvidence> observed)
@@ -123,7 +150,12 @@ public sealed class PcapInteropInspector
 
         var candidatesWithMismatches = candidates
             .Select(x => (Stream: x, Errors: CompareFields(expectation, x))).ToArray();
-        var exact = candidatesWithMismatches.FirstOrDefault(x => x.Errors.Count == 0);
+        var matching = candidatesWithMismatches.Where(x => x.Errors.Count == 0).ToArray();
+        if (matching.Length > 1)
+            return new(expectation.ControlBlockReference, "AMBIGUOUS_WIRE",
+                $"{matching.Length} independent observed publisher identities match the same SCL stream; select and investigate the true source");
+
+        var exact = matching.FirstOrDefault();
         if (exact.Stream is not null)
         {
             // Missing SCL fields cannot be turned into verified equality.
@@ -132,10 +164,31 @@ public sealed class PcapInteropInspector
                              expectation.ConfRev <= 0 ||
                              expectation.NofAsdu <= 0 ||
                              (string.IsNullOrWhiteSpace(expectation.VlanId) && exact.Stream.VlanId.HasValue);
-            return new(expectation.ControlBlockReference,
-                incomplete ? "INCOMPLETE_INTENT" : "WIRE_FIELDS_MATCH",
-                incomplete ? "Matching observed fields, but mandatory SCL intent is incomplete"
-                           : "Observed frame fields match configured identity; capture path and IED not verified",
+            if (incomplete)
+                return new(expectation.ControlBlockReference, "INCOMPLETE_INTENT",
+                    "Matching observed fields, but mandatory SCL intent is incomplete", exact.Stream.Key);
+
+            if (exact.Stream.AsduCount < 2)
+                return new(expectation.ControlBlockReference, "LIMITED_EVIDENCE",
+                    "One ASDU cannot establish sequence progression; record more than one sample", exact.Stream.Key);
+
+            if (exact.Stream.DuplicateCounters > 0 || exact.Stream.NonUnitCounterSteps > 0)
+                return new(expectation.ControlBlockReference, "SEQUENCE_WARNING",
+                    $"Observed duplicates={exact.Stream.DuplicateCounters}, non-unit steps={exact.Stream.NonUnitCounterSteps}. " +
+                    "Do not silently accept interrupted/ambiguous sample continuity", exact.Stream.Key);
+
+            if (exact.Stream.MinPayloadBytes != exact.Stream.MaxPayloadBytes)
+                return new(expectation.ControlBlockReference, "LAYOUT_DRIFT",
+                    $"Observed sample payload size changed: {exact.Stream.MinPayloadBytes}–{exact.Stream.MaxPayloadBytes} bytes", exact.Stream.Key);
+
+            if (exact.Stream.Candidate4000Wraps > 0 || exact.Stream.Candidate4800Wraps > 0)
+                return new(expectation.ControlBlockReference, "COUNTER_POLICY_UNRESOLVED",
+                    $"Observed {exact.Stream.Candidate4000Wraps} × 4000 and {exact.Stream.Candidate4800Wraps} × 4800 smpCnt wrap candidates. " +
+                    "Sampling rate alone cannot authorize a counter modulus; validate applicable profile/capture authority",
+                    exact.Stream.Key);
+
+            return new(expectation.ControlBlockReference, "WIRE_FIELDS_MATCH",
+                "Observed identity fields agree and sequential evidence exists; capture path and IED still unverified",
                 exact.Stream.Key);
         }
 
@@ -195,6 +248,17 @@ public sealed class PcapInteropInspector
 
     private static string NormalizeMac(string mac) =>
         new(mac.Where(c => char.IsAsciiHexDigit(c)).Select(char.ToUpperInvariant).ToArray());
+
+    private readonly record struct SvWireKey(
+        string SourceMac, string DestinationMac, ushort AppId, string SvId,
+        uint? ConfRev, ushort? VlanId, byte? VlanPriority)
+    {
+        public string DisplayText => string.Join("|",
+            SourceMac, DestinationMac,
+            VlanId.HasValue ? $"v{VlanId.Value}/p{VlanPriority}" : "untagged",
+            $"APPID={AppId:X4}", $"svID={SvId}",
+            $"confRev={ConfRev?.ToString() ?? "noconf"}");
+    }
 
     private sealed class SvEvidenceBuilder
     {
@@ -279,7 +343,15 @@ public sealed record PcapInteropReport(
     IReadOnlyList<SvWireEvidence> SvStreams,
     IReadOnlyList<SclInteropComparison> Comparisons,
     int PtpSources, long MatchedTwoStep, long UnmatchedFollowUp,
-    string EvidenceLimitations)
+    string EvidenceLimitations, bool FrameLimitReached = false)
 {
     public bool IsPhysicallyAccepted => false; // offline software cannot certify this
+}
+
+/// <summary>Throttled offline PCAP progress; bytes are nullable on non-seekable streams.</summary>
+public readonly record struct PcapInspectionProgress(long FramesRead, long? BytesRead, long? TotalBytes)
+{
+    public int? Percent => BytesRead.HasValue && TotalBytes > 0
+        ? (int)Math.Clamp(BytesRead.Value * 100.0 / TotalBytes.Value, 0, 100)
+        : null;
 }
