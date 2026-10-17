@@ -2080,7 +2080,7 @@
                                         <controls:WaveformPanelControl Grid.Row="2"
                                                                    d:Visibility="Collapsed"
                                            Snapshot="{Binding Waveform}"
-                                           StreamKey="{Binding SelectedStream.StreamId, TargetNullValue=}"
+                                           StreamKey="{Binding SelectedStream.StreamId}"
                                            ShowMode="{Binding WaveformShowMode}"
                                            LayoutMode="{Binding WaveformLayoutMode}"
                                            TimebaseMode="{Binding WaveformTimebase}"
