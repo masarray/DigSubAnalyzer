@@ -2503,85 +2503,91 @@
                            FontSize="12.5"
                            FontWeight="SemiBold"
                            Margin="0,1,0,0"/>
-                                            <TextBlock Text="{Binding DiagnosticScopeIssueText}"
-                           Foreground="#D6E8F8"
-                           FontSize="12"
-                           FontWeight="SemiBold"
-                           TextTrimming="CharacterEllipsis"/>
+                                            
                                         </StackPanel>
 
-                                        <TextBlock Grid.Column="2"
-                       Text="{Binding DiagnosticScopeSubtitle}"
-                       Foreground="#8FAAC3"
-                       FontSize="11"
-                       TextWrapping="Wrap"
-                       Width="360"
-                       VerticalAlignment="Top"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding DiagnosticScopeSubtitle}"
+                                                               Foreground="#88AAC4" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis" Width="235"
+                                                               VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
 
                                 <!-- Unified cards -->
+                                <!-- Read-first status: four decisions; forensic explanations via hover/details. -->
                                 <UniformGrid Grid.Row="2" Columns="4">
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0,0,8,0"
+                                            ToolTip="{Binding TimingReferenceText}">
                                         <StackPanel>
-                                            <TextBlock Text="ARRIVAL TIMING" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding FrequencyText}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding JitterText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding LatencyText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding ExpectedDeltaText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding TimingReferenceText}" Foreground="#8FAAC3" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding TimestampSourceText}" Foreground="#8FAAC3" FontSize="10.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                            <TextBlock Text="{Binding SvTimingStandardText}"
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="10.5"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,4,0,0"/>
+                                            <TextBlock Text="ARRIVAL" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding FrequencyText}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding JitterText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding TimestampSourceText}"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0,0,8,0"
+                                            ToolTip="{Binding OutOfSequenceText}">
                                         <StackPanel>
-                                            <TextBlock Text="INTEGRITY" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding SmcCntStatus}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding PacketLossText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding OutOfSequenceText}" Foreground="#D6E8F8" FontSize="12"/>
+                                            <TextBlock Text="SEQUENCE" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SmcCntStatus}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PacketLossText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding ExpectedDeltaText}"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,8,0">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0,0,8,0"
+                                            ToolTip="{Binding CaptureTimingCautionText}">
                                         <StackPanel>
-                                            <TextBlock Text="CAPTURE PATH" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding NetworkHealthText}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding BandwidthText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding PacketRateText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}" Foreground="#F6D781" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding CaptureTimingCautionText}"
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="10.5"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding AdapterTimingRiskText}"
-                                                       Foreground="#8FAAC3"
-                                                       FontSize="10.5"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,2,0,0"/>
+                                            <TextBlock Text="CAPTURE PATH" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding NetworkHealthText}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding AdapterTimingRiskText}"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1" CornerRadius="12" Padding="12">
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="13,12" Margin="0"
+                                            ToolTip="{Binding FrequencyStabilityText}">
                                         <StackPanel>
-                                            <TextBlock Text="SIGNAL" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding SignalHealthText}" Foreground="#FFFFFF" FontSize="18" FontWeight="Bold" Margin="0,4,0,6"/>
-                                            <Border Height="1" Background="#244564" Margin="0,0,0,6"/>
-                                            <TextBlock Text="{Binding VoltageBalanceText}" Foreground="#D6E8F8" FontSize="12"/>
-                                            <TextBlock Text="{Binding FrequencyStabilityText}" Foreground="#D6E8F8" FontSize="12"/>
+                                            <TextBlock Text="SIGNAL" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SignalHealthText}"
+                                                       Foreground="#F2F8FF" FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,8,0,5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding VoltageBalanceText}"
+                                                       Foreground="#A7C2D9" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding TimingMetricText}"/>
                                         </StackPanel>
                                     </Border>
-
                                 </UniformGrid>
 
                                 <Border Grid.Row="4"
