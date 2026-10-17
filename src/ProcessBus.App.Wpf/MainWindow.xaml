@@ -837,66 +837,18 @@
              ROW 2 — QUIET STATUS STRIP
              ========================================================= -->
                     <Border Grid.Row="2"
-                MinHeight="34"
-                Padding="12,7"
-                Background="#07111D"
-                CornerRadius="0,0,8,8">
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <WrapPanel Grid.Column="0">
-                                <Border Style="{StaticResource SectionChipStyle}">
-                                    <TextBlock Foreground="{StaticResource AccentBrush}"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding DataSourceName, StringFormat=Mode: {0}}"/>
-                                </Border>
-
-                                <Border Style="{StaticResource SectionChipStyle}">
-                                    <TextBlock Foreground="{StaticResource AccentBrush}"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding StreamStatusText, StringFormat=Capture: {0}}"/>
-                                </Border>
-
-                                <Border Style="{StaticResource SectionChipStyle}"
-                                        Background="#102236"
-                                        BorderBrush="#254D70">
-                                    <TextBlock Foreground="#83D8FF"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding PtpStatusCompactText}"/>
-                                </Border>
-
-                                <Border Style="{StaticResource SectionChipStyle}"
-                                        Background="#132114"
-                                        BorderBrush="#315F44">
-                                    <TextBlock Foreground="#68D98B"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding TimingConfidenceBadgeText}"/>
-                                </Border>
-
-                                <Border Style="{StaticResource SectionChipStyle}"
-                                        Background="#151E2D"
-                                        BorderBrush="#354865">
-                                    <TextBlock Foreground="#BFD9F3"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding SclFileNameText}"/>
-                                </Border>
-                            </WrapPanel>
-
-                            <!-- Raw passive wording appears in the mode banner/footer; avoid repeating it here. -->
-
-                            <TextBlock Grid.Column="3"
-                           VerticalAlignment="Center"
-                           Foreground="#6F8FAF"
-                           FontSize="11"
-                           FontWeight="SemiBold"
-                           Text="{Binding ModeBannerText}"/>
-                        </Grid>
+                            MinHeight="32"
+                            Padding="14,7"
+                            Background="#07111D"
+                            CornerRadius="0,0,8,8">
+                        <DockPanel LastChildFill="True">
+                            <TextBlock DockPanel.Dock="Left"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#A8CDEB"
+                                       Text="{Binding OperatorCaptureSummaryText}"/>
+                        </DockPanel>
                     </Border>
                 </Grid>
             </Border>
@@ -3623,9 +3575,7 @@
                                                        Text="{Binding ValidationSummaryCompactText}"
                                                        Style="{StaticResource PanelSubtitleTextStyle}"
                                                        TextWrapping="Wrap"/>
-                                            <TextBlock Margin="0,6,0,0"
-                                                       Text="Flow: summary -> findings table -> selected evidence"
-                                                       Style="{StaticResource FlowHintTextStyle}"/>
+                                            
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="3" VerticalAlignment="Center" MinWidth="220">
@@ -3901,9 +3851,7 @@
                                                        Text="Import SCD / CID / ICD / IID files, inspect IED cards, and build semantic mapping for SV and GOOSE streams."
                                                        Style="{StaticResource PanelSubtitleTextStyle}"
                                                        TextWrapping="Wrap"/>
-                                            <TextBlock Margin="0,6,0,0"
-                                                       Text="Flow: SCL Explorer -> stream catalog / binding matrix -> semantic detail"
-                                                       Style="{StaticResource FlowHintTextStyle}"/>
+                                            
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button Command="{Binding LoadSclCommand}" Style="{StaticResource HeroToolbarButtonStyle}" MinWidth="104" Height="34" Padding="14,0">
@@ -4288,9 +4236,7 @@
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource PanelTitleTextStyle}" Text="{Binding AdvancedTargetTitle}"/>
                                                 <TextBlock Margin="0,4,0,0" Style="{StaticResource PanelSubtitleTextStyle}" Text="{Binding AdvancedTargetSubtitle}" TextWrapping="Wrap"/>
-                                                <TextBlock Margin="0,6,0,0"
-                                                           Text="Flow: target explorer -> raw evidence -> engineering interpretation"
-                                                           Style="{StaticResource FlowHintTextStyle}"/>
+                                                
                                             </StackPanel>
                                         </Border>
 
