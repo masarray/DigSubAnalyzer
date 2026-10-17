@@ -3618,8 +3618,26 @@
                                         </Border>
                                         <Border Grid.Column="4" Style="{StaticResource PremiumInsightCardStyle}">
                                             <StackPanel>
-                                                <TextBlock Text="Evidence Readiness" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,5,0,0" Text="Expected, observed, status, evidence." Foreground="#F4FAFF" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <DockPanel LastChildFill="True">
+                                                    <Button DockPanel.Dock="Right"
+                                                            Content="Inspect PCAP"
+                                                            Style="{StaticResource ToolbarGhostButtonStyle}"
+                                                            Command="{Binding InspectPcapCommand}"
+                                                            IsEnabled="{Binding CanInspectPcap}"
+                                                            ToolTip="Read-only local capture screening. Load SCL first to compare canonical wire identity."/>
+                                                    <TextBlock Text="Wire Evidence"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="#8FB8D8"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"/>
+                                                </DockPanel>
+                                                <TextBlock Margin="0,5,0,0"
+                                                           Text="{Binding M4CaptureSummaryText}"
+                                                           ToolTip="{Binding M4CaptureDetailText}"
+                                                           Foreground="#F4FAFF"
+                                                           FontSize="11.5"
+                                                           TextWrapping="Wrap"
+                                                           MaxHeight="42"/>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
