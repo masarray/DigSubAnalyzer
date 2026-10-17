@@ -45,7 +45,12 @@ public sealed class NpcapRawFrameSource : IRawFrameSource
                 yield break;
 
             if (status == ReadStatus.Timeout)
-                await Task.Yield();
+            {
+                // A driver/adapter may return empty immediately even with a configured
+                // timeout. Task.Yield alone can spin at full CPU while the link is idle.
+                // The delay is only on empty reads; available frames remain uninterrupted.
+                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
