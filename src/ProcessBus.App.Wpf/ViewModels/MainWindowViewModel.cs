@@ -4,6 +4,7 @@ using ProcessBus.Core.Services;
 using ProcessBus.Core.Services.Scl;
 using Microsoft.Win32;
 using ProcessBus.Iec61850.Raw.Live;
+using ProcessBus.Iec61850.Raw.Interop;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -31,6 +32,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private static readonly string LastInterfacePath = Path.Combine(AppContext.BaseDirectory, "raw_capture.last_interface.txt");
     private readonly AnalyzerShellState _state = new();
     private readonly LiveRenderCoalescer _renderCoalescer = new();
+    private CancellationTokenSource? _m4CaptureInspectCts;
+    private bool _m4CaptureInspectInProgress;
+    private string _m4CaptureSummary = "Load a local PCAP to compare observed SV with SCL.";
+    private string _m4CaptureDetail = "Capture-path VLAN visibility and IED subscription are not verified.";
     private readonly IRawCaptureDataSource _rawDataSource = new RawAnalyzerDataSource();
     private readonly DispatcherTimer _timer;
     private IAnalyzerDataSource _dataSource;
@@ -685,6 +690,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ClearCommand = new AsyncRelayCommand(ClearAsync);
         CopyEvidenceCommand = new RelayCommand(CopyEvidenceSnapshot);
         LoadSclCommand = new RelayCommand(LoadSclProject);
+        InspectPcapCommand = new AsyncRelayCommand(InspectLocalPcapAsync);
         ClearSclCommand = new RelayCommand(ClearSclProject);
 
         SwitchToRawCommand = new AsyncRelayCommand(async () =>
@@ -927,6 +933,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand GooseInteractionCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
+    public ICommand InspectPcapCommand { get; }
+    public string M4CaptureSummaryText => _m4CaptureSummary;
+    public string M4CaptureDetailText => _m4CaptureDetail;
+    public bool CanInspectPcap => !_m4CaptureInspectInProgress && !_isShuttingDown;
     public ICommand ClearSclCommand { get; }
 
     public SclProjectModel SclProject => _sclProject;
@@ -2755,6 +2765,80 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
 
+    private async Task InspectLocalPcapAsync()
+    {
+        if (_m4CaptureInspectInProgress || _isShuttingDown)
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Inspect local process-bus Ethernet PCAP (receive-only)",
+            Filter = "Classic Ethernet PCAP (*.pcap;*.cap)|*.pcap;*.cap|All files (*.*)|*.*",
+            Multiselect = false
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var expected = _sclProjects.SelectMany(project => project.SvStreams).ToArray();
+        _m4CaptureInspectInProgress = true;
+        _m4CaptureSummary = "Reading local capture…";
+        _m4CaptureDetail = "Analysis runs off the UI dispatcher. The file stays on this computer.";
+        OnPropertyChanged(nameof(CanInspectPcap));
+        OnPropertyChanged(nameof(M4CaptureSummaryText));
+        OnPropertyChanged(nameof(M4CaptureDetailText));
+
+        using var cts = new CancellationTokenSource();
+        _m4CaptureInspectCts = cts;
+        try
+        {
+            var path = dialog.FileName;
+            var report = await Task.Run(() =>
+            {
+                using var capture = File.OpenRead(path);
+                return new PcapInteropInspector().Inspect(
+                    capture, expected, maximumFrames: 50_000_000, cts.Token);
+            }, cts.Token);
+
+            if (_isShuttingDown)
+                return;
+
+            var matchCount = report.Comparisons.Count(x => x.Status == "WIRE_FIELDS_MATCH");
+            var attention = report.Comparisons.Count(x => x.Status != "WIRE_FIELDS_MATCH");
+            var mirrors = report.SvStreams.Count(x => x.IsArstackDiagnosticMirror);
+            _m4CaptureSummary = expected.Length == 0
+                ? $"Observed {report.SvStreams.Count} SV identities, {report.PtpMessages} PTP messages. Load SCL for comparison."
+                : $"{matchCount}/{expected.Length} SCL wire identities match; {attention} need attention; {mirrors} diagnostic mirror(s).";
+
+            _m4CaptureDetail = report.Comparisons.FirstOrDefault(x => x.Status != "WIRE_FIELDS_MATCH") is { } issue
+                ? $"{issue.Status}: {issue.Explanation}. Independent capture/IED not verified."
+                : $"Captured {report.FramesRead} frames; matched two-step PTP {report.MatchedTwoStep}. " +
+                  "Wire-field screening only; TAP/VLAN and IED acceptance still unverified.";
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_isShuttingDown)
+                _m4CaptureSummary = "Capture inspection cancelled.";
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or
+                                         UnauthorizedAccessException or ArgumentException or OverflowException)
+        {
+            _m4CaptureSummary = "Unable to inspect this capture.";
+            _m4CaptureDetail = exception.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_m4CaptureInspectCts, cts))
+                _m4CaptureInspectCts = null;
+            _m4CaptureInspectInProgress = false;
+            if (!_isShuttingDown)
+            {
+                OnPropertyChanged(nameof(CanInspectPcap));
+                OnPropertyChanged(nameof(M4CaptureSummaryText));
+                OnPropertyChanged(nameof(M4CaptureDetailText));
+            }
+        }
+    }
+
     private void LoadSclProject()
     {
         try
@@ -3950,6 +4034,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         _isShuttingDown = true;
+        _m4CaptureInspectCts?.Cancel();
         _timer.Stop();
 
         try
