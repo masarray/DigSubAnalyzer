@@ -3053,6 +3053,7 @@
                                                   EnableColumnVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True"
                                                   VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.CanContentScroll="True"
                                                   ScrollViewer.CanContentScroll="True"
                                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -3516,6 +3517,7 @@
                                                   EnableColumnVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True"
                                                   VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.CanContentScroll="True"
                                                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto">
                                             <DataGrid.Columns>
@@ -3566,7 +3568,7 @@
                                                 CornerRadius="10">
                                             <StackPanel>
                                                 <TextBlock Text="Overall" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,3,0,0" Text="{Binding ValidationOverallStatusText}" Foreground="{Binding ValidationOverallBrush}" FontSize="26" FontWeight="Bold"/>
+                                                <TextBlock Margin="0,3,0,0" Text="{Binding ValidationOverallStatusText}" Foreground="{Binding ValidationOverallBrush}" FontSize="18" FontWeight="SemiBold"/>
                                             </StackPanel>
                                         </Border>
 
@@ -3637,10 +3639,6 @@
                                             <DockPanel Grid.ColumnSpan="3">
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Validation Findings" Style="{StaticResource PanelTitleTextStyle}"/>
-                                                    <TextBlock Margin="0,4,0,0"
-                                                               Text="Decision rows generated from SCL binding status, PTP context, and capture timestamp confidence."
-                                                               Foreground="#8FAAC3"
-                                                               FontSize="11"/>
                                                 </StackPanel>
                                             </DockPanel>
 
@@ -3657,13 +3655,14 @@
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
                                                       RowHeight="{x:Static sys:Double.NaN}"
-                                                      MinRowHeight="96"
+                                                      MinRowHeight="64"
                                                       RowStyle="{StaticResource EngineeringDataGridRowStyle}"
                                                       CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="11.5"
-                                                      EnableRowVirtualization="False"
-                                                      VirtualizingPanel.IsVirtualizing="False"
+                                                      EnableRowVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True"
                                                       VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.CanContentScroll="True"
                                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                                 <DataGrid.Resources>
@@ -3915,13 +3914,14 @@
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
                                                       RowHeight="{x:Static sys:Double.NaN}"
-                                                      MinRowHeight="72"
+                                                      MinRowHeight="56"
                                                       RowStyle="{StaticResource EngineeringDataGridRowStyle}"
                                                       CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="12"
-                                                      EnableRowVirtualization="False"
-                                                      VirtualizingPanel.IsVirtualizing="False"
+                                                      EnableRowVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True"
                                                       VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.CanContentScroll="True"
                                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                                 <DataGrid.Resources>
@@ -4024,13 +4024,14 @@
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
                                                       RowHeight="{x:Static sys:Double.NaN}"
-                                                      MinRowHeight="108"
+                                                      MinRowHeight="72"
                                                       RowStyle="{StaticResource EngineeringDataGridRowStyle}"
                                                       CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="11.5"
-                                                      EnableRowVirtualization="False"
-                                                      VirtualizingPanel.IsVirtualizing="False"
+                                                      EnableRowVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True"
                                                       VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.CanContentScroll="True"
                                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                                 <DataGrid.Resources>
