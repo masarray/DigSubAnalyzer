@@ -2445,9 +2445,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(DataSourceName));
             OnPropertyChanged(nameof(IsLiveMode));
             OnPropertyChanged(nameof(ModeBannerText));
-            OnPropertyChanged(nameof(SelectedStream));
-            OnPropertyChanged(nameof(IsRunning));
-            OnPropertyChanged(nameof(IsRawMode));
+            // SelectedStream and IsRunning already notify on actual transitions.
+            // Reasserting them every 500 ms causes ListView selection churn and
+            // unrelated WPF controls to remeasure while SV is otherwise stable.
             OnPropertyChanged(nameof(PtpStatusCompactText));
             OnPropertyChanged(nameof(TimingConfidenceBadgeText));
             OnPropertyChanged(nameof(ProtocolMonitor));
