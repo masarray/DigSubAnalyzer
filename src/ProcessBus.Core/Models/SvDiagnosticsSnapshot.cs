@@ -96,7 +96,8 @@ public sealed class SvDiagnosticsSnapshot
         _ => "UNVERIFIED"
     };
 
-    public string SvQualityEvidenceText => $"{ValidityText} · smpSynch: {SmpSynchText} (observed)";
+    public string SvQualityEvidenceText => $"{ValidityText} · smpSynch: {SmpSynchText}" +
+        (SmpSynchText == "N/A" ? " (unavailable)" : " (observed)");
     public string SvArrivalIntervalText =>
         $"Actual Δ {FormatMicroseconds(CurrentDeltaMicroseconds)} · Expected Δ {FormatMicroseconds(ExpectedDeltaMicroseconds)}";
     public string SvArrivalAuthorityText =>
