@@ -945,6 +945,12 @@ public sealed class RawProcessBusAnalyzer
         public string SequenceStatusText { get; private set; } = "First sample";
         public DateTime LastSeenUtc { get; private set; }
         public string SmpSynchText => SmpSynch.HasValue ? SmpSynch.Value.ToString() : "N/A";
+        // Observed wire identity, not attestation of the transmitting device.
+        private bool IsArstackDiagnosticMirror =>
+            string.Equals(SvId, "AR_DIAG_SV1", StringComparison.Ordinal) &&
+            string.Equals(AppId, "0x4F01", StringComparison.Ordinal) &&
+            string.Equals(DestinationMac, "FF:FF:FF:FF:FF:FF", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(VlanText, "Untagged", StringComparison.Ordinal);
 
         public void ResetRenderMappingState()
         {
@@ -1030,6 +1036,9 @@ public sealed class RawProcessBusAnalyzer
             if (RecentJitterOver300MicrosecondsCount > 0)
                 return $"Arrival excursion: {RecentJitterOver300MicrosecondsCount}/5s, max {MaxAbsJitterMicroseconds?.ToString("0.#") ?? "N/A"} us";
 
+            if (IsArstackDiagnosticMirror)
+                return "ARStack diagnostic mirror identity; canonical multicast/VLAN not proven";
+
             return LastSmpCnt.HasValue
                 ? $"Continuous - smpCnt {LastSmpCnt}"
                 : "Continuous - awaiting smpCnt";
@@ -1051,7 +1060,9 @@ public sealed class RawProcessBusAnalyzer
                         ? $"{_counterVerifiedSampleRateHz} (estimated: smpCnt wrap + host arrival rate, not on-wire)"
                         : "N/A (optional smpRate absent; awaiting verified wrap)",
                 ConfRevText = ConfRev?.ToString() ?? "N/A",
-                SampleValueMappingText = MappingProfileName,
+                SampleValueMappingText = IsArstackDiagnosticMirror
+                    ? $"Diagnostic mirror only (not canonical SCL) | {MappingProfileName}"
+                    : MappingProfileName,
                 SampleValueCountText = DecodedElementCount > 0 ? $"{DecodedElementCount} element(s)" : "0",
                 MappedChannelNamesText = MappedChannelNamesText
                     + (_engineeringScale == SvEngineeringScale.Nominal4I4V
@@ -1876,7 +1887,8 @@ public sealed class RawProcessBusAnalyzer
                 $"payloadBytes={LastPayloadBytes}",
                 $"mapped={MappedChannelNamesText}",
                 $"sequence={SequenceStatusText}",
-                $"timing={JitterStatusText}"
+                $"timing={JitterStatusText}",
+                IsArstackDiagnosticMirror ? "identity=diagnostic mirror; canonical stream requires separate capture" : "identity=observed wire SV"
             });
         }
 
