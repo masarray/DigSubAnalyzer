@@ -5,6 +5,16 @@ namespace ProcessBus.Tests;
 
 public sealed class SvNominalProfilePolicyTests
 {
+    [Fact]
+    public void IdleUiPresetIsNominalButCannotInventMeasurementEvidence()
+    {
+        Assert.Equal(SvEngineeringScale.Nominal4I4V, SvEngineeringScaleFactors.IdlePresentationDefault);
+        var noSamples = new AnalogValuesSnapshot();
+        Assert.Null(noSamples.Ua.RmsValue);
+        Assert.Null(noSamples.Ia.RmsValue);
+        Assert.Null(noSamples.Ic.AngleDegrees);
+    }
+
     [Theory]
     [InlineData("Raw 4I4V instMag/q candidate profile", true)]
     [InlineData("OMICRON raw 4I4V instMag/q profile / OMICRON_CMC_SV1", true)]
