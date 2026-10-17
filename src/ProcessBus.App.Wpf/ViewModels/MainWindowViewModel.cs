@@ -878,25 +878,43 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public IReadOnlyList<string> WaveformTimebaseOptions { get; } = ["1 cycle", "2 cycles", "4 cycles", "8 cycles"];
     public IReadOnlyList<string> WaveformModeOptions { get; } = ["Locked"];
     public IReadOnlyList<string> WaveformMarkerOptions { get; } = ["On", "Off"];
-    public IReadOnlyList<string> EngineeringScaleOptions { get; } = [RawScaleText, NominalScaleText];
+    public IReadOnlyList<string> EngineeringScaleOptions { get; } = [NominalScaleText, RawScaleText];
+
+    private SvEngineeringScale ResolveSelectedStreamScale(string streamId)
+    {
+        if (_explicitSvScales.TryGetValue(streamId, out var explicitMode))
+            return explicitMode;
+
+        // Use the decoder's recognized 4I+4V instMag/q layout, not an APPID or
+        // publisher name, as eligibility for an ASSUMED nominal display.
+        var details = SelectedStreamDetails;
+        return SelectedStream is not null &&
+               string.Equals(SelectedStream.StreamId, streamId, StringComparison.OrdinalIgnoreCase) &&
+               details is not null &&
+               string.Equals(details.SvId, SelectedStream.SvId, StringComparison.OrdinalIgnoreCase) &&
+               SvEngineeringScaleFactors.IsRecognizedNominalCandidate(details.SampleValueMappingText)
+            ? SvEngineeringScale.Nominal4I4V
+            : SvEngineeringScale.RawCounts;
+    }
+
     public string SelectedEngineeringScale
     {
         get => SelectedStream is not null &&
-            _explicitSvScales.TryGetValue(SelectedStream.StreamId, out var mode) &&
-            mode == SvEngineeringScale.Nominal4I4V ? NominalScaleText : RawScaleText;
+               ResolveSelectedStreamScale(SelectedStream.StreamId) == SvEngineeringScale.Nominal4I4V
+            ? NominalScaleText : RawScaleText;
         set
         {
             if (SelectedStream is null || (value != RawScaleText && value != NominalScaleText))
                 return;
             var next = value == NominalScaleText ? SvEngineeringScale.Nominal4I4V : SvEngineeringScale.RawCounts;
             var key = SelectedStream.StreamId;
-            if (_explicitSvScales.TryGetValue(key, out var previous) ? previous == next : next == SvEngineeringScale.RawCounts)
+            if (ResolveSelectedStreamScale(key) == next)
                 return;
 
-            if (next == SvEngineeringScale.RawCounts) _explicitSvScales.Remove(key);
-            else _explicitSvScales[key] = next;
+            // Store raw overrides too: selecting raw must not auto-revert to
+            // nominal on the next 500ms stream refresh.
+            _explicitSvScales[key] = next;
             ApplySelectedStreamScale(key);
-            // No stale physical metering, vectors, waveform, or wrong-stream cached state.
             _streamWorkspaces.Remove(key);
             RestoreSelectedStreamWorkspace(SelectedStream);
             OnPropertyChanged();
@@ -909,15 +927,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string EngineeringScaleExplanation => SelectedStream is null
         ? "Select an SV stream to see its measurement units."
         : SelectedEngineeringScale == NominalScaleText
-            ? "Operator-selected 4I+4V nominal scaling; not calibrated or independently verified. Applies to this stream only."
-            : "Uncalibrated raw counts: waveform/angles remain available; physical power is unavailable.";
+            ? "Assumed 4I+4V nominal: 1 mA / 10 mV per count. Display estimate only; not calibrated or SCL-verified. Choose Raw counts anytime."
+            : "Raw SV counts: no electrical units inferred. Use nominal 4I+4V only when its layout is confirmed.";
 
     private void ApplySelectedStreamScale(string? streamId)
     {
         if (string.IsNullOrWhiteSpace(streamId)) return;
-        var mode = _explicitSvScales.TryGetValue(streamId, out var selected)
-            ? selected : SvEngineeringScale.RawCounts;
-        _rawDataSource.SetSvEngineeringScale(streamId, mode);
+        _rawDataSource.SetSvEngineeringScale(streamId, ResolveSelectedStreamScale(streamId));
     }
 
     public IReadOnlyList<string> WaveformVoltageScaleOptions { get; } =
@@ -1540,6 +1556,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     // ===== HEALTH =====
     private bool HasDiagnosticWarning =>
+        Diagnostics.SmpSynchText == "0" ||
         Diagnostics.DecodeErrors > 0 ||
         Diagnostics.CaptureDriverDroppedFrames > 0 ||
         Diagnostics.SequenceErrors > 0 ||
@@ -1884,6 +1901,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string BuildHealthWarningText()
     {
         var parts = new List<string>(5);
+        if (Diagnostics.SmpSynchText == "0")
+            parts.Add("SV samples report NOT SYNCED (smpSynch=0)");
         if (Diagnostics.DecodeErrors > 0)
             parts.Add($"decode rejects {Diagnostics.DecodeErrors}");
         if (Diagnostics.SequenceErrors > 0)
@@ -2226,6 +2245,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private void UpdateSelectedStreamWorkspaceFromSnapshot(string? selectedStreamId, AnalogValuesSnapshot analogValues, WaveformSnapshot waveform)
     {
         _displayedSelectedStreamDetails = _state.SelectedStreamDetails;
+        // Refresh auto-nominal eligibility after the decoder has discovered a
+        // recognized mapping; next coherent snapshot uses the chosen units.
+        ApplySelectedStreamScale(selectedStreamId);
+        OnPropertyChanged(nameof(SelectedEngineeringScale));
+        OnPropertyChanged(nameof(EngineeringScaleExplanation));
 
         // ARSVIN-style display contract: phasor vectors are derived from the latest
         // engineering snapshot on every UI refresh. Do not use object-reference caching
@@ -4280,7 +4304,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Name = name,
             Family = family,
             Magnitude = channel.RmsValue,
-            AngleDegrees = forceAngleZero && channel.RmsValue.HasValue ? 0.0 : channel.AngleDegrees,
+            AngleDegrees = forceAngleZero && channel.AngleDegrees.HasValue ? 0.0 : channel.AngleDegrees,
             Unit = channel.Unit
         };
     }

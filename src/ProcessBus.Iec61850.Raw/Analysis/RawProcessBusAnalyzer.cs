@@ -1421,8 +1421,14 @@ public sealed class RawProcessBusAnalyzer
             // not freeze the vector display. The old display-hold path kept returning the
             // previous angle after transient sequence warnings, so the phasor diagram only
             // appeared to refresh after a user clicked SV Explorer and rebuilt the workspace.
-            if (!rawAngle.HasValue || reference is null)
-                return _displayAngles[channel] ?? DefaultAngleDegrees(channel);
+            // Never synthesize a nominal phase angle or replay a previous channel
+            // angle when this coherent SV window lacks valid phasor evidence.
+            // In particular an absent Ic must not produce a convincing +90° arrow.
+            if (!rawAngle.HasValue || !double.IsFinite(rawAngle.Value) || reference is null)
+            {
+                _displayAngles[channel] = null;
+                return null;
+            }
 
             var referenceValue = reference.Value;
             var relativeAngle = string.Equals(channel, referenceValue.Channel, StringComparison.OrdinalIgnoreCase)
@@ -1680,21 +1686,33 @@ public sealed class RawProcessBusAnalyzer
 
         private static double? GetFundamentalAngleDegrees(IReadOnlyList<ScopeSampleFrame> frames, string channel, int samplesPerCycle)
         {
-            var values = GetChannelSamples(frames, channel);
-            if (samplesPerCycle <= 1 || values.Count < samplesPerCycle)
+            if (samplesPerCycle <= 1 || frames.Count < samplesPerCycle)
                 return null;
 
+            // Keep every channel on the SAME acquisition slot index. Filtering out
+            // absent channel values and reindexing them shifts its electrical phase
+            // relative to Ua without changing the displayed waveform's slot positions.
             var sine = 0.0;
             var cosine = 0.0;
+            var sumSquares = 0.0;
             var phaseStep = 2.0 * Math.PI / samplesPerCycle;
-            for (var index = 0; index < values.Count; index++)
+            for (var index = 0; index < frames.Count; index++)
             {
+                var value = frames[index].GetValue(channel);
+                if (!value.HasValue || !double.IsFinite(value.Value))
+                    return null;
+
                 var angle = phaseStep * index;
-                sine += values[index] * Math.Sin(angle);
-                cosine += values[index] * Math.Cos(angle);
+                sine += value.Value * Math.Sin(angle);
+                cosine += value.Value * Math.Cos(angle);
+                sumSquares += value.Value * value.Value;
             }
 
-            if (Math.Abs(sine) < 1e-9 && Math.Abs(cosine) < 1e-9)
+            // An all-zero/vanishing fundamental has no mathematically meaningful angle.
+            // Refuse an invented vector rather than using a fixed R/S/T template.
+            var fundamentalMagnitude = Math.Sqrt(sine * sine + cosine * cosine);
+            if (sumSquares <= 0 ||
+                fundamentalMagnitude <= 1e-8 * Math.Sqrt(sumSquares * frames.Count))
                 return null;
 
             return NormalizeAngleDegrees(Math.Atan2(cosine, sine) * 180.0 / Math.PI);

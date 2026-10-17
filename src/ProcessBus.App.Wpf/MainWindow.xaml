@@ -2564,7 +2564,7 @@
                                             CornerRadius="9" Padding="12,10"
                                             ToolTip="{Binding Diagnostics.ValidityText}">
                                         <StackPanel>
-                                            <TextBlock Text="SV QUALITY / SYNC" Foreground="#9BC7E4" FontSize="10.5"
+                                            <TextBlock Text="SV QUALITY" Foreground="#9BC7E4" FontSize="10.5"
                                                        FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Diagnostics.SvQualityHeadlineText}"
                                                        FontSize="20" FontWeight="SemiBold"
@@ -2586,6 +2586,25 @@
                                             <TextBlock Text="{Binding Diagnostics.SvQualityEvidenceText}"
                                                        Foreground="#B9D1E5" FontSize="11"
                                                        TextWrapping="Wrap" ToolTip="{Binding Diagnostics.ValidityText}"/>
+                                            <DockPanel Margin="0,6,0,0" LastChildFill="False">
+                                                <TextBlock Text="SAMPLE SYNC" FontSize="10" Foreground="#9BC7E4"
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding Diagnostics.SvSampleSyncHeadlineText}"
+                                                           FontSize="11.5" FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#F3C76D"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Diagnostics.SmpSynchText}" Value="0">
+                                                                    <Setter Property="Foreground" Value="#FF8484"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Diagnostics.SvSampleSyncEvidenceText}"
+                                                       FontSize="10" Foreground="#A8C5DD" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Border>
                                 </UniformGrid>
