@@ -36,7 +36,7 @@ env:
 jobs:
   candidate:
     name: Build verified Windows x64 candidate
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/') || startsWith(github.head_ref, 'architecture/') || startsWith(github.head_ref, 'legal/') || startsWith(github.head_ref, 'fix/')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/') || startsWith(github.head_ref, 'architecture/') || startsWith(github.head_ref, 'legal/') || startsWith(github.head_ref, 'fix/') || startsWith(github.head_ref, 'feat/')
     runs-on: windows-latest
     timeout-minutes: 35
 
