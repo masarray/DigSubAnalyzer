@@ -57,7 +57,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string? _lastPhasorSourceStreamId;
     private readonly Dictionary<string, SvEngineeringScale> _explicitSvScales = new(StringComparer.OrdinalIgnoreCase);
     private const string RawScaleText = "Raw counts (uncalibrated)";
-    private const string NominalScaleText = "4I+4V nominal (1 mA / 10 mV per count)";
+    private const string NominalScaleText = "4I+4V nominal";
     private string _waveformShowMode = "Both";
     private string _waveformLayoutMode = "Overlay";
     private string _waveformTimebase = "2 cycles";
