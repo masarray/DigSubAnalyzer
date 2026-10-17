@@ -54,6 +54,8 @@ public sealed class SvDiagnosticsSnapshot
     public double? PtpAnnounceRatePerSecond { get; set; }
     public double? PtpFollowUpRatePerSecond { get; set; }
     public long PtpGrandmasterChangeCount { get; set; }
+    public long PtpMatchedTwoStepCount { get; set; }
+    public long PtpUnmatchedFollowUpCount { get; set; }
     public DateTime? LastPtpMessageTimestampUtc { get; set; }
     public DateTime? LastPtpSyncTimestampUtc { get; set; }
     public DateTime? LastPtpAnnounceTimestampUtc { get; set; }
