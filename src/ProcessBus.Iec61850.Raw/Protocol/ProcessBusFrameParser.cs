@@ -186,7 +186,6 @@ public static class ProcessBusFrameParser
         if (udpLength < 8 || udpLength > udp.Length)
             return false;
         var availableUdpLength = udpLength;
-            return false;
 
         var payloadLength = availableUdpLength - 8;
         if (payloadLength < 34)
@@ -236,7 +235,6 @@ public static class ProcessBusFrameParser
         if (udpLength < 8 || udpLength > udp.Length)
             return false;
         var availableUdpLength = udpLength;
-            return false;
 
         var payloadLength = availableUdpLength - 8;
         if (payloadLength < 34)
