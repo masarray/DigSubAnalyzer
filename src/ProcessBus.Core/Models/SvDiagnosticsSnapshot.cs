@@ -7,6 +7,11 @@ public sealed class SvDiagnosticsSnapshot
     public double? PacketRatePps { get; set; }
     public long TotalPackets { get; set; }
     public long DecodeErrors { get; set; }
+    // Driver counters are a separate capture-path diagnostic. Never mix them with
+    // inferred IEC 61850 missing smpCnt evidence.
+    public long? CaptureDriverDroppedFrames { get; set; }
+    public long? CaptureInterfaceDroppedFrames { get; set; }
+    public string CaptureDropEvidenceText { get; set; } = "NIC capture-drop counters unavailable";
     public long SequenceErrors { get; set; }
     public long MissingSamples { get; set; }
     public int? LastSampleCount { get; set; }
