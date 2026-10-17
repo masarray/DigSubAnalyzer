@@ -7,7 +7,6 @@ namespace ProcessBus.Iec61850.Raw.Ptp;
 /// </summary>
 public sealed class PtpHealthTracker
 {
-    private static readonly TimeSpan RateWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan AnnounceFreshness = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan SyncFreshness = TimeSpan.FromSeconds(2);
     private const int MaximumObservedSources = 64;
@@ -115,9 +114,11 @@ public sealed class PtpHealthTracker
             ClockClass = source.LastAnnounce?.GrandmasterClockClass,
             ClockAccuracyText = source.LastAnnounce?.ClockAccuracyText ?? "N/A",
             StepsRemoved = source.LastAnnounce?.StepsRemoved,
-            SyncRatePerSecond = source.Rate(source.SyncTimes),
-            AnnounceRatePerSecond = source.Rate(source.AnnounceTimes),
-            FollowUpRatePerSecond = source.Rate(source.FollowUpTimes),
+            SyncRatePerSecond = source.SyncTimes.Rate(nowUtc),
+            AnnounceRatePerSecond = source.AnnounceTimes.Rate(nowUtc),
+            FollowUpRatePerSecond = source.FollowUpTimes.Rate(nowUtc),
+            MatchedTwoStepCount = source.MatchedTwoStepCount,
+            UnmatchedFollowUpCount = source.UnmatchedFollowUpCount,
             LastMessageUtc = source.LastMessageUtc,
             LastSyncUtc = source.LastSyncUtc,
             LastAnnounceUtc = source.LastAnnounceUtc,
@@ -150,9 +151,12 @@ public sealed class PtpHealthTracker
         public DateTime? LastFollowUpUtc { get; private set; }
         public string? GrandmasterIdentity { get; private set; }
         public PtpMessage? LastAnnounce { get; private set; }
-        public Queue<DateTime> SyncTimes { get; } = new();
-        public Queue<DateTime> AnnounceTimes { get; } = new();
-        public Queue<DateTime> FollowUpTimes { get; } = new();
+        public PtpRateWindow SyncTimes { get; } = new();
+        public PtpRateWindow AnnounceTimes { get; } = new();
+        public PtpRateWindow FollowUpTimes { get; } = new();
+        private readonly Dictionary<ushort, DateTime> _pendingTwoStepSync = new();
+        public long MatchedTwoStepCount { get; private set; }
+        public long UnmatchedFollowUpCount { get; private set; }
 
         public void Observe(PtpMessage message)
         {
@@ -160,40 +164,46 @@ public sealed class PtpHealthTracker
             if (message.IsSync)
             {
                 LastSyncUtc = message.CaptureTimeUtc;
-                SyncTimes.Enqueue(message.CaptureTimeUtc);
-                Trim(SyncTimes, message.CaptureTimeUtc);
+                SyncTimes.Observe(message.CaptureTimeUtc);
+                if ((message.Flags & 0x0200) != 0) // IEEE1588 twoStepFlag
+                {
+                    if (_pendingTwoStepSync.Count >= 64 && !_pendingTwoStepSync.ContainsKey(message.SequenceId))
+                    {
+                        var oldest = _pendingTwoStepSync.OrderBy(x => x.Value).First().Key;
+                        _pendingTwoStepSync.Remove(oldest);
+                    }
+                    _pendingTwoStepSync[message.SequenceId] = message.CaptureTimeUtc;
+                }
             }
             else if (message.IsFollowUp)
             {
                 LastFollowUpUtc = message.CaptureTimeUtc;
-                FollowUpTimes.Enqueue(message.CaptureTimeUtc);
-                Trim(FollowUpTimes, message.CaptureTimeUtc);
+                FollowUpTimes.Observe(message.CaptureTimeUtc);
+                if (_pendingTwoStepSync.Remove(message.SequenceId, out var syncTime) &&
+                    message.CaptureTimeUtc >= syncTime &&
+                    message.CaptureTimeUtc - syncTime <= SyncFreshness)
+                    MatchedTwoStepCount++;
+                else
+                    UnmatchedFollowUpCount++;
             }
             else if (message.IsAnnounce)
             {
                 LastAnnounceUtc = message.CaptureTimeUtc;
                 LastAnnounce = message;
                 GrandmasterIdentity = message.GrandmasterIdentity;
-                AnnounceTimes.Enqueue(message.CaptureTimeUtc);
-                Trim(AnnounceTimes, message.CaptureTimeUtc);
+                AnnounceTimes.Observe(message.CaptureTimeUtc);
             }
         }
 
         public void Trim(DateTime now)
         {
-            Trim(SyncTimes, now);
-            Trim(AnnounceTimes, now);
-            Trim(FollowUpTimes, now);
+            // Sequence correlation is per-source and strictly bounded. A missing
+            // Follow_Up can never remain eligible after its evidence expires.
+            foreach (var key in _pendingTwoStepSync
+                         .Where(entry => now >= entry.Value && now - entry.Value > SyncFreshness)
+                         .Select(entry => entry.Key).ToArray())
+                _pendingTwoStepSync.Remove(key);
         }
-
-        private static void Trim(Queue<DateTime> queue, DateTime now)
-        {
-            while (queue.Count > 0 && now - queue.Peek() > RateWindow)
-                queue.Dequeue();
-        }
-
-        public double? Rate(Queue<DateTime> timestamps) =>
-            timestamps.Count == 0 ? null : timestamps.Count / RateWindow.TotalSeconds;
     }
 }
 
@@ -212,6 +222,8 @@ public sealed class PtpHealthSnapshot
     public double? SyncRatePerSecond { get; init; }
     public double? AnnounceRatePerSecond { get; init; }
     public double? FollowUpRatePerSecond { get; init; }
+    public long MatchedTwoStepCount { get; init; }
+    public long UnmatchedFollowUpCount { get; init; }
     public DateTime? LastMessageUtc { get; init; }
     public DateTime? LastSyncUtc { get; init; }
     public DateTime? LastAnnounceUtc { get; init; }
