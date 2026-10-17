@@ -2494,8 +2494,8 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Unified cards -->
-                                <!-- Read-first status: four decisions; forensic explanations via hover/details. -->
+                                <!-- Immediate SV engineering evidence. Keep numerical jitter and
+                                     smpCnt discontinuities visible without opening Advanced. -->
                                 <UniformGrid Grid.Row="2" Columns="4">
                                     <UniformGrid.Style>
                                         <Style TargetType="UniformGrid">
@@ -2510,76 +2510,85 @@
                                             </Style.Triggers>
                                         </Style>
                                     </UniformGrid.Style>
-                                    <Border Background="#0F2538" BorderBrush="#294864"
-                                            BorderThickness="1" CornerRadius="12"
-                                            Padding="13,12" Margin="0,0,8,0"
-                                            ToolTip="{Binding TimingReferenceText}">
+
+                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
+                                            ToolTip="{Binding Diagnostics.JitterStatusText}">
                                         <StackPanel>
-                                            <TextBlock Text="ARRIVAL" Foreground="#91B3CF"
-                                                       FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding FrequencyText}"
-                                                       Foreground="#F2F8FF" FontSize="17"
-                                                       FontWeight="SemiBold"
-                                                       Margin="0,8,0,5"
+                                            <TextBlock Text="ARRIVAL JITTER" Foreground="#9BC7E4" FontSize="10.5"
+                                                       FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvJitterHeadlineText}"
+                                                       Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
+                                                       FontFamily="Consolas" Margin="0,6,0,4"
                                                        TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding JitterText}"
-                                                       Foreground="#A7C2D9" FontSize="11.5"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding TimestampSourceText}"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvJitterStatisticsText}"
+                                                       Foreground="#B9D1E5" FontSize="11" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvJitterExcursionsText}"
+                                                       Foreground="#F3C76D" FontSize="11" Margin="0,3,0,0"
+                                                       TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#0F2538" BorderBrush="#294864"
-                                            BorderThickness="1" CornerRadius="12"
-                                            Padding="13,12" Margin="0,0,8,0"
-                                            ToolTip="{Binding OutOfSequenceText}">
+
+                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
+                                            ToolTip="Discontinuous smpCnt transitions for the selected SV stream. Not the number of missing samples.">
                                         <StackPanel>
-                                            <TextBlock Text="SEQUENCE" Foreground="#91B3CF"
-                                                       FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding SmcCntStatus}"
-                                                       Foreground="#F2F8FF" FontSize="17"
-                                                       FontWeight="SemiBold"
-                                                       Margin="0,8,0,5"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding PacketLossText}"
-                                                       Foreground="#A7C2D9" FontSize="11.5"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding ExpectedDeltaText}"/>
+                                            <TextBlock Text="SMP COUNT JUMPS" Foreground="#9BC7E4" FontSize="10.5"
+                                                       FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvSequenceJumpsText}"
+                                                       Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
+                                                       FontFamily="Consolas" Margin="0,6,0,4"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvSequenceEvidenceText}"
+                                                       Foreground="#B9D1E5" FontSize="11.5"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding SmcCntStatus, StringFormat=Continuity: {0}}"
+                                                       Foreground="#9EBAD1" FontSize="11" Margin="0,3,0,0"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#0F2538" BorderBrush="#294864"
-                                            BorderThickness="1" CornerRadius="12"
-                                            Padding="13,12" Margin="0,0,8,0"
-                                            ToolTip="{Binding CaptureTimingCautionText}">
+
+                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
+                                            ToolTip="Missing sample count comes from selected SV smpCnt continuity; decoder rejects are capture-wide.">
                                         <StackPanel>
-                                            <TextBlock Text="CAPTURE PATH" Foreground="#91B3CF"
-                                                       FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding NetworkHealthText}"
-                                                       Foreground="#F2F8FF" FontSize="17"
-                                                       FontWeight="SemiBold"
-                                                       Margin="0,8,0,5"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}"
-                                                       Foreground="#A7C2D9" FontSize="11.5"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding AdapterTimingRiskText}"/>
+                                            <TextBlock Text="MISSING SAMPLES" Foreground="#9BC7E4" FontSize="10.5"
+                                                       FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvMissingSamplesText}"
+                                                       Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
+                                                       FontFamily="Consolas" Margin="0,6,0,4"/>
+                                            <TextBlock Text="{Binding PacketRateText}"
+                                                       Foreground="#B9D1E5" FontSize="11.5"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvDecodeRejectText}"
+                                                       Foreground="#9EBAD1" FontSize="11" Margin="0,3,0,0"
+                                                       TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#0F2538" BorderBrush="#294864"
-                                            BorderThickness="1" CornerRadius="12"
-                                            Padding="13,12" Margin="0"
-                                            ToolTip="{Binding FrequencyStabilityText}">
+
+                                    <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
+                                            CornerRadius="9" Padding="12,10"
+                                            ToolTip="{Binding Diagnostics.ValidityText}">
                                         <StackPanel>
-                                            <TextBlock Text="SIGNAL" Foreground="#91B3CF"
-                                                       FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding SignalHealthText}"
-                                                       Foreground="#F2F8FF" FontSize="17"
-                                                       FontWeight="SemiBold"
-                                                       Margin="0,8,0,5"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding VoltageBalanceText}"
-                                                       Foreground="#A7C2D9" FontSize="11.5"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding TimingMetricText}"/>
+                                            <TextBlock Text="SV QUALITY / SYNC" Foreground="#9BC7E4" FontSize="10.5"
+                                                       FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvQualityHeadlineText}"
+                                                       FontSize="20" FontWeight="SemiBold"
+                                                       Margin="0,6,0,4" TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#F3C76D"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Diagnostics.SvQualityHeadlineText}" Value="GOOD">
+                                                                <Setter Property="Foreground" Value="#74D9AA"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Diagnostics.SvQualityHeadlineText}" Value="INVALID">
+                                                                <Setter Property="Foreground" Value="#FF8484"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Diagnostics.SvQualityEvidenceText}"
+                                                       Foreground="#B9D1E5" FontSize="11"
+                                                       TextWrapping="Wrap" ToolTip="{Binding Diagnostics.ValidityText}"/>
                                         </StackPanel>
                                     </Border>
                                 </UniformGrid>
@@ -2831,29 +2840,48 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Row="5"
-                                        Style="{StaticResource DenseGroupBorderStyle}"
-                                        Padding="12,10"
-                                        Margin="0,14,0,14">
+                                <!-- Selected SV evidence stays visible; PTP is already covered
+                                     by the separate Timing/PTP tab. -->
+                                <Border Grid.Row="5" Background="#0A1C2D" BorderBrush="#24415C"
+                                        BorderThickness="1" CornerRadius="9" Padding="12,9"
+                                        Margin="0,12,0,12">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="SV">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="180"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="1.05*"/>
+                                            <ColumnDefinition Width="1.45*"/>
+                                            <ColumnDefinition Width="1.15*"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
-                                            <TextBlock Text="TIMING REFERENCE" Foreground="#8FAAC3" FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding PtpStatusText}" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                            <TextBlock Text="SV CAPTURE EVIDENCE" Foreground="#9BC7E4"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvArrivalIntervalText}"
+                                                       FontSize="11.5" Foreground="#E3F1FB"
+                                                       Margin="0,5,6,0" TextWrapping="Wrap"/>
                                         </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="14,0,10,0">
-                                            <TextBlock Text="{Binding PtpDomainText}" Foreground="#D6E8F8" FontSize="11.5"/>
-                                            <TextBlock Text="{Binding PtpGrandmasterText}" Foreground="#D6E8F8" FontSize="11.5" TextWrapping="Wrap" Margin="0,3,0,0"/>
-                                            <TextBlock Text="{Binding PtpClockQualityText}" Foreground="#8FAAC3" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                        <StackPanel Grid.Column="1" Margin="10,0,10,0">
+                                            <TextBlock Text="TIMESTAMP AUTHORITY" Foreground="#9BC7E4"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.SvArrivalAuthorityText}"
+                                                       FontSize="11.5" Foreground="#D1E4F3"
+                                                       Margin="0,5,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2">
-                                            <TextBlock Text="{Binding PtpRateText}" Foreground="#D6E8F8" FontSize="11.5" TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding PtpProfileText}" Foreground="#8FAAC3" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
-                                            <TextBlock Text="{Binding TimingMetricText}" Foreground="#8FAAC3" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            <TextBlock Text="NIC / CAPTURE DROPS" Foreground="#9BC7E4"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.CaptureDropEvidenceText}"
+                                                       FontSize="11.5" Foreground="#D1E4F3"
+                                                       Margin="0,5,0,0" TextWrapping="Wrap"
+                                                       ToolTip="{Binding AdapterTimingRiskText}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
