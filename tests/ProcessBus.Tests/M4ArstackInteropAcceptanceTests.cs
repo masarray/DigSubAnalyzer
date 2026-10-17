@@ -103,8 +103,8 @@ public sealed class M4ArstackInteropAcceptanceTests
         Assert.Equal(3, result.MatchedTwoStep);
         Assert.Equal(0, result.UnmatchedFollowUp);
         Assert.Equal("WIRE_FIELDS_MATCH", Assert.Single(result.Comparisons).Status);
-        Assert.Equal(100, result.SvStreams.Single(x => x.SvId == "ARSTACK_SV01").VlanId);
-        Assert.Equal(4, result.SvStreams.Single(x => x.SvId == "ARSTACK_SV01").VlanPriority);
+        Assert.Equal((ushort)100, result.SvStreams.Single(x => x.SvId == "ARSTACK_SV01").VlanId);
+        Assert.Equal((byte)4, result.SvStreams.Single(x => x.SvId == "ARSTACK_SV01").VlanPriority);
         Assert.True(result.SvStreams.Single(x => x.SvId == "AR_DIAG_SV1").IsArstackDiagnosticMirror);
         Assert.False(result.IsPhysicallyAccepted);
         Assert.Contains("IED", result.EvidenceLimitations);
