@@ -3158,6 +3158,43 @@
                                                 </DataGridTemplateColumn>
                                             </DataGrid.Columns>
                                         </DataGrid>
+                                        <!-- Plain, useful empty-state rather than an inactive sea of cards.
+                                             Bound to the filtered live view; no polling or extra VM cache. -->
+                                        <Border Grid.Row="2" Background="#0B1B2B" CornerRadius="8" Padding="24"
+                                                IsHitTestVisible="False">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding GooseHistoryView.IsEmpty}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        MaxWidth="405">
+                                                <TextBlock Text="No GOOSE events in this view"
+                                                           Foreground="#E6F3FF" FontSize="16"
+                                                           FontWeight="SemiBold" TextAlignment="Center"/>
+                                                <TextBlock Margin="0,9,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                                           Foreground="#9FC0DC" FontSize="12"
+                                                           Text="Listening for GOOSE state changes. An empty event list does not prove the publisher is offline."/>
+                                                <Border Margin="0,18,0,0" Background="#0D2236" CornerRadius="8"
+                                                        Padding="14,12">
+                                                    <StackPanel>
+                                                        <TextBlock Text="CHECK THE CAPTURE PATH"
+                                                                   Foreground="#8CC7F2" FontWeight="SemiBold" FontSize="10.5"/>
+                                                        <TextBlock Margin="0,6,0,0" TextWrapping="Wrap"
+                                                                   Foreground="#BFD5E8" FontSize="11.5"
+                                                                   Text="Verify capture adapter and SPAN/TAP VLAN visibility. Confirm that the IED is publishing GOOSE and that the current filters include its goID."/>
+                                                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                                                   Foreground="#84A8C6" FontSize="11"
+                                                                   Text="Tip: this timeline defaults to state changes; retransmissions can be inspected through the left-side toggle."/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
                                     </Grid>
                                 </Border>
 
@@ -3935,7 +3972,7 @@
                                             </Grid.RowDefinitions>
                                             <DockPanel>
                                                 <StackPanel DockPanel.Dock="Left">
-                                                    <TextBlock Text="SV / GOOSE Semantic Stream Catalog" Style="{StaticResource PanelTitleTextStyle}"/>
+                                                    <TextBlock Text="Engineering streams" Style="{StaticResource PanelTitleTextStyle}"/>
                                                     <TextBlock Margin="0,4,0,0"
                                                                Text="Filtered by selected IED in the SCL Explorer."
                                                                Foreground="#8FAAC3"
@@ -4047,7 +4084,7 @@
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Live Binding Matrix" Style="{StaticResource PanelTitleTextStyle}"/>
                                                     <TextBlock Margin="0,4,0,0"
-                                                               Text="Expected SCL stream vs observed network traffic."
+                                                               Text="Expected configuration compared with live capture."
                                                                Foreground="#8FAAC3"
                                                                FontSize="11"/>
                                                 </StackPanel>
