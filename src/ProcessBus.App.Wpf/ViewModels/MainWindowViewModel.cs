@@ -75,6 +75,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private DateTime _lastSclEvaluationUtc = DateTime.MinValue;
     private DateTime _lastDiagnosticTargetRefreshUtc = DateTime.MinValue;
     private DateTime _lastManagedMemorySampleUtc = DateTime.MinValue;
+    private DateTime _lastWorkspacePruneUtc = DateTime.MinValue;
     private long _lastObservedPacketCount = -1;
     private DateTime _lastPacketAdvanceUtc = DateTime.MinValue;
     private DateTime _lastGlobalRaiseUtc = DateTime.MinValue;
@@ -2023,6 +2024,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 BufferDiagnosticEvents(snapshot.Events);
 
             _state.ApplySnapshot(snapshot, mergeEvents: IsDiagnosticsTabActive);
+            PruneStaleStreamWorkspaces(now);
             UpdateStreamStaleState();
             if (now - _lastDiagnosticTargetRefreshUtc >= TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
             {
@@ -2226,6 +2228,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             cached.Waveform = _displayedWaveform;
             cached.Phasors = _phasors;
             cached.PhasorSource = _lastPhasorSourceSnapshot;
+        }
+    }
+
+    private void PruneStaleStreamWorkspaces(DateTime now)
+    {
+        if (now - _lastWorkspacePruneUtc < TimeSpan.FromSeconds(5))
+            return;
+
+        _lastWorkspacePruneUtc = now;
+        if (_streamWorkspaces.Count == 0)
+            return;
+
+        // The receive engine evicts only stale, nonselected publishers at its
+        // capacity limit. The WPF workspace cache must obey the same lifecycle
+        // rather than retaining every identity an operator ever clicked.
+        var observed = Streams.Select(x => x.StreamId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in _streamWorkspaces.Keys.ToArray())
+        {
+            if (!observed.Contains(key))
+                _streamWorkspaces.Remove(key);
         }
     }
 
