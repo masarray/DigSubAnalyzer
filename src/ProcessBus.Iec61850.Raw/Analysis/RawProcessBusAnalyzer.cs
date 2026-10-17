@@ -13,6 +13,7 @@ public sealed class RawProcessBusAnalyzer
 {
     private static readonly TimeSpan MalformedEventInterval = TimeSpan.FromSeconds(2);
     private const int MaximumTrackedSvStreams = 256;
+    private const int MaximumTrackedGoosePublishers = 256;
     private static readonly TimeSpan StaleStreamRetention = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan JitterEventInterval = TimeSpan.FromSeconds(5);
     private readonly object _gate = new();
@@ -271,6 +272,7 @@ public sealed class RawProcessBusAnalyzer
                     }
 
                     _svStreams.Remove(oldestStale.Key);
+                    _svScales.Remove(oldestStale.Key);
                     _resolvedSvMappings.Remove(oldestStale.Key);
                     _aggregatedEvents.Remove($"sv.jitter.{oldestStale.Key}");
                 }
@@ -475,6 +477,22 @@ public sealed class RawProcessBusAnalyzer
 
         if (!_gooseStates.TryGetValue(key, out var state))
         {
+            if (_gooseStates.Count >= MaximumTrackedGoosePublishers)
+            {
+                var oldestStale = _gooseStates.Values
+                    .Where(x => item.LastSeenUtc - x.Item.LastSeenUtc > StaleStreamRetention)
+                    .OrderBy(x => x.Item.LastSeenUtc)
+                    .FirstOrDefault();
+                if (oldestStale is null)
+                {
+                    AddAggregatedEvent("goose.capacity", "Warning",
+                        "GOOSE publisher capacity reached",
+                        "256 active identities retained; new publisher ignored until stale state expires.",
+                        TimeSpan.FromSeconds(10));
+                    return;
+                }
+                _gooseStates.Remove(oldestStale.Item.MessageId);
+            }
             AnnotateGooseChanges(item, previous: null);
             _gooseStates[key] = new GooseState(item, ++_gooseFirstSeenSequence);
             AddEvent("Info", $"Raw GOOSE message detected: {key}; values={item.ValuesText}.");
