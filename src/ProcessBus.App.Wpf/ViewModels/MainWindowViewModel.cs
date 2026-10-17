@@ -73,6 +73,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _refreshInFlight;
     private DateTime _lastRefreshUtc = DateTime.MinValue;
     private DateTime _lastSclEvaluationUtc = DateTime.MinValue;
+    private DateTime _lastDiagnosticTargetRefreshUtc = DateTime.MinValue;
+    private DateTime _lastManagedMemorySampleUtc = DateTime.MinValue;
     private long _lastObservedPacketCount = -1;
     private DateTime _lastPacketAdvanceUtc = DateTime.MinValue;
     private DateTime _lastGlobalRaiseUtc = DateTime.MinValue;
@@ -1999,7 +2001,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _state.ApplySnapshot(snapshot, mergeEvents: IsDiagnosticsTabActive);
             UpdateStreamStaleState();
-            RebuildDiagnosticTargets();
+            if (now - _lastDiagnosticTargetRefreshUtc >= TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
+            {
+                _lastDiagnosticTargetRefreshUtc = now;
+                RebuildDiagnosticTargets();
+            }
             RebuildSclBindingMatrix();
             if (IsDebugTabActive)
                 UpdateDebugDisplaySnapshot();
@@ -2048,7 +2054,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _lastRefreshUtc = now;
             refreshWatch.Stop();
             _lastUiRefreshMilliseconds = refreshWatch.Elapsed.TotalMilliseconds;
-            _managedMemoryMegabytes = GC.GetTotalMemory(false) / (1024 * 1024);
+            if (now - _lastManagedMemorySampleUtc >= TimeSpan.FromSeconds(1))
+            {
+                _managedMemoryMegabytes = GC.GetTotalMemory(false) / (1024 * 1024);
+                _lastManagedMemorySampleUtc = now;
+            }
             RaiseAll(now);
         }
         finally
@@ -2408,6 +2418,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return "Capture stopped  •  Select an Ethernet adapter and press Start";
 
             var activeSv = Streams.Count(stream => stream.IsActive);
+            if (Diagnostics.CaptureDriverDroppedFrames > 0)
+                return $"Capture drops reported by NIC  •  {activeSv} SV stream(s)  •  Open Diagnostics";
             if (activeSv == 0)
                 return Diagnostics.DecodeErrors > 0
                     ? "Listening  •  Traffic detected, but no valid SV decoded"
