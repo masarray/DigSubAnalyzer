@@ -2517,6 +2517,19 @@
                                 <!-- Unified cards -->
                                 <!-- Read-first status: four decisions; forensic explanations via hover/details. -->
                                 <UniformGrid Grid.Row="2" Columns="4">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="PTP">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="GOOSE">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="12"
                                             Padding="13,12" Margin="0,0,8,0"
@@ -2587,6 +2600,162 @@
                                                        Foreground="#A7C2D9" FontSize="11.5"
                                                        TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding TimingMetricText}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+                                <!-- Target-specific cards prevent a PTP or GOOSE selection
+                                     from being mislabeled with a global SV timing metric. -->
+                                <UniformGrid Grid.Row="2" Columns="4">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="PTP">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding PtpTransportText}">
+                                        <StackPanel>
+                                            <TextBlock Text="SOURCE" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding DiagnosticTargetHealthText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PtpDomainText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding PtpProfileText}">
+                                        <StackPanel>
+                                            <TextBlock Text="TWO-STEP" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Diagnostics.PtpMatchedTwoStepCount, StringFormat={}{0}}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PtpTwoStepEvidenceText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding PtpRateText}">
+                                        <StackPanel>
+                                            <TextBlock Text="MESSAGE FLOW" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding PtpStatusCompactText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding PtpRateText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0"
+                                            ToolTip="{Binding TimingConfidenceText}">
+                                        <StackPanel>
+                                            <TextBlock Text="CLOCK LOCK" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="UNVERIFIED"
+                                                       Foreground="#F4C66D"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="Passive observation only"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+                                <!-- Target-specific cards prevent a PTP or GOOSE selection
+                                     from being mislabeled with a global SV timing metric. -->
+                                <UniformGrid Grid.Row="2" Columns="4">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDiagnosticTarget.Protocol}" Value="GOOSE">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="PUBLISHER" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.DisplayName}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.Subtitle}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="HEALTH" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding DiagnosticTargetHealthText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.Subtitle}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0,0,8,0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="STATE NUMBER" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SelectedGooseMessage.StNum, StringFormat={}{0}}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedGooseMessage.SqNum}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#0F2538" BorderBrush="#294864"
+                                            BorderThickness="1" CornerRadius="12" Padding="13,12"
+                                            Margin="0"
+                                            ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
+                                        <StackPanel>
+                                            <TextBlock Text="LAST CHANGE" Foreground="#91B3CF"
+                                                       FontSize="10.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.StatusText}"
+                                                       Foreground="#F2F8FF"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SelectedDiagnosticTarget.IssueSummaryText}"
+                                                       Foreground="#A7C2D9" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Border>
                                 </UniformGrid>
