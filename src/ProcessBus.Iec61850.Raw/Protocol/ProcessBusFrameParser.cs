@@ -262,10 +262,11 @@ public static class ProcessBusFrameParser
             return -1;
 
         // IEC 61850 process-bus length includes APPID, length and reserved fields.
-        var declaredApduLength = declaredLength >= ProcessBusHeaderLength
-            ? declaredLength - ProcessBusHeaderLength
-            : availableApduLength;
-
-        return Math.Min(declaredApduLength, availableApduLength);
+        // Reject truncation instead of silently shortening malformed declared wire
+        // lengths and promoting partial BER payloads into measurement evidence.
+        if (declaredLength < ProcessBusHeaderLength)
+            return -1;
+        var declaredApduLength = declaredLength - ProcessBusHeaderLength;
+        return declaredApduLength <= availableApduLength ? declaredApduLength : -1;
     }
 }
