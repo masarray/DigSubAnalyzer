@@ -2398,12 +2398,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _streamStale = (now - _lastPacketAdvanceUtc).TotalSeconds > StreamStaleTimeoutSeconds;
     }
 
+    // One operator-level statement in the primary status strip; detailed wire
+    // evidence remains in Timing/Diagnostics/Advanced rather than five noisy chips.
+    public string OperatorCaptureSummaryText
+    {
+        get
+        {
+            if (!IsRunning)
+                return "Capture stopped  •  Select an Ethernet adapter and press Start";
+
+            var activeSv = Streams.Count(stream => stream.IsActive);
+            if (activeSv == 0)
+                return Diagnostics.DecodeErrors > 0
+                    ? "Listening  •  Traffic detected, but no valid SV decoded"
+                    : "Listening  •  Waiting for SV publisher";
+
+            var ptpActive = Diagnostics.PtpObserved &&
+                !Diagnostics.PtpStatusText.Contains("timeout", StringComparison.OrdinalIgnoreCase) &&
+                Diagnostics.LastPtpMessageTimestampUtc is { } lastPtp &&
+                DateTime.UtcNow - lastPtp <= TimeSpan.FromSeconds(6);
+            return ptpActive
+                ? $"Receiving {activeSv} SV stream(s)  •  PTP observed (sync unverified)"
+                : $"Receiving {activeSv} SV stream(s)  •  PTP not verified";
+        }
+    }
+
     private void RaiseAll(DateTime now, bool force = false)
     {
         if (force || (now - _lastGlobalRaiseUtc).TotalMilliseconds >= GlobalStatusRefreshMs)
         {
             _lastGlobalRaiseUtc = now;
             OnPropertyChanged(nameof(StreamStatusText));
+            OnPropertyChanged(nameof(OperatorCaptureSummaryText));
             OnPropertyChanged(nameof(DataSourceName));
             OnPropertyChanged(nameof(IsLiveMode));
             OnPropertyChanged(nameof(ModeBannerText));
