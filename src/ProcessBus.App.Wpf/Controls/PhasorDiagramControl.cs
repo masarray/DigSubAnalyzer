@@ -73,7 +73,9 @@ public sealed class PhasorDiagramControl : FrameworkElement
     {
         var width = double.IsInfinity(availableSize.Width) ? 360 : availableSize.Width;
         var height = double.IsInfinity(availableSize.Height) ? 360 : availableSize.Height;
-        return new Size(Math.Max(280, width), Math.Max(280, height));
+        // Do not impose 280px into a 210px high WPF row: the previous desired
+        // size overflowed its clip and cut off vectors / phase labels.
+        return new Size(Math.Max(120, width), Math.Max(140, height));
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -121,7 +123,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
         DrawSoftOriginGlow(dc, center);
 
         foreach (var item in validItems)
-            DrawPhasor(dc, center, radius, item, voltageMax, currentMax);
+            DrawPhasor(dc, bounds, center, radius, item, voltageMax, currentMax);
 
     }
 
@@ -159,7 +161,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
         dc.DrawEllipse(OriginBrush, null, center, 4.0, 4.0);
     }
 
-    private static void DrawPhasor(DrawingContext dc, Point center, double radius, PhasorDisplayItem item, double voltageMax, double currentMax)
+    private static void DrawPhasor(DrawingContext dc, Rect bounds, Point center, double radius, PhasorDisplayItem item, double voltageMax, double currentMax)
     {
         var maxMagnitude = item.Family == PhasorFamily.Voltage ? voltageMax : currentMax;
         if (maxMagnitude <= 0)
@@ -192,7 +194,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
         dc.DrawLine(pen, center, end);
 
         DrawArrowHead(dc, center, end, brush, item.Family == PhasorFamily.Voltage ? 17.0 : 15.0);
-        DrawVectorLabel(dc, item, center, end, brush);
+        DrawVectorLabel(dc, bounds, item, center, end, brush);
     }
 
     private static void DrawArrowHead(DrawingContext dc, Point start, Point end, Brush brush, double arrowLength)
@@ -219,7 +221,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
         dc.DrawGeometry(brush, null, geometry);
     }
 
-    private static void DrawVectorLabel(DrawingContext dc, PhasorDisplayItem item, Point center, Point end, Brush brush)
+    private static void DrawVectorLabel(DrawingContext dc, Rect bounds, PhasorDisplayItem item, Point center, Point end, Brush brush)
     {
         var direction = end - center;
         if (direction.Length <= 0.001)
@@ -240,7 +242,10 @@ public sealed class PhasorDiagramControl : FrameworkElement
         else
             labelPoint.Y -= 17;
 
-        DrawText(dc, label, 13, labelPoint, brush, LabelTypeface);
+        var text = CreateText(label, 11.5, brush, LabelTypeface);
+        labelPoint.X = Math.Clamp(labelPoint.X, bounds.Left + 4, Math.Max(bounds.Left + 4, bounds.Right - text.Width - 4));
+        labelPoint.Y = Math.Clamp(labelPoint.Y, bounds.Top + 4, Math.Max(bounds.Top + 4, bounds.Bottom - text.Height - 4));
+        dc.DrawText(text, labelPoint);
     }
 
     private static void DrawCenteredMessage(DrawingContext dc, Point center, string text)
