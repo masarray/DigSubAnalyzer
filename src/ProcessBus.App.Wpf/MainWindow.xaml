@@ -4317,6 +4317,37 @@
                                         </Grid>
                                     </Border>
                                 </Grid>
+
+                                <!-- P1: avoid showing three enormous empty data-grids before any SCL
+                                     document is loaded. Live capture continues independently. -->
+                                <Border Grid.Row="2" Background="#0A1A2A"
+                                        BorderBrush="#21496A" BorderThickness="1"
+                                        CornerRadius="10" Padding="24">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasSclProject}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel HorizontalAlignment="Center"
+                                                VerticalAlignment="Center" MaxWidth="440">
+                                        <TextBlock Text="Import SCL to compare streams"
+                                                   TextAlignment="Center" FontSize="15"
+                                                   FontWeight="SemiBold" Foreground="#EAF6FF"/>
+                                        <TextBlock Margin="0,8,0,0"
+                                                   Text="SCD, CID, ICD and IID files provide the expected publisher identity and DataSet order."
+                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                   FontSize="11.5" Foreground="#A2C3DE"/>
+                                        <TextBlock Margin="0,6,0,0"
+                                                   Text="Live capture continues in Analyzer and Diagnostics."
+                                                   TextAlignment="Center" FontSize="11"
+                                                   Foreground="#88AAC5"/>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
                         </TabItem>
 
