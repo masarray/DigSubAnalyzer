@@ -464,7 +464,7 @@
         <Setter Property="Foreground" Value="#B8C8D9"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Width" Value="136"/>
+        <Setter Property="Width" Value="112"/>
         <Setter Property="Height" Value="38"/>
         <Setter Property="Margin" Value="2,0"/>
         <Setter Property="Padding" Value="14,0"/>
