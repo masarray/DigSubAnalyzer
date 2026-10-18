@@ -18,18 +18,21 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Confirm stable release has not already been published
+        id: already_published
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           if gh release view v1.4.0 --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "v1.4.0 already published; aborting duplicate dispatch."
+            echo "already=yes" >> "$GITHUB_OUTPUT"
+            echo "v1.4.0 already published; skipping duplicate dispatch."
             exit 0
           fi
           echo "Verified v1.4.0 not yet published. Dispatching guarded Windows release."
 
       - name: Dispatch Windows release workflow
+        if: steps.already_published.outputs.already != 'yes'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
