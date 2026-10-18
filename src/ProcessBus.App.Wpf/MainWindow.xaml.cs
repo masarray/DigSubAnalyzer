@@ -22,7 +22,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         if (DataContext is MainWindowViewModel viewModel) { }
 
-        Loaded += (_, _) => UpdateWorkspaceActivePill(animate: false);
+        Loaded += (_, _) => { UpdateHeaderDensity(); UpdateWorkspaceActivePill(animate: false); };
+        SizeChanged += (_, _) => UpdateHeaderDensity();
         Closing += MainWindow_Closing;
         Closed += (_, _) => Application.Current?.Shutdown();
         WorkspaceSegmentRail.SizeChanged += (_, _) => UpdateWorkspaceActivePill(animate: false);
@@ -86,6 +87,45 @@ public partial class MainWindow : Window
             MessageBoxImage.Information);
     }
 
+    // Specialist pages are preserved but intentionally excluded from the operator tab rail.
+    private void WorkspaceToolsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ToolsWorkspaceButton.ContextMenu is not { } menu)
+            return;
+
+        menu.PlacementTarget = ToolsWorkspaceButton;
+        menu.IsOpen = true;
+    }
+
+    private void WorkspaceToolMenuItem_Click(object sender, RoutedEventArgs e)
+        => WorkspaceTabButton_Click(sender, e);
+
+    // The original header had seven fixed-width tabs and clipped at desktop sizes.
+    // Choose compact dimensions only on narrow windows; no data/capture refresh.
+    private bool _compactHeader;
+    private void UpdateHeaderDensity()
+    {
+        if (!IsLoaded || HeaderAdapterComboBox is null || WorkspaceSegmentButtons is null)
+            return;
+
+        var compact = ActualWidth < 1450;
+        if (_compactHeader == compact && HeaderAdapterComboBox.Width == (compact ? 180 : 250))
+            return;
+
+        _compactHeader = compact;
+        HeaderProductSubtitle.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        HeaderProductLogo.Width = compact ? 32 : 38;
+        HeaderProductLogo.Height = compact ? 32 : 38;
+        HeaderProductTitle.FontSize = compact ? 13 : 15;
+        HeaderIdentityGap.Width = new GridLength(compact ? 12 : 18);
+        HeaderAdapterComboBox.Width = compact ? 180 : 250;
+        HeaderCaptureToolbar.Margin = new Thickness(compact ? 14 : 20, 0, 0, 0);
+        foreach (var tab in WorkspaceSegmentButtons.Children.OfType<RadioButton>())
+            tab.Width = compact ? 94 : 112;
+
+        UpdateWorkspaceActivePill(animate: false);
+    }
+
     private void WorkspaceTabButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: string tag } ||
@@ -138,10 +178,24 @@ public partial class MainWindow : Window
             WorkspaceSegmentButtons is null)
             return;
 
-        var selectedButton = WorkspaceSegmentButtons.Children
-            .OfType<RadioButton>()
-            .FirstOrDefault(button => string.Equals(button.Tag?.ToString(), WorkspaceTabs.SelectedIndex.ToString(), StringComparison.Ordinal));
+        var primaryTabs = WorkspaceSegmentButtons.Children.OfType<RadioButton>().ToArray();
+        var selectedButton = primaryTabs.FirstOrDefault(button =>
+            string.Equals(button.Tag?.ToString(), WorkspaceTabs.SelectedIndex.ToString(), StringComparison.Ordinal));
 
+        // Tab selection may also originate in the VM, keyboard navigation, or Tools.
+        foreach (var tab in primaryTabs)
+            tab.IsChecked = ReferenceEquals(tab, selectedButton);
+
+        bool inTools = WorkspaceTabs.SelectedIndex is 4 or 6;
+        ToolsWorkspaceButton.ToolTip = inTools
+            ? (WorkspaceTabs.SelectedIndex == 4 ? "Validation · select another tool" : "Advanced · select another tool")
+            : "More tools: Validation and Advanced";
+        ToolsWorkspaceButton.Background = inTools
+            ? new SolidColorBrush(Color.FromRgb(22, 76, 119))
+            : Brushes.Transparent;
+
+        // No blue primary-tab pill should remain selected when a specialist page is open.
+        WorkspaceActivePill.Visibility = selectedButton is null ? Visibility.Collapsed : Visibility.Visible;
         if (selectedButton is null || selectedButton.ActualWidth <= 0)
             return;
 
