@@ -2574,8 +2574,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 Diagnostics.LastPtpMessageTimestampUtc is { } lastPtp &&
                 DateTime.UtcNow - lastPtp <= TimeSpan.FromSeconds(6);
             return ptpActive
-                ? $"Receiving {activeSv} SV stream(s)  •  PTP observed (sync unverified)"
-                : $"Receiving {activeSv} SV stream(s)  •  PTP not verified";
+                ? $"Receiving {activeSv} SV stream(s)  •  PTP traffic observed"
+                : $"Receiving {activeSv} SV stream(s)  •  PTP not currently observed";
         }
     }
 
