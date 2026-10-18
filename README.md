@@ -56,7 +56,7 @@ The application can record what was configured in SCL, what the selected capture
 Current post-transition package naming:
 
 ```text
-ProcessBusInsight-v1.4.0-beta.2-win-x64-portable.zip
+ProcessBusInsight-v1.4.0-win-x64-portable.zip
 SHA256SUMS.txt
 release-manifest.json
 ```
@@ -97,8 +97,8 @@ dotnet run --project .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Relea
 Create and verify a portable package:
 
 ```powershell
-.\scripts\publish-windows-portable.ps1 -Version "1.4.0-beta.2"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-beta.2-win-x64-portable.zip"
+.\scripts\publish-windows-portable.ps1 -Version "1.4.0"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-win-x64-portable.zip"
 ```
 
 Run the repository-quality gate:
