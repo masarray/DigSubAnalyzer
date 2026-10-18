@@ -77,7 +77,7 @@
         </Style>
 
         <Style x:Key="PremiumWorkspaceHeroStyle" TargetType="Border">
-            <Setter Property="Padding" Value="18,14"/>
+            <Setter Property="Padding" Value="16,12"/>
             <Setter Property="BorderBrush" Value="#28618F"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
@@ -94,7 +94,7 @@
         </Style>
 
         <Style x:Key="PremiumWorkspacePanelStyle" TargetType="Border">
-            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Padding" Value="14"/>
             <Setter Property="Background" Value="#0A1A2A"/>
             <Setter Property="BorderBrush" Value="#21496A"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -112,16 +112,16 @@
         </Style>
 
         <Style x:Key="PremiumInspectorPanelStyle" TargetType="Border" BasedOn="{StaticResource PremiumWorkspacePanelStyle}">
-            <Setter Property="Background" Value="#081827"/>
-            <Setter Property="BorderBrush" Value="#2A5578"/>
+            <Setter Property="Background" Value="#0A1A2A"/>
+            <Setter Property="BorderBrush" Value="#21496A"/>
         </Style>
 
         <Style x:Key="PremiumSectionCardStyle" TargetType="Border">
             <Setter Property="Padding" Value="12"/>
             <Setter Property="Background" Value="#0B1C2D"/>
-            <Setter Property="BorderBrush" Value="#1F4566"/>
+            <Setter Property="BorderBrush" Value="#193851"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="CornerRadius" Value="9"/>
         </Style>
 
         <Style x:Key="CompactExplorerCardStyle" TargetType="Border">
@@ -201,7 +201,7 @@
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"/>
 
-                                    <TextBlock Text="IEC 61850 SV / GOOSE / PTP Workspace"
+                                    <TextBlock Text="IEC 61850 · SV / GOOSE / PTP"
                                    Margin="0,2,0,0"
                                    FontSize="11"
                                    Foreground="#7FA8CC"/>
@@ -211,7 +211,7 @@
                             <!-- Workspace selector: web-modern segmented control / Blue Pill Effect -->
                             <Border Grid.Column="2"
                                     Style="{StaticResource WorkspaceSegmentHostStyle}"
-                                    HorizontalAlignment="center"
+                                    HorizontalAlignment="Left"
                                     VerticalAlignment="Center">
                                 <Grid x:Name="WorkspaceSegmentRail"
                                       ClipToBounds="True">
@@ -350,8 +350,10 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Global capture controls: adapter + run/stop/clear live in the most actionable header area. -->
+                            <!-- Fixed 20-DIP breathing room between the workspace switcher and adapter.
+                                 Never let the tab pill visually merge into the adapter frame. -->
                             <StackPanel Grid.Column="3"
+                                        Margin="20,0,0,0"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Right">
@@ -2360,8 +2362,8 @@
                                                             <TextBlock DockPanel.Dock="Left" Text="Power estimate"
                                                                        Foreground="#A6CBE3" FontSize="11"
                                                                        FontWeight="SemiBold"/>
-                                                            <TextBlock DockPanel.Dock="Right" Text="UNVERIFIED"
-                                                                       Foreground="#D4B36C" FontSize="9.5"
+                                                            <TextBlock DockPanel.Dock="Right" Text="Nominal scale"
+                                                                       Foreground="#90B5D0" FontSize="9.5"
                                                                        ToolTip="{Binding EngineeringScaleExplanation}"/>
                                                         </DockPanel>
                                                         <UniformGrid Columns="4">
@@ -2661,11 +2663,11 @@
                                         <StackPanel>
                                             <TextBlock Text="CLOCK LOCK" Foreground="#91B3CF"
                                                        FontSize="10.5" FontWeight="SemiBold"/>
-                                            <TextBlock Text="UNVERIFIED"
+                                            <TextBlock Text="NOT MEASURED"
                                                        Foreground="#F4C66D"
                                                        FontSize="17" FontWeight="SemiBold"
                                                        Margin="0,8,0,5" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="Passive observation only"
+                                            <TextBlock Text="Clock lock not inferred from packets"
                                                        Foreground="#A7C2D9" FontSize="11"
                                                        TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
@@ -3148,26 +3150,14 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                        MaxWidth="405">
-                                                <TextBlock Text="No GOOSE events in this view"
-                                                           Foreground="#E6F3FF" FontSize="16"
+                                                        MaxWidth="390">
+                                                <TextBlock Text="No GOOSE state changes"
+                                                           Foreground="#E5F2FF" FontSize="15"
                                                            FontWeight="SemiBold" TextAlignment="Center"/>
-                                                <TextBlock Margin="0,9,0,0" TextAlignment="Center" TextWrapping="Wrap"
-                                                           Foreground="#9FC0DC" FontSize="12"
-                                                           Text="Listening for GOOSE state changes. An empty event list does not prove the publisher is offline."/>
-                                                <Border Margin="0,18,0,0" Background="#0D2236" CornerRadius="8"
-                                                        Padding="14,12">
-                                                    <StackPanel>
-                                                        <TextBlock Text="CHECK THE CAPTURE PATH"
-                                                                   Foreground="#8CC7F2" FontWeight="SemiBold" FontSize="10.5"/>
-                                                        <TextBlock Margin="0,6,0,0" TextWrapping="Wrap"
-                                                                   Foreground="#BFD5E8" FontSize="11.5"
-                                                                   Text="Verify capture adapter and SPAN/TAP VLAN visibility. Confirm that the IED is publishing GOOSE and that the current filters include its goID."/>
-                                                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                                                                   Foreground="#84A8C6" FontSize="11"
-                                                                   Text="Tip: this timeline defaults to state changes; retransmissions can be inspected through the left-side toggle."/>
-                                                    </StackPanel>
-                                                </Border>
+                                                <TextBlock Margin="0,8,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                                           Foreground="#A6C4DB" FontSize="11.5"
+                                                           Text="Check publisher and VLAN visibility, or enable retransmissions."
+                                                           ToolTip="An empty state-change view does not prove the publisher is offline. Confirm the adapter, SPAN/TAP path, VLAN and goID filters."/>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -3187,13 +3177,36 @@
                                                        Foreground="#7FA8CC"
                                                        FontSize="11"
                                                        Margin="0,3,0,14"/>
+                                            <TextBlock Text="Select a GOOSE event to inspect publisher identity, network and values."
+                                                       Foreground="#9FC0DA" FontSize="11.5" TextWrapping="Wrap"
+                                                       Margin="0,12,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
 
-                                            <Border Padding="13"
-                                                    Background="#081827"
-                                                    BorderBrush="#1B344F"
+                                            <Border Padding="12"
+                                                    Background="#0B1C2D"
+                                                    BorderBrush="#1A3852"
                                                     BorderThickness="1"
-                                                    CornerRadius="12"
+                                                    CornerRadius="9"
                                                     Margin="0,0,0,12">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="112"/>
@@ -3223,12 +3236,21 @@
                                                 </Grid>
                                             </Border>
 
-                                            <Border Padding="13"
-                                                    Background="#081827"
-                                                    BorderBrush="#1B344F"
+                                            <Border Padding="12"
+                                                    Background="#0B1C2D"
+                                                    BorderBrush="#1A3852"
                                                     BorderThickness="1"
-                                                    CornerRadius="12"
+                                                    CornerRadius="9"
                                                     Margin="0,0,0,12">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <StackPanel>
                                                     <TextBlock Text="Communication / Network"
                                                                Foreground="#F4FAFF"
@@ -3281,11 +3303,20 @@
                                                 </StackPanel>
                                             </Border>
 
-                                            <Border Padding="13"
-                                                    Background="#081827"
-                                                    BorderBrush="#1B344F"
+                                            <Border Padding="12"
+                                                    Background="#0B1C2D"
+                                                    BorderBrush="#1A3852"
                                                     BorderThickness="1"
-                                                    CornerRadius="12">
+                                                    CornerRadius="9">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <StackPanel>
                                                     <DockPanel Margin="0,0,0,10">
                                                         <TextBlock DockPanel.Dock="Left"
