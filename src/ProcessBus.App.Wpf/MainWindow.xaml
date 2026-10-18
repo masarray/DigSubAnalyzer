@@ -173,7 +173,7 @@
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="18"/>
+                                <ColumnDefinition x:Name="HeaderIdentityGap" Width="18"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
@@ -183,7 +183,7 @@
                             Orientation="Horizontal"
                             VerticalAlignment="Center">
 
-                                <Border Width="38"
+                                <Border x:Name="HeaderProductLogo" Width="38"
                             Height="38"
                             CornerRadius="8"
                             Background="#102A43"
@@ -196,12 +196,12 @@
                                 </Border>
 
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Process Bus Insight"
+                                    <TextBlock x:Name="HeaderProductTitle" Text="Process Bus Insight"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"/>
 
-                                    <TextBlock Text="IEC 61850 · SV / GOOSE / PTP"
+                                    <TextBlock x:Name="HeaderProductSubtitle" Text="IEC 61850 · SV / GOOSE / PTP"
                                    Margin="0,2,0,0"
                                    FontSize="11"
                                    Foreground="#7FA8CC"/>
@@ -317,48 +317,19 @@
                                     </StackPanel>
                                 </RadioButton>
 
-                                <RadioButton x:Name="FramesWorkspaceButton"
-                                             GroupName="WorkspaceTabs"
-                                 Style="{StaticResource AnalyzerTabButtonStyle}"
-                                 Tag="4"
-                                 Click="WorkspaceTabButton_Click">
-                                    <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
-                                        <Viewbox Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center">
-                                            <Path Style="{StaticResource NavVectorIconStyle}" Data="{StaticResource IconDiagnosticsGeometry}"/>
-                                        </Viewbox>
-                                        <TextBlock Text="Validation"
-                                       FontWeight="SemiBold"
-                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
-                                    </StackPanel>
-                                </RadioButton>
-
-                                <RadioButton x:Name="AdvancedWorkspaceButton"
-                                             GroupName="WorkspaceTabs"
-                                 Style="{StaticResource AnalyzerTabButtonStyle}"
-                                 Tag="6"
-                                 Click="WorkspaceTabButton_Click">
-                                    <StackPanel Orientation="Horizontal" IsHitTestVisible="False">
-                                        <Viewbox Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center">
-                                            <Path Style="{StaticResource NavVectorIconStyle}" Data="{StaticResource IconFramesGeometry}"/>
-                                        </Viewbox>
-                                        <TextBlock Text="Advanced"
-                                       FontWeight="SemiBold"
-                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
-                                    </StackPanel>
-                                </RadioButton>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
                             <!-- Fixed 20-DIP breathing room between the workspace switcher and adapter.
                                  Never let the tab pill visually merge into the adapter frame. -->
-                            <StackPanel Grid.Column="3"
+                            <StackPanel x:Name="HeaderCaptureToolbar" Grid.Column="3"
                                         Margin="20,0,0,0"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Right">
 
-                                <ComboBox Width="250"
+                                <ComboBox x:Name="HeaderAdapterComboBox" Width="250"
                                           Style="{StaticResource ToolbarAdapterComboBoxStyle}"
                                           IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBooleanConverter}}"
                                           ItemsSource="{Binding Adapters}"
@@ -444,6 +415,49 @@
                                             <Setter Property="Margin" Value="6,0,0,0"/>
                                         </Style>
                                     </Button.Style>
+                                </Button>
+
+                                <!-- Specialist tools are available without crowding the primary navigator. -->
+                                <Button x:Name="ToolsWorkspaceButton"
+                                        Style="{StaticResource HeaderCircleButtonStyle}"
+                                        Width="34" Height="34" Margin="7,0,0,0"
+                                        ToolTip="More tools: Validation and Advanced"
+                                        Click="WorkspaceToolsButton_Click"
+                                        AutomationProperties.Name="More tools: Validation and Advanced">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                               Text="&#xE713;" Foreground="#BED7EA"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Button.ContextMenu>
+                                        <ContextMenu Background="#0C2032" BorderBrush="#315270"
+                                                     BorderThickness="1" Padding="5" Placement="Bottom">
+                                            <ContextMenu.Resources>
+                                                <Style TargetType="MenuItem">
+                                                    <Setter Property="Foreground" Value="#E8F5FF"/>
+                                                    <Setter Property="FontSize" Value="12"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="MenuItem">
+                                                                <Border x:Name="MenuSurface" Background="Transparent"
+                                                                        CornerRadius="5" Padding="14,9" MinWidth="142">
+                                                                    <ContentPresenter ContentSource="Header"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsHighlighted" Value="True">
+                                                                        <Setter TargetName="MenuSurface" Property="Background" Value="#174B77"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ContextMenu.Resources>
+                                            <MenuItem Header="Validation" Tag="4" Click="WorkspaceToolMenuItem_Click"
+                                                      ToolTip="Compare SCL engineering with live traffic"/>
+                                            <MenuItem Header="Advanced" Tag="6" Click="WorkspaceToolMenuItem_Click"
+                                                      ToolTip="Raw packet decode, estimator and performance"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
                                 </Button>
 
                                 <Button Style="{StaticResource HeaderCircleButtonStyle}"
@@ -3984,15 +3998,7 @@
                                                                Foreground="#8FAAC3"
                                                                FontSize="11"/>
                                                 </StackPanel>
-                                                <Border HorizontalAlignment="Right"
-                                                        VerticalAlignment="Top"
-                                                        Background="#071A2B"
-                                                        BorderBrush="#1F4E76"
-                                                        BorderThickness="1"
-                                                        CornerRadius="10"
-                                                        Padding="10,5">
-                                                    <TextBlock Text="{Binding SclWorkspaceStatusText}" Foreground="#8FCBFF" FontSize="10.5" FontWeight="SemiBold" MaxWidth="180" TextTrimming="CharacterEllipsis" ToolTip="{Binding SclWorkspaceStatusText}"/>
-                                                </Border>
+                                                
                                             </DockPanel>
 
                                             <DataGrid Grid.Row="2"
@@ -4094,15 +4100,7 @@
                                                                Foreground="#8FAAC3"
                                                                FontSize="11"/>
                                                 </StackPanel>
-                                                <Border HorizontalAlignment="Right"
-                                                        VerticalAlignment="Top"
-                                                        Background="#071A2B"
-                                                        BorderBrush="#1F4E76"
-                                                        BorderThickness="1"
-                                                        CornerRadius="10"
-                                                        Padding="10,5">
-                                                    <TextBlock Text="{Binding SclBindingSummaryText}" Foreground="#F6D781" FontSize="10.5" FontWeight="SemiBold" MaxWidth="230" TextTrimming="CharacterEllipsis" ToolTip="{Binding SclBindingSummaryText}"/>
-                                                </Border>
+                                                
                                             </DockPanel>
 
                                             <DataGrid Grid.Row="6"
