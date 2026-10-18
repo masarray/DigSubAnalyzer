@@ -1,0 +1,47 @@
+name: Approve public stable v1.4.0
+
+# One-time source-controlled approval. Ordinary commits cannot trigger a release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/release/v1.4.0.approved"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch_verified_release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 5
+    steps:
+      - name: Confirm stable release has not already been published
+        id: already_published
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v1.4.0 --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "already=yes" >> "$GITHUB_OUTPUT"
+            echo "v1.4.0 already published; skipping duplicate dispatch."
+            exit 0
+          fi
+          echo "Verified v1.4.0 not yet published. Dispatching guarded Windows release."
+
+      - name: Dispatch Windows release workflow
+        if: steps.already_published.outputs.already != 'yes'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh workflow run release-package.yml --repo "$GH_REPO" --ref main \
+            -f version=1.4.0 \
+            -f publish_release=true \
+            -f prerelease=false \
+            -f draft=false \
+            -f release_notes_file=docs/RELEASE_NOTES_v1.4.0.md
+          echo "Dispatched publish_release=true, prerelease=false, draft=false."
