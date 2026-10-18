@@ -1,0 +1,8 @@
+Release: Process Bus Insight v1.4.0
+Channel: public stable
+Approval: user explicitly requested public stable publication on 2026-10-18
+Source: main after PR #44 (SCL clipping fix) and PR #45 (one-time GitHub Actions dispatch)
+Validated candidate: ProcessBusInsight-v1.4.0-win-x64-candidate-158
+Validated gates: Windows Release build (153/153 tests), runtime stability, dependency security, CodeQL, package verification
+Delivery: existing release-package.yml, version=1.4.0, publish_release=true, prerelease=false, draft=false
+Scope: receive-only; not IEC 61850 conformance certification or calibrated timing.
