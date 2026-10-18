@@ -216,7 +216,7 @@
                                 <Grid x:Name="WorkspaceSegmentRail"
                                       ClipToBounds="True">
                                     <Border x:Name="WorkspaceActivePill"
-                                            Width="136"
+                                            Width="116"
                                             Height="38"
                                             HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
@@ -358,7 +358,7 @@
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Right">
 
-                                <ComboBox Width="300"
+                                <ComboBox Width="250"
                                           Style="{StaticResource ToolbarAdapterComboBoxStyle}"
                                           IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBooleanConverter}}"
                                           ItemsSource="{Binding Adapters}"
