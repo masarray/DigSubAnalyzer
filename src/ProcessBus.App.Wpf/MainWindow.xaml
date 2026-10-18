@@ -3993,10 +3993,7 @@
                                             <DockPanel>
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Engineering streams" Style="{StaticResource PanelTitleTextStyle}"/>
-                                                    <TextBlock Margin="0,4,0,0"
-                                                               Text="Choose an IED to compare expected streams with capture."
-                                                               Foreground="#8FAAC3"
-                                                               FontSize="11"/>
+                                                    
                                                 </StackPanel>
                                                 
                                             </DockPanel>
@@ -4095,10 +4092,7 @@
                                             <DockPanel Grid.Row="4">
                                                 <StackPanel DockPanel.Dock="Left">
                                                     <TextBlock Text="Live Binding Matrix" Style="{StaticResource PanelTitleTextStyle}"/>
-                                                    <TextBlock Margin="0,4,0,0"
-                                                               Text="Identity comparison"
-                                                               Foreground="#8FAAC3"
-                                                               FontSize="11"/>
+                                                    
                                                 </StackPanel>
                                                 
                                             </DockPanel>
@@ -4114,8 +4108,8 @@
                                                       CanUserDeleteRows="False"
                                                       CanUserSortColumns="False"
                                                       GridLinesVisibility="None"
-                                                      RowHeight="48"
-                                                      MinRowHeight="48"
+                                                      RowHeight="{x:Static sys:Double.NaN}"
+                                                      MinRowHeight="46"
                                                       RowStyle="{StaticResource EngineeringDataGridRowStyle}"
                                                       CellStyle="{StaticResource EngineeringDataGridCellStyle}"
                                                       FontSize="11.5"
@@ -4142,52 +4136,49 @@
                                                     </Style>
                                                 </DataGrid.Resources>
                                                 <DataGrid.Columns>
-                                                    <DataGridTemplateColumn Header="Status" Width="118">
+                                                    <DataGridTemplateColumn Header="Status" Width="132">
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel VerticalAlignment="Center">
-                                                                    <Border Background="{Binding StatusBackgroundBrush}" BorderBrush="{Binding StatusBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" HorizontalAlignment="Left">
-                                                                        <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                                    <Border Background="{Binding StatusBackgroundBrush}" BorderBrush="{Binding StatusBrush}" BorderThickness="1"
+                                                                            CornerRadius="6" Padding="7,4" HorizontalAlignment="Left"
+                                                                            ToolTip="{Binding ScoreText}">
+                                                                        <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="10.5"
+                                                                                   FontWeight="SemiBold" TextWrapping="NoWrap"/>
                                                                     </Border>
-                                                                    <TextBlock Margin="2,4,0,0" Text="{Binding ScoreText}" Style="{StaticResource SclBindingMetaTextStyle}"/>
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>
-                                                    <DataGridTemplateColumn Header="Type" Width="56">
+                                                    <DataGridTemplateColumn Header="Expected svID" Width="1.2*">
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
-                                                                <TextBlock Text="{Binding Protocol}" Foreground="#9FD8FF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}"/>
+                                                                <Grid VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding ExpectedName}" Foreground="#F4FAFF"
+                                                                                   FontWeight="SemiBold" TextWrapping="Wrap"
+                                                                                   ToolTip="{Binding ExpectedDetailText}"/>
+                                                                    </Grid>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>
-                                                    <DataGridTemplateColumn Header="Expected" Width="1.25*">
+                                                    <DataGridTemplateColumn Header="Observed svID" Width="1.2*">
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
-                                                                <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding ExpectedName}" Foreground="#F4FAFF" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}" ToolTip="{Binding ExpectedDetailText}"/>
-                                                                    
-                                                                </StackPanel>
+                                                                <Grid VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding ObservedName}" Foreground="#F6D781"
+                                                                                   FontWeight="SemiBold" TextWrapping="Wrap"
+                                                                                   ToolTip="{Binding ObservedDetailText}"/>
+                                                                    </Grid>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
                                                     </DataGridTemplateColumn>
-                                                    <DataGridTemplateColumn Header="Observed" Width="1.25*">
-                                                        <DataGridTemplateColumn.CellTemplate>
-                                                            <DataTemplate>
-                                                                <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding ObservedName}" Foreground="#F6D781" FontWeight="SemiBold" Style="{StaticResource SclBindingCellTextStyle}" ToolTip="{Binding ObservedDetailText}"/>
-                                                                    
-                                                                </StackPanel>
-                                                            </DataTemplate>
-                                                        </DataGridTemplateColumn.CellTemplate>
-                                                    </DataGridTemplateColumn>
-                                                    <DataGridTemplateColumn Header="Identity check" Width="1.4*">
+                                                    <DataGridTemplateColumn Header="Difference" Width="1.2*">
                                                         <DataGridTemplateColumn.CellTemplate>
                                                             <DataTemplate>
                                                                 <TextBlock Text="{Binding CompactEvidenceText}"
                                                                            Foreground="#C5DEEF" FontSize="11"
                                                                            VerticalAlignment="Center"
-                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="Wrap"
                                                                            ToolTip="{Binding EvidenceText}"/>
                                                             </DataTemplate>
                                                         </DataGridTemplateColumn.CellTemplate>
@@ -4211,7 +4202,7 @@
                                             </Grid.RowDefinitions>
 
                                             <StackPanel>
-                                                <TextBlock Text="Semantic Detail" Style="{StaticResource PanelTitleTextStyle}"/>
+                                                <TextBlock Text="Stream details" Style="{StaticResource PanelTitleTextStyle}"/>
                                                 <TextBlock Margin="0,4,0,0" Text="{Binding SclSelectedDetailTitle}" Foreground="#F4FAFF" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                                 <TextBlock Margin="0,5,0,0" Text="{Binding SclSelectedDetailSubtitle}" Foreground="#8FAAC3" FontSize="11.5" TextWrapping="Wrap"/>
                                             </StackPanel>
@@ -4219,18 +4210,17 @@
                                             <Border Grid.Row="2" Background="#0E263A" BorderBrush="#315575"
                                                     BorderThickness="1" CornerRadius="8" Padding="12,10">
                                                 <StackPanel>
-                                                    <TextBlock Text="IDENTITY VERIFICATION" FontSize="10.5"
-                                                               Foreground="#8FC0E4" FontWeight="SemiBold"/>
+                                                    
                                                     <TextBlock Text="{Binding SclSelectedVerdictText}"
                                                                Foreground="#F6D781" FontSize="14" FontWeight="SemiBold"
-                                                               Margin="0,5,0,3" TextWrapping="Wrap"/>
+                                                               Margin="0,0,0,5" TextWrapping="Wrap"/>
                                                     <TextBlock Text="{Binding SclSelectedVerdictDetailText}"
                                                                Foreground="#BCD6E9" FontSize="11.5"
                                                                TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </Border>
 
-                                            <Expander Grid.Row="4" Header="Expected / observed · technical details"
+                                            <Expander Grid.Row="4" Header="Technical evidence"
                                                       IsExpanded="False" Foreground="#9FBBD5"
                                                       ToolTip="Full source attributes and original matching evidence are retained">
                                                 <StackPanel>
@@ -4268,7 +4258,7 @@
                                                     </Grid.RowDefinitions>
                                                     <DockPanel>
                                                         <TextBlock Text="DataSet Entry Order" Foreground="#F4FAFF" FontSize="13" FontWeight="SemiBold" DockPanel.Dock="Left"/>
-                                                        <TextBlock Text="Signal / FC / CDC / bType" Foreground="#8FAAC3" FontSize="11" HorizontalAlignment="Right"/>
+                                                        
                                                     </DockPanel>
                                                     <DataGrid Grid.Row="2"
                                                               Style="{StaticResource DarkDataGridStyle}"

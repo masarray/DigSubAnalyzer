@@ -13,7 +13,7 @@
 
 **Process Bus Insight** is a free, open-source, receive-only **IEC 61850 Process Bus analyzer for Windows**. It provides engineering visibility into **Sampled Values (SV)**, **GOOSE**, **PTPv2 timing context**, and **SCL expected-vs-observed validation** for authorized FAT, SAT, commissioning-support, interoperability, laboratory, and troubleshooting workflows.
 
-The project is currently a **public beta**. Its purpose is to identify live publishers, inspect protocol evidence, isolate unhealthy streams, reproduce sanitized captures offline, compare observed traffic against SCL, and preserve defensible findings without overstating measurement confidence.
+The project is distributed as a **stable software release** for engineering observation and troubleshooting. Its purpose is to identify live publishers, inspect protocol evidence, isolate unhealthy streams, reproduce sanitized captures offline, compare observed traffic against SCL, and preserve defensible findings without overstating measurement confidence.
 
 > **Timing confidence:** normal Windows/Npcap timestamps and replayed capture timestamps are software evidence. Arrival timing is useful for screening and troubleshooting, but is not certification-grade jitter evidence unless the capture path is validated with appropriate hardware timestamping, TAP, or trusted timing equipment.
 
@@ -56,7 +56,7 @@ The application can record what was configured in SCL, what the selected capture
 Current post-transition package naming:
 
 ```text
-ProcessBusInsight-v1.4.0-beta.2-win-x64-portable.zip
+ProcessBusInsight-v1.4.0-win-x64-portable.zip
 SHA256SUMS.txt
 release-manifest.json
 ```
@@ -97,8 +97,8 @@ dotnet run --project .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Relea
 Create and verify a portable package:
 
 ```powershell
-.\scripts\publish-windows-portable.ps1 -Version "1.4.0-beta.2"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-beta.2-win-x64-portable.zip"
+.\scripts\publish-windows-portable.ps1 -Version "1.4.0"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-win-x64-portable.zip"
 ```
 
 Run the repository-quality gate:
