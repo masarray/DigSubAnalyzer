@@ -9,10 +9,10 @@
     <PackageProjectUrl>https://masarray.github.io/DigSubAnalyzer/</PackageProjectUrl>
     <NeutralLanguage>en</NeutralLanguage>
 
-    <!-- Public beta version. Release builds may override these properties from the tag. -->
+    <!-- Public release version. Pre-release versions may set VersionSuffix explicitly. -->
     <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.4.0</VersionPrefix>
-    <VersionSuffix Condition="'$(VersionSuffix)' == ''">beta.2</VersionSuffix>
-    <Version Condition="'$(Version)' == ''">$(VersionPrefix)-$(VersionSuffix)</Version>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''"></VersionSuffix>
+    <Version Condition="'$(Version)' == ''">$(VersionPrefix)$(VersionSuffix->'-{0}')</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(VersionPrefix).0</AssemblyVersion>
     <FileVersion Condition="'$(FileVersion)' == ''">$(VersionPrefix).0</FileVersion>
