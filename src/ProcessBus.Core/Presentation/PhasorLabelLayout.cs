@@ -51,10 +51,31 @@ public static class PhasorLabelLayout
             var top = Math.Max(0, topPadding);
             var bottom = Math.Max(top, height - Math.Max(0, bottomPadding));
             var cursor = top;
-            foreach (var index in indices)
+            for (var slot = 0; slot < indices.Count; slot++)
             {
+                var index = indices[slot];
                 var label = anchors[index];
                 var desiredY = label.TipY - label.Height / 2;
+
+                // When the longer U arrow and shorter I arrow are nearly
+                // collinear, a current label centered on the arrow shaft would
+                // make its horizontal leader overlap U. Reserve an upper lane
+                // for the I leader before packing the lower U label.
+                if (label.IsCurrent)
+                {
+                    for (var next = slot + 1; next < indices.Count; next++)
+                    {
+                        var following = anchors[indices[next]];
+                        if (following.TipY - label.TipY > 4)
+                            break;
+                        if (!following.IsCurrent && Math.Abs(following.TipY - label.TipY) <= 4)
+                        {
+                            desiredY -= 10;
+                            break;
+                        }
+                    }
+                }
+
                 var y = Math.Max(cursor, Math.Max(top, desiredY));
                 positions[index] = new PhasorLabelPosition(
                     Math.Clamp(right ? width - label.Width - 4 : 4, 0, Math.Max(0, width - label.Width)),
