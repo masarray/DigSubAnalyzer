@@ -197,9 +197,10 @@ jobs:
           if ($isDraft -eq 'true') { $releaseArgs += '--draft' }
           if ($isPrerelease -eq 'true') { $releaseArgs += '--prerelease' }
 
+          # Immutable release identity: never overwrite a published historical
+          # EXE/ZIP/checksum with a new binary under the same semver tag.
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $installer $zip $sha $manifest --clobber
-          } else {
-            gh @releaseArgs
+            throw "Release $tag already exists. Bump VersionPrefix; public assets are immutable."
           }
+          gh @releaseArgs
