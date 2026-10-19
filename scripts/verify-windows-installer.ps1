@@ -48,6 +48,7 @@ try {
             'ProcessBusInsight.exe',
             'Quick Start.pdf',
             'User Manual.pdf',
+            'Install and Update.md',
             'LICENSE.txt',
             'README.txt',
             'Bench/ProcessBus.InteropCli.exe',
