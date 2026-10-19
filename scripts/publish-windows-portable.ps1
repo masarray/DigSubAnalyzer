@@ -15,7 +15,7 @@ Set-Location $repoRoot
 if ([string]::IsNullOrWhiteSpace($Version)) { throw "Version cannot be empty." }
 
 $requiredReleaseDocs = @(
-    "docs/QUICK_START.pdf", "docs/USER_MANUAL.pdf", "LICENSE", "NOTICE",
+    "docs/QUICK_START.pdf", "docs/USER_MANUAL.pdf", "docs/INSTALLATION_AND_UPDATE.md", "LICENSE", "NOTICE",
     "COMMERCIAL-LICENSE.md", "COPYRIGHT.md", "TRADEMARK.md",
     "THIRD_PARTY_NOTICES.md", "docs/LICENSING.md"
 )
@@ -144,7 +144,8 @@ $copyMap = @(
     @{ Source = "THIRD_PARTY_NOTICES.md"; Destination = "THIRD_PARTY_NOTICES.md" },
     @{ Source = "docs/LICENSING.md"; Destination = "Licensing.md" },
     @{ Source = "docs/QUICK_START.pdf"; Destination = "Quick Start.pdf" },
-    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf" }
+    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf" },
+    @{ Source = "docs/INSTALLATION_AND_UPDATE.md"; Destination = "Install and Update.md" }
 )
 foreach ($item in $copyMap) {
     $source = Join-Path $repoRoot $item.Source
