@@ -104,6 +104,14 @@ jobs:
       - name: Test
         run: dotnet test .\ProcessBusSuite.sln -c Release --no-build --logger "trx;LogFileName=release-tests.trx" --results-directory .\TestResults
 
+      - name: Generate current offline PDF manuals
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check reportlab==4.4.9
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned ReportLab PDF build dependency unavailable.' }
+          python .\scripts\render-offline-manuals.py
+          if ($LASTEXITCODE -ne 0) { throw 'Offline manual PDF generation failed.' }
+
       - name: Publish portable package
         shell: pwsh
         run: .\scripts\publish-windows-portable.ps1 -Version '${{ steps.version.outputs.value }}' -Configuration Release -Runtime win-x64
