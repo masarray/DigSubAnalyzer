@@ -135,17 +135,27 @@ Copy-Item (Join-Path $repoRoot "docs/PHYSICAL_BENCH_QUICK_START.md") (Join-Path 
 
 $packageReadme = @"
 Process Bus Insight / DigSubAnalyzer
-Windows portable package
+Windows self-contained distribution payload
 Version: $Version
 Community license: GPL-3.0-or-later
 
+This payload is packaged both by the Inno Setup installer (recommended)
+and as a separate optional portable ZIP.
+
+INSTALLER: Run the official win-x64-setup.exe. It installs this payload,
+Start Menu shortcuts, offline manuals and uninstaller to Program Files.
+UPDATE: Close the analyzer and run the newer installer (no uninstall needed).
+PORTABLE: Extract the ZIP completely and run $AppName.exe.
+
 1. Install Npcap separately when live raw Ethernet capture is required.
-2. Extract this ZIP to a local folder.
-3. Run $AppName.exe.
-4. Use an authorized TAP, mirror port, or isolated engineering test network.
-5. For physical SV/PTP test evidence read Bench/START_HERE.md.
-6. Bench/ProcessBus.InteropCli.exe works offline and does not need the .NET SDK.
-7. Bench/measure-m4-bench.ps1 records local process CPU/memory during a bench run.
+   Missing/incompatible native Npcap must not produce a fake usable adapter.
+2. Use an authorized TAP, mirror port, or isolated engineering test network.
+3. Read Quick Start.pdf, User Manual.pdf and Install and Update.md offline.
+   Current Markdown editions are included and cryptographically bound to PDFs
+   through ManualSources.json.
+4. For physical SV/PTP evidence read Bench/START_HERE.md.
+5. Bench/ProcessBus.InteropCli.exe works offline without the .NET SDK.
+6. Bench/measure-m4-bench.ps1 records local process CPU/memory.
    A diagnostic broadcast mirror does NOT prove the canonical VLAN SV path.
 
 Included legal documents:
