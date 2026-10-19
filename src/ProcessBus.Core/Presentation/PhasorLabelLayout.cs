@@ -6,7 +6,7 @@ namespace ProcessBus.Core.Presentation;
 /// This is presentation geometry only: it never changes measured phasor angles.
 /// </summary>
 public readonly record struct PhasorLabelAnchor(
-    double TipX, double TipY, double Width, double Height, bool Right);
+    double TipX, double TipY, double Width, double Height, bool Right, bool IsCurrent = false);
 
 public readonly record struct PhasorLabelPosition(double X, double Y);
 
@@ -29,9 +29,21 @@ public static class PhasorLabelLayout
                 if (anchors[i].Right == right)
                     indices.Add(i);
 
-            // Stable tie-breaker prevents jitter when two vectors share an angle.
+            // Co-linear U/I vectors need two clearly separate callout lanes:
+            // a short current arrow goes above its longer voltage counterpart.
+            // Quantize only label ordering (never electrical values) so tiny
+            // phase jitter does not invert the two labels frame-to-frame.
             indices.Sort((a, b) =>
             {
+                var bandA = Math.Floor(anchors[a].TipY / 12.0);
+                var bandB = Math.Floor(anchors[b].TipY / 12.0);
+                var bandOrder = bandA.CompareTo(bandB);
+                if (bandOrder != 0)
+                    return bandOrder;
+
+                if (anchors[a].IsCurrent != anchors[b].IsCurrent)
+                    return anchors[a].IsCurrent ? -1 : 1;
+
                 var order = anchors[a].TipY.CompareTo(anchors[b].TipY);
                 return order != 0 ? order : a.CompareTo(b);
             });
