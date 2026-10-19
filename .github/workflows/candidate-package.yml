@@ -74,6 +74,17 @@ jobs:
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Candidate version: $version"
 
+      - name: Reject already-published version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.version.outputs.value }}"
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Version $tag was already published. Bump VersionPrefix; never replace historical public binaries."
+          }
+
       - name: Repository health gate
         shell: pwsh
         run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
