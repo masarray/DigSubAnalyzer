@@ -8,6 +8,10 @@ public sealed class NetworkAdapterInfo
     public string Description { get; set; } = string.Empty;
     public string RawDeviceName { get; set; } = string.Empty;
 
+    public bool IsCaptureCapable =>
+        !string.IsNullOrWhiteSpace(RawDeviceName) &&
+        !RawDeviceName.StartsWith("index:", StringComparison.OrdinalIgnoreCase);
+
     public override string ToString()
     {
         var label = string.IsNullOrWhiteSpace(Description) ? Name : $"{Name} ({Description})";
