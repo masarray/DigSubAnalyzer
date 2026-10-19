@@ -15,7 +15,7 @@ Set-Location $repoRoot
 if ([string]::IsNullOrWhiteSpace($Version)) { throw "Version cannot be empty." }
 
 $requiredReleaseDocs = @(
-    "docs/QUICK_START.pdf", "docs/USER_MANUAL.pdf", "docs/QUICK_START.md", "docs/USER_MANUAL.md", "docs/INSTALLATION_AND_UPDATE.md", "LICENSE", "NOTICE",
+    "docs/QUICK_START.md", "docs/USER_MANUAL.md", "docs/INSTALLATION_AND_UPDATE.md", "LICENSE", "NOTICE",
     "COMMERCIAL-LICENSE.md", "COPYRIGHT.md", "TRADEMARK.md",
     "THIRD_PARTY_NOTICES.md", "docs/LICENSING.md"
 )
@@ -30,6 +30,31 @@ if ($licenseText -notmatch 'GNU GENERAL PUBLIC LICENSE' -or $licenseText -notmat
 if (Test-Path (Join-Path $repoRoot "LICENSE-APACHE-2.0")) {
     throw "Historical Apache license must not be staged as a current release license."
 }
+
+# Release PDFs are rendered fresh from the canonical Markdown source and
+# cryptographically tied to the two Markdown files in the same installer.
+# Old tracked PDFs must never silently enter a new public package.
+$manualDir = Join-Path $repoRoot "$OutputRoot/generated-docs"
+$manualManifestPath = Join-Path $manualDir "manual-manifest.json"
+if (-not (Test-Path -LiteralPath $manualManifestPath)) {
+    throw "Current offline PDF manual manifest missing. Run python scripts/render-offline-manuals.py first."
+}
+$manualManifest = Get-Content -LiteralPath $manualManifestPath -Raw | ConvertFrom-Json
+if ($manualManifest.format -ne "ProcessBusInsight-offline-manuals-v1") { throw 'Unsupported manual manifest format.' }
+foreach ($entry in $manualManifest.files) {
+    if ($entry.source -notin @("QUICK_START.md", "USER_MANUAL.md")) {
+        throw "Unexpected manual source: $($entry.source)"
+    }
+    $src = Join-Path $repoRoot ("docs/" + $entry.source)
+    $pdf = Join-Path $manualDir $entry.pdf
+    if (-not (Test-Path -LiteralPath $pdf)) { throw "Missing generated PDF $pdf" }
+    $sourceHash = (Get-FileHash -LiteralPath $src -Algorithm SHA256).Hash
+    $pdfHash = (Get-FileHash -LiteralPath $pdf -Algorithm SHA256).Hash
+    if ($sourceHash -ne $entry.sourceSha256 -or $pdfHash -ne $entry.pdfSha256) {
+        throw "Offline PDF not synchronized with $($entry.source); regenerate manuals."
+    }
+}
+if (@($manualManifest.files).Count -ne 2) { throw "Exactly two offline PDF manuals are required." }
 
 $portableName = "$AppName-v$Version-$Runtime-portable"
 $publishDir = Join-Path $repoRoot "$OutputRoot/publish/$portableName/publish"
@@ -143,8 +168,9 @@ $copyMap = @(
     @{ Source = "TRADEMARK.md"; Destination = "TRADEMARK.md" },
     @{ Source = "THIRD_PARTY_NOTICES.md"; Destination = "THIRD_PARTY_NOTICES.md" },
     @{ Source = "docs/LICENSING.md"; Destination = "Licensing.md" },
-    @{ Source = "docs/QUICK_START.pdf"; Destination = "Quick Start.pdf" },
-    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf" },
+    @{ Source = "$OutputRoot/generated-docs/Quick Start.pdf"; Destination = "Quick Start.pdf" },
+    @{ Source = "$OutputRoot/generated-docs/User Manual.pdf"; Destination = "User Manual.pdf" },
+    @{ Source = "$OutputRoot/generated-docs/manual-manifest.json"; Destination = "ManualSources.json" },
     @{ Source = "docs/QUICK_START.md"; Destination = "Quick Start.md" },
     @{ Source = "docs/USER_MANUAL.md"; Destination = "User Manual.md" },
     @{ Source = "docs/INSTALLATION_AND_UPDATE.md"; Destination = "Install and Update.md" }
