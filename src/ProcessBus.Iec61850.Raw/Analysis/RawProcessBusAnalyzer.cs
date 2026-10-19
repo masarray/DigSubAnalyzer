@@ -1018,7 +1018,7 @@ public sealed class RawProcessBusAnalyzer
             var hasWarning = HasIntegrityIssue || RecentJitterOver300MicrosecondsCount > 0;
             var severityRank = isStale ? 2 : hasWarning ? 1 : 0;
             var statusText = isStale ? "Stale" : hasWarning ? "Live with warning" : "Live";
-            var displayStatus = isStale ? "STALE" : "LIVE";
+            var displayStatus = isStale ? "STALE" : hasWarning ? "LIVE · WARN" : "LIVE";
             var statusBrush = isStale ? "#F0B533" : hasWarning ? "#F0B533" : "#70D7A7";
             var statusSoftBrush = isStale ? "#3A2B12" : hasWarning ? "#3A2B12" : "#173528";
 
