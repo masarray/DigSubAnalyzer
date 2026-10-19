@@ -5,6 +5,9 @@
 #ifndef AppVersion
   #error AppVersion is required (/DAppVersion=...)
 #endif
+#ifndef FileVersion
+  #error FileVersion is required (/DFileVersion=...)
+#endif
 #ifndef StageDir
   #error StageDir is required (/DStageDir=...)
 #endif
@@ -55,7 +58,7 @@ InfoAfterFile={#StageDir}\README.txt
 VersionInfoDescription=Process Bus Insight Setup
 VersionInfoProductName=Process Bus Insight
 VersionInfoCompany=Process Bus Insight Contributors
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#FileVersion}
 ; Installer remains unsigned until a legitimate code-signing certificate is configured.
 ; Never imply that an unsigned build bypasses Windows SmartScreen.
 
