@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - "src/ProcessBus.Iec61850.Raw/Runtime/**"
+      - "src/ProcessBus.Iec61850.Raw/Analysis/RawProcessBusAnalyzer.cs"
+      - "src/ProcessBus.Core/Presentation/**"
+      - "src/ProcessBus.App.Wpf/Controls/PhasorDiagramControl.cs"
+      - "tests/ProcessBus.Tests/PhasorPresentationContractTests.cs"
+      - "tests/ProcessBus.Tests/OperatorPresentationReleaseTests.cs"
       - "src/ProcessBus.Iec61850.Raw/Replay/**"
       - "tests/ProcessBus.Tests/Pcap*Tests.cs"
       - "tests/ProcessBus.Tests/AnalyzerRuntimeSnapshotSourceTests.cs"
