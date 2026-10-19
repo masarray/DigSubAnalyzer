@@ -1,8 +1,35 @@
 # Troubleshooting — Process Bus Insight
 
-This guide covers common setup and field-use issues for the Windows portable package.
+This guide covers common setup and field-use issues for the Windows Inno installer and optional portable package.
 
 ## No adapters appear
+
+If the adapter selector reads **Npcap unavailable — capture disabled**, the native
+capture interface could not be enumerated. Older builds misleadingly displayed
+`Ethernet (Fallback adapter entry ... index:0)`; that was **not** a usable NIC.
+Run is disabled until a real device is enumerated.
+
+If the diagnostic says **Npcap architecture mismatch**, Windows refused to load
+`wpcap.dll` or one of its dependencies (often `Packet.dll`), potentially because
+a 32-bit or obsolete WinPcap copy was picked up by a 64-bit process.
+The analyzer now resolves those libraries from trusted system locations rather than
+the application folder or the arbitrary PATH search order.
+
+Check the 64-bit system installation (from 64-bit PowerShell):
+
+```powershell
+[Environment]::Is64BitProcess
+Test-Path "$env:WINDIR\System32\Npcap\wpcap.dll"
+Test-Path "$env:WINDIR\System32\Npcap\Packet.dll"
+```
+
+Both the application and native capture library must use matching architecture.
+If either DLL is absent or loading still fails, repair/reinstall the **official
+Npcap x64** installation and restart the application. A reboot may be needed.
+Do not download random individual DLLs, copy x86 DLLs into the app folder, or
+replace protected system DLLs manually. If Wireshark also cannot enumerate Npcap
+devices, fix the host Npcap installation before troubleshooting SV mapping.
+
 
 Possible causes:
 
