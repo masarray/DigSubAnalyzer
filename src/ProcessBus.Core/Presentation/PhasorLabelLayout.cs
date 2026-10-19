@@ -29,24 +29,33 @@ public static class PhasorLabelLayout
                 if (anchors[i].Right == right)
                     indices.Add(i);
 
-            // Co-linear U/I vectors need two clearly separate callout lanes:
-            // a short current arrow goes above its longer voltage counterpart.
-            // Quantize only label ordering (never electrical values) so tiny
-            // phase jitter does not invert the two labels frame-to-frame.
+            // Sort from actual tip geometry first. For nearly coincident U/I
+            // tips, put the current callout into the upper label lane (never
+            // modify the measured angle or arrow position). Local stable
+            // relocation avoids quantization-boundary label jitter.
             indices.Sort((a, b) =>
             {
-                var bandA = Math.Floor(anchors[a].TipY / 12.0);
-                var bandB = Math.Floor(anchors[b].TipY / 12.0);
-                var bandOrder = bandA.CompareTo(bandB);
-                if (bandOrder != 0)
-                    return bandOrder;
-
-                if (anchors[a].IsCurrent != anchors[b].IsCurrent)
-                    return anchors[a].IsCurrent ? -1 : 1;
-
                 var order = anchors[a].TipY.CompareTo(anchors[b].TipY);
                 return order != 0 ? order : a.CompareTo(b);
             });
+            for (var slot = 0; slot < indices.Count; slot++)
+            {
+                if (anchors[indices[slot]].IsCurrent)
+                    continue;
+
+                for (var next = slot + 1; next < indices.Count; next++)
+                {
+                    if (anchors[indices[next]].TipY - anchors[indices[slot]].TipY > 4)
+                        break;
+                    if (!anchors[indices[next]].IsCurrent)
+                        continue;
+
+                    var current = indices[next];
+                    indices.RemoveAt(next);
+                    indices.Insert(slot, current);
+                    break;
+                }
+            }
 
             var top = Math.Max(0, topPadding);
             var bottom = Math.Max(top, height - Math.Max(0, bottomPadding));
