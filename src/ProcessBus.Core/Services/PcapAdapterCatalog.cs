@@ -21,15 +21,15 @@ public static class PcapAdapterCatalog
         }
         catch (BadImageFormatException ex)
         {
-            return BuildFallback($"Npcap architecture mismatch: {ex.Message}");
+            return BuildUnavailable($"Npcap x64 native DLL could not be loaded. Repair Npcap x64 and restart. Details: {ex.Message}");
         }
         catch (EntryPointNotFoundException ex)
         {
-            return BuildFallback($"Npcap API entry point unavailable: {ex.Message}");
+            return BuildUnavailable($"Npcap API entry point unavailable: {ex.Message}");
         }
         catch (Exception ex)
         {
-            return BuildFallback($"Npcap adapter enumeration failed: {ex.Message}");
+            return BuildUnavailable($"Npcap adapter enumeration failed: {ex.Message}");
         }
     }
 
@@ -41,7 +41,7 @@ public static class PcapAdapterCatalog
         if (result == -1 || devices == IntPtr.Zero)
         {
             var error = ReadAnsiString(errbuf);
-            return BuildFallback(string.IsNullOrWhiteSpace(error)
+            return BuildUnavailable(string.IsNullOrWhiteSpace(error)
                 ? "Npcap enumerate returned no device list"
                 : $"Npcap enumerate failed: {error}");
         }
@@ -73,7 +73,7 @@ public static class PcapAdapterCatalog
 
             return adapters.Count > 0
                 ? adapters
-                : BuildFallback("Npcap returned no devices");
+                : BuildUnavailable("Npcap returned no devices");
         }
         finally
         {
@@ -81,7 +81,7 @@ public static class PcapAdapterCatalog
         }
     }
 
-    private static List<NetworkAdapterInfo> BuildFallback(string reason)
+    private static List<NetworkAdapterInfo> BuildUnavailable(string reason)
     {
         return new List<NetworkAdapterInfo>
         {
