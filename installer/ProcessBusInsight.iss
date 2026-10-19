@@ -77,6 +77,7 @@ Source: "{#StageDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs c
 Name: "{autoprograms}\Process Bus Insight"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"
 Name: "{autoprograms}\User Manual (PDF)"; Filename: "{app}\User Manual.pdf"
 Name: "{autoprograms}\Quick Start (PDF)"; Filename: "{app}\Quick Start.pdf"
+Name: "{autoprograms}\Install and Update Guide"; Filename: "{app}\Install and Update.md"
 Name: "{autoprograms}\Uninstall Process Bus Insight"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Process Bus Insight"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
