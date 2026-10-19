@@ -46,7 +46,7 @@ The application can record what was configured in SCL, what the selected capture
 
 ## Download and run
 
-1. Download the latest **Windows Inno Setup installer** from [GitHub Releases](https://github.com/masarray/DigSubAnalyzer/releases): `ProcessBusInsight-v1.4.0-win-x64-setup.exe`.
+1. Download the latest **Windows Inno Setup installer** from [GitHub Releases](https://github.com/masarray/DigSubAnalyzer/releases): `ProcessBusInsight-v1.4.1-win-x64-setup.exe`.
 2. Run the installer. Its stable app identity supports in-place updates, same-version repair, Windows uninstall, and optional desktop shortcut.
 3. **Offline manuals are installed directly inside the app folder** (`User Manual.pdf`, `Quick Start.pdf`, and `Install and Update.md`), with Start Menu shortcuts.
 4. Install **Npcap separately** when live raw Ethernet capture is required; it is not bundled. Offline PCAP analysis remains available without it.
@@ -58,8 +58,8 @@ An optional **portable ZIP** is also available for manual extraction. The commun
 Current Windows distribution naming:
 
 ```text
-ProcessBusInsight-v1.4.0-win-x64-setup.exe
-ProcessBusInsight-v1.4.0-win-x64-portable.zip  (optional)
+ProcessBusInsight-v1.4.1-win-x64-setup.exe
+ProcessBusInsight-v1.4.1-win-x64-portable.zip  (optional)
 SHA256SUMS.txt
 release-manifest.json
 ```
@@ -100,8 +100,8 @@ dotnet run --project .\src\ProcessBus.App.Wpf\ProcessBus.App.Wpf.csproj -c Relea
 Create and verify a portable package:
 
 ```powershell
-.\scripts\publish-windows-portable.ps1 -Version "1.4.0"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-win-x64-portable.zip"
+.\scripts\publish-windows-portable.ps1 -Version "1.4.1"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.1-win-x64-portable.zip"
 ```
 
 Run the repository-quality gate:
