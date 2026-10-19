@@ -94,6 +94,25 @@ public sealed class PhasorPresentationContractTests
         }
     }
 
+
+    [Theory]
+    [InlineData(57.739999, "V", "U max 57.74 V")]
+    [InlineData(0.0001234, "A", "U max 0.000123 A")]
+    [InlineData(15000, "counts", "U max 15 kcounts")]
+    [InlineData(1250000, "V", "U max 1.25 MV")]
+    public void PhasorScaleLabelsPreserveNonzeroEvidenceWithoutChangingEngineeringData(
+        double rms, string unit, string expected)
+    {
+        Assert.Equal(expected, PhasorScaleCaption.Format("U", rms, unit));
+    }
+
+    [Fact]
+    public void MissingOrInvalidRmsNeverCreatesAConvincingScale()
+    {
+        Assert.Equal("I N/A", PhasorScaleCaption.Format("I", 0, "A"));
+        Assert.Equal("I N/A", PhasorScaleCaption.Format("I", double.NaN, "A"));
+    }
+
     [Fact]
     public void SixVectorsSharingOneAngleStillReceiveDistinctStableLabelSlots()
     {
