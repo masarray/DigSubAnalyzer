@@ -230,15 +230,15 @@ public sealed class PhasorDiagramControl : FrameworkElement
         var currentUnit = _visualItems.FirstOrDefault(item =>
             item.Family == PhasorFamily.Current && IsRenderable(item))?.Unit ?? "A";
         var voltageScaleText = voltageMax > 0
-            ? $"U max {voltageMax:0.##} {voltageUnit}"
+            ? $"U max {voltageMax:0.###} {voltageUnit}"
             : "U N/A";
         var currentScaleText = currentMax > 0
-            ? $"I max {currentMax:0.##} {currentUnit}"
+            ? $"I max {currentMax:0.###} {currentUnit}"
             : "I N/A";
         DrawText(dc, $"{voltageScaleText}   ·   {currentScaleText}",
             10.0, new Point(6, height - 31), TextSecondaryBrush, BodyTypeface);
-        DrawText(dc, "Voltage solid   ·   Current dashed   ·   independent RMS scales",
-            8.5, new Point(6, height - 15), TextMutedBrush, BodyTypeface);
+        DrawText(dc, "U solid   ·   I dashed   ·   independent RMS scales",
+            9.5, new Point(6, height - 15), TextMutedBrush, BodyTypeface);
         if (!IsStreamLive)
             DrawText(dc, "STALE · last valid samples", 11, new Point(7, 5), StaleBrush, LabelTypeface);
     }
