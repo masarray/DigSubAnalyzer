@@ -52,7 +52,20 @@ public sealed class PhasorDiagramControl : FrameworkElement
     private static readonly Pen RingPen = CreatePen(CreateBrush("#28445E"), 1.0, [3.0, 5.0]);
     private static readonly Pen AxisPen = CreatePen(CreateBrush("#45627E"), 1.2);
     private static readonly Pen DiagonalPen = CreatePen(CreateBrush("#1D344E"), 0.85, [2.5, 5.0]);
-    private static readonly Pen LeaderPen = CreatePen(CreateBrush("#58748E"), 0.75);
+    // Tinted, hairline leaders: voltage solid and current dashed, matching
+    // their respective arrow families. Cached/frozen like all plot pens.
+    private static readonly Pen[] VoltageLeaderPens =
+    [
+        CreatePen(CreateBrush("#A86877"), 0.95),
+        CreatePen(CreateBrush("#C0A055"), 0.95),
+        CreatePen(CreateBrush("#729FC8"), 0.95)
+    ];
+    private static readonly Pen[] CurrentLeaderPens =
+    [
+        CreatePen(CreateBrush("#A86877"), 1.05, [2.0, 2.0]),
+        CreatePen(CreateBrush("#C0A055"), 1.05, [2.0, 2.0]),
+        CreatePen(CreateBrush("#729FC8"), 1.05, [2.0, 2.0])
+    ];
     private static readonly Pen[] VoltagePens =
     [
         CreatePen(PhaseRBrush, VoltageLineThickness),
@@ -192,7 +205,8 @@ public sealed class PhasorDiagramControl : FrameworkElement
             anchors[i] = new PhasorLabelAnchor(
                 vector.Tip.X, vector.Tip.Y,
                 vector.Label.Width, vector.Label.Height,
-                vector.Tip.X >= center.X);
+                vector.Tip.X >= center.X,
+                vector.Item.Family == PhasorFamily.Current);
         }
 
         // Reserve two footer rows so label packing never obscures scale readouts.
@@ -204,20 +218,22 @@ public sealed class PhasorDiagramControl : FrameworkElement
         {
             var vector = vectors[i];
             var position = positions[i];
-            var onRight = anchors[i].Right;
-            var endpoint = new Point(
-                onRight ? position.X - 3 : position.X + vector.Label.Width + 3,
-                position.Y + vector.Label.Height / 2.0);
-            // Long lines across the polar plot obscured vectors and looked like
-            // additional measurements. Use a short label-side indicator unless
-            // its actual tip is close enough for an unambiguous connector.
-            var connectorDistance = (vector.Tip - endpoint).Length;
-            if (connectorDistance <= 19)
-                dc.DrawLine(LeaderPen, vector.Tip, endpoint);
-            else
-                dc.DrawLine(LeaderPen,
-                    endpoint,
-                    new Point(endpoint.X + (onRight ? -7 : 7), endpoint.Y));
+            var route = PhasorCalloutRouting.Route(
+                new PhasorCalloutPoint(vector.Tip.X, vector.Tip.Y),
+                position, vector.Label.Width, vector.Label.Height, anchors[i].Right);
+            var phase = PhaseIndex(vector.Item.Name);
+            var leaderPen = vector.Item.Family == PhasorFamily.Voltage
+                ? VoltageLeaderPens[phase] : CurrentLeaderPens[phase];
+
+            // Always start at the actual measured vector TIP. Each fasor owns
+            // its route; even collinear Ua/Ia may never share an invented anchor.
+            // The elbow separates labels without drawing across the shaft.
+            dc.DrawLine(leaderPen,
+                new Point(route.Tip.X, route.Tip.Y),
+                new Point(route.Knee.X, route.Knee.Y));
+            dc.DrawLine(leaderPen,
+                new Point(route.Knee.X, route.Knee.Y),
+                new Point(route.LabelEdge.X, route.LabelEdge.Y));
             dc.DrawText(vector.Label, new Point(position.X, position.Y));
         }
         dc.Pop();
