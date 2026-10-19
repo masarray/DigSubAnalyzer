@@ -124,7 +124,7 @@ def render(source, destination):
     doc.build(paragraphs(text, style))
     if destination.stat().st_size < 1400:
         raise ValueError(f"Generated PDF too small: {destination}")
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(source.read_bytes()).hexdigest()
 
 
 def main():
