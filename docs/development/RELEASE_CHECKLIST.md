@@ -77,7 +77,7 @@
 
 - [ ] Create signed/verified tag where available
 - [ ] Publish Inno Setup installer (primary), optional portable ZIP, `SHA256SUMS.txt`, and `release-manifest.json`
-- [ ] Confirm `docs/validation/V1.4.0_PUBLIC_RELEASE_ACCEPTANCE.md` is signed off for the final commit and installed candidate (historic approval is insufficient)
+- [ ] Confirm `docs/validation/V1.4.1_PUBLIC_RELEASE_ACCEPTANCE.md` is signed off for the final commit and installed candidate (historic approval is insufficient)
 - [ ] Public release is manually dispatched **from main** with current field acceptance confirmation; pushing a tag cannot silently publish
 - [ ] Mark beta releases as prerelease
 - [ ] Confirm GitHub Pages and download links
