@@ -4325,7 +4325,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private static string FormatPower(double value, string unit)
     {
-        if (!double.IsFinite(value)) return "N/A (scaling not verified)";
+        if (!double.IsFinite(value)) return "N/A";
         var abs = Math.Abs(value);
         if (abs >= 1_000_000.0)
             return $"{value / 1_000_000.0:0.00} M{unit}";
