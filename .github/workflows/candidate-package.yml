@@ -15,6 +15,9 @@ on:
       - "src/**"
       - "tests/**"
       - "scripts/publish-windows-portable.ps1"
+      - "scripts/publish-windows-installer.ps1"
+      - "scripts/verify-windows-installer.ps1"
+      - "installer/**"
       - "scripts/verify-release-package.ps1"
       - "scripts/repository-health.ps1"
       - "docs/RELEASE_NOTES_v*.md"
@@ -38,7 +41,7 @@ jobs:
     name: Build verified Windows x64 candidate
     if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/') || startsWith(github.head_ref, 'architecture/') || startsWith(github.head_ref, 'legal/') || startsWith(github.head_ref, 'fix/') || startsWith(github.head_ref, 'feat/')
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
 
     steps:
       - name: Checkout
@@ -89,6 +92,24 @@ jobs:
           $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
           .\scripts\verify-release-package.ps1 -PackageZip $zip
 
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler installation failed.' }
+
+      - name: Compile Inno installer
+        shell: pwsh
+        run: .\scripts\publish-windows-installer.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - name: Smoke test Inno installation and repair
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $installer = ".\artifacts\release\ProcessBusInsight-v$version-win-x64-setup.exe"
+          $stage = ".\artifacts\package\ProcessBusInsight-v$version-win-x64-portable"
+          .\scripts\verify-windows-installer.ps1 -Installer $installer -StageDir $stage
+
       - name: Create candidate manifest
         shell: pwsh
         run: |
@@ -100,6 +121,10 @@ jobs:
             sourceRef = '${{ github.head_ref || github.ref_name }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
+            primaryDistribution = 'inno-setup-exe'
+            offlineManuals = @('User Manual.pdf', 'Quick Start.pdf')
+            upgradeMode = 'stable-inno-appid-in-place-repair'
+            installerSigned = $false
             communityLicense = 'GPL-3.0-or-later'
             historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -109,9 +134,9 @@ jobs:
       - name: Upload verified candidate
         uses: actions/upload-artifact@v7
         with:
-          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-candidate-${{ github.run_number }}
+          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-inno-candidate-${{ github.run_number }}
           path: |
-            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
+            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-setup.exe
             artifacts/release/SHA256SUMS.txt
             artifacts/release/candidate-manifest.json
             TestResults/**
