@@ -48,6 +48,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private IReadOnlyList<GooseMessageItem> _gooseMessages = Array.Empty<GooseMessageItem>();
     private GooseMonitorSnapshot _gooseSnapshot = new();
     private IReadOnlyList<PhasorDisplayItem> _phasors = Array.Empty<PhasorDisplayItem>();
+    private IReadOnlyList<PhasorDisplayItem>? _lastRaisedPhasors;
     private AnalogValuesSnapshot? _lastPhasorSourceSnapshot;
     private StreamDetailsModel? _displayedSelectedStreamDetails;
     private AnalogValuesSnapshot _displayedAnalogValues = new();
@@ -2289,16 +2290,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedEngineeringScale));
         OnPropertyChanged(nameof(EngineeringScaleExplanation));
 
-        // ARSVIN-style display contract: phasor vectors are derived from the latest
-        // engineering snapshot on every UI refresh. Do not use object-reference caching
-        // here. The raw analyzer may legitimately hold/reuse an AnalogValuesSnapshot while
-        // the SV window is settling, and previous reference caching made the phasor panel
-        // appear frozen until a user click rebuilt the SV workspace. Six vectors are cheap;
-        // correctness and responsiveness are more important than suppressing this tiny
-        // allocation.
+        // One SSOT: derive vectors from the selected stream's engineering snapshot.
+        // Do not recalculate arrows when only the instantaneous sample has changed.
+        // Exact RMS/angle comparisons retain immediate response to genuine transients.
         _displayedAnalogValues = analogValues;
         if (_lastPhasorSourceSnapshot is null ||
-            !LiveRenderCoalescer.SameAnalog(_lastPhasorSourceSnapshot, _displayedAnalogValues) ||
+            !LiveRenderCoalescer.SamePhasors(_lastPhasorSourceSnapshot, _displayedAnalogValues) ||
             !string.Equals(_lastPhasorSourceStreamId, selectedStreamId, StringComparison.Ordinal))
         {
             _phasors = BuildPhasorItems(_displayedAnalogValues);
@@ -2666,8 +2663,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(WaveformHeaderWindowText));
         OnPropertyChanged(nameof(WaveformHeaderStatusText));
         OnPropertyChanged(nameof(WaveformShapeStatusText));
-        if (force || analogChanged)
+        if (force || !ReferenceEquals(_lastRaisedPhasors, _phasors))
+        {
+            _lastRaisedPhasors = _phasors;
             OnPropertyChanged(nameof(Phasors));
+        }
         OnPropertyChanged(nameof(WaveformVoltageScale));
         OnPropertyChanged(nameof(WaveformCurrentScale));
     }
@@ -4296,20 +4296,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         };
     }
 
-    private static IReadOnlyList<PhasorDisplayItem> BuildPhasorItems(AnalogValuesSnapshot analogValues)
-    {
-        var referenceName = ResolvePhasorReferenceName(analogValues);
-
-        return
-        [
-            CreatePhasor("Ua", PhasorFamily.Voltage, analogValues.Ua, forceAngleZero: string.Equals(referenceName, "Ua", StringComparison.OrdinalIgnoreCase)),
-            CreatePhasor("Ub", PhasorFamily.Voltage, analogValues.Ub),
-            CreatePhasor("Uc", PhasorFamily.Voltage, analogValues.Uc),
-            CreatePhasor("Ia", PhasorFamily.Current, analogValues.Ia, forceAngleZero: string.Equals(referenceName, "Ia", StringComparison.OrdinalIgnoreCase)),
-            CreatePhasor("Ib", PhasorFamily.Current, analogValues.Ib),
-            CreatePhasor("Ic", PhasorFamily.Current, analogValues.Ic)
-        ];
-    }
+    private static IReadOnlyList<PhasorDisplayItem> BuildPhasorItems(AnalogValuesSnapshot analogValues) =>
+    [
+        CreatePhasor("Ua", PhasorFamily.Voltage, analogValues.Ua),
+        CreatePhasor("Ub", PhasorFamily.Voltage, analogValues.Ub),
+        CreatePhasor("Uc", PhasorFamily.Voltage, analogValues.Uc),
+        CreatePhasor("Ia", PhasorFamily.Current, analogValues.Ia),
+        CreatePhasor("Ib", PhasorFamily.Current, analogValues.Ib),
+        CreatePhasor("Ic", PhasorFamily.Current, analogValues.Ic)
+    ];
 
     private (double P, double Q, double S) ComputeThreePhasePower()
     {
@@ -4329,28 +4324,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return $"{value:0.00} {unit}";
     }
 
-    private static string? ResolvePhasorReferenceName(AnalogValuesSnapshot analogValues)
-    {
-        if (analogValues.Ua.RmsValue.HasValue)
-            return "Ua";
-
-        if (analogValues.Ia.RmsValue.HasValue)
-            return "Ia";
-
-        return null;
-    }
-
-    private static PhasorDisplayItem CreatePhasor(string name, PhasorFamily family, ChannelValueModel channel, bool forceAngleZero = false)
-    {
-        return new PhasorDisplayItem
+    private static PhasorDisplayItem CreatePhasor(string name, PhasorFamily family, ChannelValueModel channel) =>
+        new()
         {
             Name = name,
             Family = family,
             Magnitude = channel.RmsValue,
-            AngleDegrees = forceAngleZero && channel.AngleDegrees.HasValue ? 0.0 : channel.AngleDegrees,
+            // The engine alone owns relative-angle/reference interpretation.
+            AngleDegrees = channel.AngleDegrees,
             Unit = channel.Unit
         };
-    }
 
     private bool FilterGooseHistory(object item)
     {
