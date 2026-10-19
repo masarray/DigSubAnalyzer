@@ -13,13 +13,13 @@ This matrix records explicit evidence. It is not a vendor-certification claim.
 | Packaging | Windows x64 Inno Setup self-contained installer (primary), portable ZIP (optional); install/repair/offline manuals/uninstall | Windows candidate workflow + SHA256 smoke gates | Automated |
 | Website | Static GitHub Pages source validation | Pages workflow | Automated |
 | Live capture | Windows + Npcap + selected Ethernet adapter | Historical bench and current screenshot show adapter + one SV stream; fresh final candidate acceptance required | **Pending current final SHA** |
-| Runtime soak | Historical v1.3.0-beta.2 60-minute live session, three streams, memory 141.6/144.5/142.1 MB | `V1.3.0_BETA2_FIELD_EVIDENCE.md` | PASS **historical only; pending v1.4.0 final candidate** |
+| Runtime soak | Historical v1.3.0-beta.2 60-minute live session, three streams, memory 141.6/144.5/142.1 MB | `V1.3.0_BETA2_FIELD_EVIDENCE.md` | PASS **historical only; pending v1.4.1 final candidate** |
 | Timing | Windows/Npcap or recorded PCAP timestamps | Screening only | Not measurement-grade |
 | PCAPNG replay | Not implemented in v1.4.0-beta.1 | No evidence | Not claimed |
 | Multi-vendor SCL | SCD/ICD/CID examples and parser tests | Partial | Broader validation required |
 | Hardware timestamping | Validated NIC/TAP timestamp path | None in public beta | Not claimed |
 
-The 2026-10-19 same-session injector/analyzer screenshot shows close agreement for one 4I+4V 50 Hz configuration, including Ia +30°, Ib -90° and Ic +150°, but does not prove sustained resource usage or packet-by-packet equivalence. See [current v1.4.0 acceptance gates](V1.4.0_PUBLIC_RELEASE_ACCEPTANCE.md).
+The 2026-10-19 same-session injector/analyzer screenshot shows close agreement for one 4I+4V 50 Hz configuration, including Ia +30°, Ib -90° and Ic +150°, but does not prove sustained resource usage or packet-by-packet equivalence. See [current v1.4.1 acceptance gates](V1.4.1_PUBLIC_RELEASE_ACCEPTANCE.md).
 
 ## Release evidence to record
 
