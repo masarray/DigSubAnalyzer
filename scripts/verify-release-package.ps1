@@ -19,6 +19,7 @@ try {
         "User Manual.pdf",
         "Quick Start.md",
         "User Manual.md",
+        "ManualSources.json",
         "Install and Update.md",
         "README.txt",
         "LICENSE.txt",
@@ -36,6 +37,32 @@ try {
     foreach ($relative in $required) {
         if (-not (Test-Path (Join-Path $temp $relative))) {
             throw "Package verification failed. Missing: $relative"
+        }
+    }
+
+    # The PDFs must be generated from exactly the Markdown editions also
+    # shipped in the installed package. Prevent an obsolete portable-only
+    # PDF from passing release verification after setup guidance changes.
+    $manualManifest = Get-Content (Join-Path $temp "ManualSources.json") -Raw | ConvertFrom-Json
+    if ($manualManifest.format -ne "ProcessBusInsight-offline-manuals-v1") {
+        throw "Manual verification failed: missing provenance format."
+    }
+    if (@($manualManifest.files).Count -ne 2) {
+        throw "Manual verification failed: two synchronized PDF editions expected."
+    }
+    foreach ($entry in $manualManifest.files) {
+        $markdownName = switch ($entry.source) {
+            "QUICK_START.md" { "Quick Start.md" }
+            "USER_MANUAL.md" { "User Manual.md" }
+            default { throw "Unexpected PDF manual source: $($entry.source)" }
+        }
+        if ($entry.pdf -notin @("Quick Start.pdf", "User Manual.pdf")) {
+            throw "Unexpected generated PDF filename: $($entry.pdf)"
+        }
+        $markdownSha = (Get-FileHash (Join-Path $temp $markdownName) -Algorithm SHA256).Hash
+        $pdfSha = (Get-FileHash (Join-Path $temp $entry.pdf) -Algorithm SHA256).Hash
+        if ($markdownSha -ne $entry.sourceSha256 -or $pdfSha -ne $entry.pdfSha256) {
+            throw "Manual source/PDF hash mismatch for $markdownName."
         }
     }
 
