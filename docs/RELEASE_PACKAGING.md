@@ -1,10 +1,11 @@
 # Release Packaging — Process Bus Insight
 
-The release workflow creates a Windows x64 self-contained portable package for users who do not have Visual Studio or a separate .NET runtime.
+The release workflow produces a Windows x64 self-contained **Inno Setup 6 EXE installer (primary)**, plus an optional portable ZIP. The installer supports in-place upgrades and repairs via a stable AppId and includes both offline PDF manuals inside the installed program folder. It is currently unsigned and does not automatically download updates.
 
 ## Release files
 
 ```text
+ProcessBusInsight-v<version>-win-x64-setup.exe
 ProcessBusInsight-v<version>-win-x64-portable.zip
 SHA256SUMS.txt
 release-manifest.json
@@ -16,6 +17,7 @@ The ZIP contains:
 ProcessBusInsight.exe
 Quick Start.pdf
 User Manual.pdf
+Install and Update.md
 README.txt
 LICENSE.txt
 NOTICE.txt
@@ -26,7 +28,11 @@ THIRD_PARTY_NOTICES.md
 Licensing.md
 ```
 
-Npcap is required on the target Windows machine for live raw Ethernet capture and is not bundled.
+Npcap is required on the target Windows machine for live raw Ethernet capture and is not bundled. Setup provides nonblocking guidance if the driver is not detected because offline analysis remains available.
+
+The Inno Setup default location is `C:\Program Files\Process Bus Insight`. `User Manual.pdf`, `Quick Start.pdf`, `Install and Update.md`, and the read-only `Bench/` tools are physically installed there. Start Menu shortcuts link to the application and both PDFs. An optional desktop shortcut is available. To update, close the analyzer and rerun the newer installer; Inno remembers the install directory and updates in place. Reinstalling the same version can repair missing files. The uninstaller does not use broad rules to delete user captures or SCL data.
+
+GitHub Actions verifies checksums and performs a real silent install, repair, PDF hash comparison, and uninstall. Bench performance and third-party antivirus compatibility are not implied by that test.
 
 ## License boundary
 
