@@ -80,10 +80,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "v${{ steps.version.outputs.value }}"
-          gh release view $tag --repo "${{ github.repository }}" *> $null
-          if ($LASTEXITCODE -eq 0) {
+          # GitHub CLI exits 1 for an expected 404. On modern PowerShell runners
+          # a failed native command can terminate the step BEFORE LASTEXITCODE
+          # is inspected. Query the REST status explicitly; 404 is an unused
+          # version, 200 is already published, and other statuses fail closed.
+          $uri = "https://api.github.com/repos/${{ github.repository }}/releases/tags/$tag"
+          $response = Invoke-WebRequest -Uri $uri -Method Get -SkipHttpErrorCheck -Headers @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          if ($response.StatusCode -eq 200) {
             throw "Version $tag was already published. Bump VersionPrefix; never replace historical public binaries."
           }
+          if ($response.StatusCode -ne 404) {
+            throw "Unable to establish release-version availability: HTTP $($response.StatusCode)."
+          }
+          Write-Host "Unused release version verified: $tag"
 
       - name: Repository health gate
         shell: pwsh
