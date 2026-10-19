@@ -1,6 +1,6 @@
 # Quick Start — Process Bus Insight
 
-Process Bus Insight is a receive-only IEC 61850 Process Bus analyzer for Windows. This guide helps you run the portable package and start a safe observation workflow.
+Process Bus Insight is a receive-only IEC 61850 Process Bus analyzer for Windows. This guide explains the recommended Inno Setup installation (or optional portable ZIP) and a safe observation workflow.
 
 ## 1. Prepare the Windows machine
 
@@ -18,26 +18,19 @@ Avoid these adapters for serious timing interpretation:
 - Hyper-V, VMware, VPN, or virtual bridge adapters.
 - Unverified USB Ethernet adapters when timing evidence matters.
 
-## 2. Download and extract
+## 2. Download and install
 
-1. Open the GitHub Releases page.
-2. Download the latest `ProcessBusInsight-vX.Y.Z-win-x64-portable.zip`.
-3. Download `SHA256SUMS.txt` if you want to verify file integrity.
-4. Extract the ZIP to a local folder such as:
-
-```text
-C:\Tools\ProcessBusInsight
-```
+1. Open [official GitHub Releases](https://github.com/masarray/DigSubAnalyzer/releases).
+2. Download `ProcessBusInsight-vX.Y.Z-win-x64-setup.exe` and verify its SHA256 against `SHA256SUMS.txt`.
+3. Close any prior running instance and run the Inno Setup installer. It installs into `C:\Program Files\Process Bus Insight` by default, creating a Start Menu shortcut and optional desktop shortcut.
+4. For an upgrade, run the newer installer without uninstalling first; the stable application identity retains the previous install directory. Re-running the same installer can repair files.
+5. The optional portable ZIP can still be extracted manually to `C:\Tools\ProcessBusInsight` when appropriate.
 
 ## 3. Run the app
 
-Open the extracted folder and run:
+Launch **Process Bus Insight** from the Start Menu, or run `ProcessBusInsight.exe` from the installed folder. **Quick Start.pdf**, **User Manual.pdf**, and **Install and Update.md** are available offline in the same folder; shortcuts to both PDFs are in the Start Menu.
 
-```text
-ProcessBusInsight.exe
-```
-
-The default release package publishes the app as a self-contained single EXE at the package root. The package also includes Quick Start PDF and User Manual PDF documents for offline field use.
+The application is self-contained. Npcap is installed separately for live capture, never silently by this installer. If Npcap cannot load, the application shows `Npcap unavailable — capture disabled` and will not fabricate a capture-capable Ethernet adapter.
 
 ## 4. Start a safe capture workflow
 
