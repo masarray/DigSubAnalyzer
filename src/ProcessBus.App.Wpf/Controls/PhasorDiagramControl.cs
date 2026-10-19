@@ -229,12 +229,8 @@ public sealed class PhasorDiagramControl : FrameworkElement
             item.Family == PhasorFamily.Voltage && IsRenderable(item))?.Unit ?? "V";
         var currentUnit = _visualItems.FirstOrDefault(item =>
             item.Family == PhasorFamily.Current && IsRenderable(item))?.Unit ?? "A";
-        var voltageScaleText = voltageMax > 0
-            ? $"U max {voltageMax:0.###} {voltageUnit}"
-            : "U N/A";
-        var currentScaleText = currentMax > 0
-            ? $"I max {currentMax:0.###} {currentUnit}"
-            : "I N/A";
+        var voltageScaleText = PhasorScaleCaption.Format("U", voltageMax, voltageUnit);
+        var currentScaleText = PhasorScaleCaption.Format("I", currentMax, currentUnit);
         DrawText(dc, $"{voltageScaleText}   ·   {currentScaleText}",
             10.0, new Point(6, height - 31), TextSecondaryBrush, BodyTypeface);
         DrawText(dc, "U solid   ·   I dashed   ·   independent RMS scales",
