@@ -2144,6 +2144,7 @@
                                             <!-- RUNTIME CONTROL (DIMATIKAN DI DESIGNER) -->
                                             <controls:PhasorDiagramControl Grid.Row="1"
                                        ItemsSource="{Binding Phasors}"
+                                       IsStreamLive="{Binding SelectedStream.IsActive}"
                                        MinHeight="210"
                                        SnapsToDevicePixels="True"
                                        d:Visibility="Collapsed"/>
