@@ -4,6 +4,11 @@ namespace ProcessBus.Core.Services;
 
 public static class PcapAdapterCatalog
 {
+    static PcapAdapterCatalog()
+    {
+        NpcapNativeLibrary.RegisterFor(typeof(PcapAdapterCatalog).Assembly);
+    }
+
     public static List<NetworkAdapterInfo> GetAdapters()
     {
         try
@@ -12,7 +17,7 @@ public static class PcapAdapterCatalog
         }
         catch (DllNotFoundException ex)
         {
-            return BuildFallback($"Npcap/wpcap.dll not found: {ex.Message}");
+            return BuildUnavailable($"Npcap/wpcap.dll not found: {ex.Message}");
         }
         catch (BadImageFormatException ex)
         {
@@ -82,11 +87,11 @@ public static class PcapAdapterCatalog
         {
             new()
             {
-                Id = "0",
-                Index = 0,
-                Name = "Ethernet",
-                Description = $"Fallback adapter entry ({reason})",
-                RawDeviceName = "index:0"
+                Id = "npcap-unavailable",
+                Index = -1,
+                Name = "Npcap unavailable — capture disabled",
+                Description = reason,
+                RawDeviceName = string.Empty
             }
         };
     }
