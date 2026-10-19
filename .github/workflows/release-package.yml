@@ -8,7 +8,12 @@ on:
         required: true
         default: 1.4.0
       publish_release:
-        description: Create or update a GitHub Release
+        description: Publish GitHub Release after successful validation (manual only)
+        required: true
+        default: false
+        type: boolean
+      field_acceptance_verified:
+        description: "I confirm documented real-NIC capture, injector agreement, and soak acceptance on the target Windows configuration"
         required: true
         default: false
         type: boolean
@@ -69,6 +74,22 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($version)) { throw 'Unable to resolve release version.' }
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Release version: $version"
+
+      # Tags can build reproducible packages, but never auto-publish an
+      # unreviewed stable release simply because a tag was pushed.
+      - name: Public release authorization gate
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
+        shell: pwsh
+        env:
+          FIELD_ACCEPTANCE: ${{ inputs.field_acceptance_verified }}
+          RUN_REF: ${{ github.ref }}
+        run: |
+          if ($env:RUN_REF -ne 'refs/heads/main') {
+            throw 'Public releases must be built from the validated main branch.'
+          }
+          if ($env:FIELD_ACCEPTANCE -ne 'true') {
+            throw 'Public release blocked: field acceptance has not been explicitly verified.'
+          }
 
       - name: Repository health gate
         shell: pwsh
@@ -145,7 +166,7 @@ jobs:
           retention-days: 30
 
       - name: Publish GitHub Release
-        if: ${{ github.event_name == 'push' || github.event.inputs.publish_release == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -163,9 +184,8 @@ jobs:
           $releaseArgs = @('release', 'create', $tag, $installer, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
           $isDraft = '${{ github.event.inputs.draft }}'
           $isPrerelease = '${{ github.event.inputs.prerelease }}'
-          if ('${{ github.event_name }}' -eq 'push') {
-            $isPrerelease = if ($version -match '-') { 'true' } else { 'false' }
-          }
+          # A pre-release version must always remain a prerelease.
+          if ($version -match '-') { $isPrerelease = 'true' }
           if ($isDraft -eq 'true') { $releaseArgs += '--draft' }
           if ($isPrerelease -eq 'true') { $releaseArgs += '--prerelease' }
 
