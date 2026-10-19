@@ -57,16 +57,18 @@ git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
 ## Local packaging
 
 ```powershell
-.\scripts\repository-health.ps1 -ExpectedVersion "1.4.0-beta.2"
-.\scripts\publish-windows-portable.ps1 -Version "1.4.0-beta.2"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-beta.2-win-x64-portable.zip"
+.\scripts\repository-health.ps1 -ExpectedVersion "1.4.0"
+.\scripts\publish-windows-portable.ps1 -Version "1.4.0"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-win-x64-portable.zip"
+.\scripts\publish-windows-installer.ps1 -Version "1.4.0"
+.\scripts\verify-windows-installer.ps1 -Installer ".\artifacts\release\ProcessBusInsight-v1.4.0-win-x64-setup.exe" -StageDir ".\artifacts\package\ProcessBusInsight-v1.4.0-win-x64-portable"
 ```
 
 ## GitHub workflows
 
-The candidate workflow runs for `stabilization/*`, `architecture/*`, and `legal/*` pull requests when relevant files change. It restores, builds, tests, packages, verifies the ZIP and legal documents, creates a candidate manifest, and uploads the candidate without publishing a public release.
+The candidate workflow runs for supported pull-request branches (including `fix/*`, `feat/*`, `stabilization/*`, `architecture/*`, `legal/*`) when relevant files change. It restores, builds, tests, packages, verifies the ZIP and legal documents, creates a candidate manifest, and uploads the candidate without publishing a public release.
 
-The release workflow runs manually or for tags matching `v*`. It restores, builds, tests, packages, verifies the ZIP, produces a checksum and release manifest, uploads workflow evidence, and optionally creates a GitHub Release.
+The release workflow builds on manual dispatch or tags matching `v*`. **A tag push cannot publish a public release.** A public release is an explicit manual `publish_release=true` from `main` requiring `field_acceptance_verified=true`; this must correspond to the current final installer and documented physical soak gate. The workflow restores, builds, tests, packages the Inno EXE and optional ZIP, smoke-tests installation/repair/uninstall, produces checksums and a release manifest, and uploads evidence before publication.
 
 ## Packaging design notes
 
