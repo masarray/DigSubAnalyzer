@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version label, for example 1.4.0
+        description: Version label, for example 1.4.1
         required: true
-        default: 1.4.0
+        default: 1.4.1
       publish_release:
         description: Publish GitHub Release after successful validation (manual only)
         required: true
@@ -30,7 +30,7 @@ on:
       release_notes_file:
         description: Markdown file used as release body
         required: true
-        default: docs/RELEASE_NOTES_v1.4.0.md
+        default: docs/RELEASE_NOTES_v1.4.1.md
   push:
     tags:
       - "v*"
@@ -186,7 +186,7 @@ jobs:
           $sha = "artifacts/release/SHA256SUMS.txt"
           $manifest = "artifacts/release/release-manifest.json"
           $notesFile = '${{ github.event.inputs.release_notes_file }}'
-          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.0.md' }
+          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.1.md' }
           if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
 
           $releaseArgs = @('release', 'create', $tag, $installer, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
