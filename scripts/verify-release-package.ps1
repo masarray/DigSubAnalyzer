@@ -17,6 +17,7 @@ try {
         "$AppName.exe",
         "Quick Start.pdf",
         "User Manual.pdf",
+        "Install and Update.md",
         "README.txt",
         "LICENSE.txt",
         "NOTICE.txt",
