@@ -24,8 +24,9 @@
 - [ ] Truncated, unsupported-link-type, invalid-timestamp, and oversized-record cases are rejected
 - [ ] CodeQL completes
 - [ ] Dependency review has no unresolved high-severity finding
-- [ ] Portable candidate package verification succeeds
-- [ ] ZIP checksum and candidate/release manifest are generated
+- [ ] Primary Inno Setup candidate and optional portable ZIP package verification succeed
+- [ ] Installer install → repair → offline PDFs/Markdown docs → uninstall smoke test succeeds
+- [ ] EXE and ZIP checksums and candidate/release manifests are generated
 
 ## Runtime smoke test
 
@@ -39,7 +40,9 @@
 - [ ] 4000 and 65536 sample-counter rollover behavior is exercised
 - [ ] Duplicate, forward-gap, and publisher-restart behavior is exercised
 - [ ] GOOSE, PTP, and SCL workspaces open and update
-- [ ] 30–60 minute soak test shows no material memory growth or UI freeze
+- [ ] At least 60-minute soak of the **exact final candidate** on actual Windows x64/Npcap/Ethernet hardware shows no material memory growth, capture failure or UI freeze; retain sanitized process statistics and driver-drop evidence
+- [ ] Injector U/I RMS/phase changes agree across all six channels in both directions and on non-nominal/zero/missing samples
+- [ ] UI/phasor/status/power is readable at 100%, 125%, 150% DPI, including stale/amber-warning states
 
 ## Replay and immutable snapshot checks
 
@@ -64,7 +67,7 @@
 
 ## Package legal content
 
-- [ ] ZIP contains `LICENSE.txt`, `NOTICE.txt`, `COMMERCIAL-LICENSE.md`, `COPYRIGHT.md`, `TRADEMARK.md`, `THIRD_PARTY_NOTICES.md`, and `Licensing.md`
+- [ ] Installer and ZIP contain `LICENSE.txt`, `NOTICE.txt`, `COMMERCIAL-LICENSE.md`, `COPYRIGHT.md`, `TRADEMARK.md`, `THIRD_PARTY_NOTICES.md`, and `Licensing.md`
 - [ ] `LICENSE.txt` contains GNU GPL version 3
 - [ ] No historical Apache license file is presented as the current package license
 - [ ] Commercial notice non-grant wording is intact
@@ -73,7 +76,9 @@
 ## Release
 
 - [ ] Create signed/verified tag where available
-- [ ] Publish portable ZIP, `SHA256SUMS.txt`, and `release-manifest.json`
+- [ ] Publish Inno Setup installer (primary), optional portable ZIP, `SHA256SUMS.txt`, and `release-manifest.json`
+- [ ] Confirm `docs/validation/V1.4.0_PUBLIC_RELEASE_ACCEPTANCE.md` is signed off for the final commit and installed candidate (historic approval is insufficient)
+- [ ] Public release is manually dispatched **from main** with current field acceptance confirmation; pushing a tag cannot silently publish
 - [ ] Mark beta releases as prerelease
 - [ ] Confirm GitHub Pages and download links
 - [ ] Do not replace a historical Apache release asset with a post-transition GPL binary under the same tag; use the new version `v1.4.0-beta.2` or later
