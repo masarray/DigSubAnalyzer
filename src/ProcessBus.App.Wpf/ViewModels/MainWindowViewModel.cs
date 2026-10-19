@@ -111,12 +111,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _isRunning = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSwitchCaptureMode));
+            OnPropertyChanged(nameof(CanStartCapture));
             OnPropertyChanged(nameof(IsSelectedSvReceiving));
         }
     }
 
     public bool IsRawMode => true;
     public bool CanSwitchCaptureMode => !IsRunning;
+    public bool CanStartCapture => !IsRunning && GetSelectedAdapter()?.IsCaptureCapable == true;
+    public string SelectedAdapterDiagnostic => GetSelectedAdapter() is { IsCaptureCapable: false } invalid
+        ? invalid.Description : "Select a real Npcap capture adapter.";
 
     private readonly ObservableCollection<GooseTrafficRow> _gooseHistory = new();
     private readonly Dictionary<string, GooseMessageItem> _lastGooseState = new();
@@ -1976,8 +1980,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedAdapterId = value;
             var selected = Adapters.FirstOrDefault(adapter => adapter.Id == value);
             _rawDataSource.SelectAdapter(value, selected?.RawDeviceName ?? string.Empty);
-            SaveLastAdapterId(value);
+            if (selected?.IsCaptureCapable == true)
+                SaveLastAdapterId(value);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanStartCapture));
+            OnPropertyChanged(nameof(SelectedAdapterDiagnostic));
             OnPropertyChanged(nameof(AdapterTimingRiskText));
             OnPropertyChanged(nameof(TimingConfidenceText));
             OnPropertyChanged(nameof(TimingConfidenceBadgeText));
@@ -4204,6 +4211,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task StartAsync()
     {
+        if (!CanStartCapture)
+            return;
+
         await _rawDataSource.StartAsync();
         IsRunning = _rawDataSource.IsRunning;
 
