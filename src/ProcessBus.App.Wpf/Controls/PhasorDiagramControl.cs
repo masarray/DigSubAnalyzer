@@ -195,9 +195,10 @@ public sealed class PhasorDiagramControl : FrameworkElement
                 vector.Tip.X >= center.X);
         }
 
+        // Reserve two footer rows so label packing never obscures scale readouts.
         var positions = PhasorLabelLayout.Arrange(anchors, width, height,
             topPadding: IsStreamLive ? 18 : 30,
-            bottomPadding: 25);
+            bottomPadding: 42);
 
         for (var i = 0; i < vectors.Count; i++)
         {
@@ -207,13 +208,37 @@ public sealed class PhasorDiagramControl : FrameworkElement
             var endpoint = new Point(
                 onRight ? position.X - 3 : position.X + vector.Label.Width + 3,
                 position.Y + vector.Label.Height / 2.0);
-            dc.DrawLine(LeaderPen, vector.Tip, endpoint);
+            // Long lines across the polar plot obscured vectors and looked like
+            // additional measurements. Use a short label-side indicator unless
+            // its actual tip is close enough for an unambiguous connector.
+            var connectorDistance = (vector.Tip - endpoint).Length;
+            if (connectorDistance <= 19)
+                dc.DrawLine(LeaderPen, vector.Tip, endpoint);
+            else
+                dc.DrawLine(LeaderPen,
+                    endpoint,
+                    new Point(endpoint.X + (onRight ? -7 : 7), endpoint.Y));
             dc.DrawText(vector.Label, new Point(position.X, position.Y));
         }
         dc.Pop();
 
-        DrawText(dc, "U solid  ·  I dashed  ·  separate scales",
-            9.0, new Point(6, height - 16), TextMutedBrush, BodyTypeface);
+        // Numeric scale evidence comes from the SAME six vectors as arrows.
+        // This footer is a visual reference (per-family maximum), not a
+        // calibration claim or one shared physical voltage/current scale.
+        var voltageUnit = _visualItems.FirstOrDefault(item =>
+            item.Family == PhasorFamily.Voltage && IsRenderable(item))?.Unit ?? "V";
+        var currentUnit = _visualItems.FirstOrDefault(item =>
+            item.Family == PhasorFamily.Current && IsRenderable(item))?.Unit ?? "A";
+        var voltageScaleText = voltageMax > 0
+            ? $"U max {voltageMax:0.##} {voltageUnit}"
+            : "U N/A";
+        var currentScaleText = currentMax > 0
+            ? $"I max {currentMax:0.##} {currentUnit}"
+            : "I N/A";
+        DrawText(dc, $"{voltageScaleText}   ·   {currentScaleText}",
+            10.0, new Point(6, height - 31), TextSecondaryBrush, BodyTypeface);
+        DrawText(dc, "Voltage solid   ·   Current dashed   ·   independent RMS scales",
+            8.5, new Point(6, height - 15), TextMutedBrush, BodyTypeface);
         if (!IsStreamLive)
             DrawText(dc, "STALE · last valid samples", 11, new Point(7, 5), StaleBrush, LabelTypeface);
     }
@@ -282,7 +307,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
         DrawText(dc, "0°", 9, new Point(center.X + radius - 19, center.Y + 4), TextMutedBrush, BodyTypeface);
         DrawText(dc, "180°", 9, new Point(center.X - radius + 4, center.Y + 4), TextMutedBrush, BodyTypeface);
         DrawText(dc, "+90°", 9, new Point(center.X + 5, center.Y - radius + 3), TextMutedBrush, BodyTypeface);
-        DrawText(dc, "-90°", 9, new Point(center.X + 5, center.Y + radius - 14), TextMutedBrush, BodyTypeface);
+        DrawText(dc, "270°", 9, new Point(center.X + 5, center.Y + radius - 14), TextMutedBrush, BodyTypeface);
     }
 
     private void DrawCenteredMessage(DrawingContext dc, Point center, string message)
