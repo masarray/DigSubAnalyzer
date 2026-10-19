@@ -11,7 +11,7 @@ namespace ProcessBus.Tests;
 public sealed class PhasorPresentationContractTests
 {
     private static ChannelValueModel Channel(string name, double rms, double angle, double instant = 0) =>
-        new(name) { Unit = name.StartsWith("U") ? "V" : "A", RmsValue = rms,
+        new(name) { Unit = name.StartsWith('U') ? "V" : "A", RmsValue = rms,
             AngleDegrees = angle, InstantValue = instant };
 
     private static AnalogValuesSnapshot Values(
