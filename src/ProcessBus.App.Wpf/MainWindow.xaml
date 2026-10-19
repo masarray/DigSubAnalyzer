@@ -335,10 +335,11 @@
                                           ItemsSource="{Binding Adapters}"
                                           SelectedValuePath="Id"
                                           SelectedValue="{Binding SelectedAdapterId, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="Select capture adapter"/>
+                                          ToolTip="{Binding SelectedAdapterDiagnostic}"/>
 
                                 <Button Margin="8,0,0,0"
                                         Command="{Binding StartCommand}"
+                                         IsEnabled="{Binding CanStartCapture}"
                                         ToolTipService.InitialShowDelay="180">
                                     <Button.ToolTip>
                                         <ToolTip Style="{StaticResource GlassToolTipStyle}" Content="Start live SV/GOOSE/PTP capture"/>
