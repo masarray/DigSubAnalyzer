@@ -113,6 +113,84 @@ public sealed class PhasorPresentationContractTests
         Assert.Equal("I N/A", PhasorScaleCaption.Format("I", double.NaN, "A"));
     }
 
+
+    [Theory]
+    [InlineData(-0.10)]
+    [InlineData(0.00)]
+    [InlineData(0.10)]
+    public void PhaseAVoltageAndCurrentCalloutsLandOnTheirOwnDistinctArrowTips(
+        double smallVerticalJitter)
+    {
+        // Physical screenshot: Ua=57.73V ∠0°, Ia=0.50A ∠0.01°,
+        // with different normalized radii. Labels share the RIGHT rail.
+        const double uaY = 120;
+        var iaY = uaY + smallVerticalJitter;
+        var anchors = new[]
+        {
+            new PhasorLabelAnchor(246.4, uaY, 52, 14, true, false), // Ua
+            new PhasorLabelAnchor(114, 161, 52, 14, false, false), // Ub
+            new PhasorLabelAnchor(114, 78, 52, 14, false, false),  // Uc
+            new PhasorLabelAnchor(187.4, iaY, 52, 14, true, true), // Ia
+            new PhasorLabelAnchor(124, 152, 52, 14, false, true), // Ib
+            new PhasorLabelAnchor(124, 88, 52, 14, false, true)   // Ic
+        };
+        var positions = PhasorLabelLayout.Arrange(anchors, 320, 245, 18, 42);
+        var uaRoute = PhasorCalloutRouting.Route(
+            new PhasorCalloutPoint(anchors[0].TipX, anchors[0].TipY),
+            positions[0], anchors[0].Width, anchors[0].Height, true);
+        var iaRoute = PhasorCalloutRouting.Route(
+            new PhasorCalloutPoint(anchors[3].TipX, anchors[3].TipY),
+            positions[3], anchors[3].Width, anchors[3].Height, true);
+
+        Assert.Equal(new PhasorCalloutPoint(246.4, uaY), uaRoute.Tip);
+        Assert.Equal(new PhasorCalloutPoint(187.4, iaY), iaRoute.Tip);
+        Assert.NotEqual(uaRoute.Tip, iaRoute.Tip);
+        Assert.NotEqual(uaRoute.Knee, iaRoute.Knee);
+        Assert.NotEqual(uaRoute.LabelEdge, iaRoute.LabelEdge);
+
+        // Long Ia leader still stays connected to its real short current arrow.
+        Assert.True(iaRoute.LabelEdge.X - iaRoute.Tip.X > 19);
+        Assert.True(iaRoute.Knee.X > iaRoute.Tip.X);
+        Assert.Equal(iaRoute.Knee.Y, iaRoute.LabelEdge.Y);
+        Assert.True(iaRoute.LabelEdge.Y < uaY - 6,
+            "Current leader must leave the shared Ua/Ia axis ABOVE the voltage shaft.");
+        Assert.True(uaRoute.LabelEdge.Y > uaY + 5,
+            "Voltage leader must enter a lower, separate lane.");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CalloutRoutingConnectsRealTipsOnEitherSideEvenWithLongLeaders(bool right)
+    {
+        var tip = new PhasorCalloutPoint(right ? 185 : 100, 100);
+        var label = new PhasorLabelPosition(right ? 265 : 4, 58);
+        var route = PhasorCalloutRouting.Route(tip, label, 48, 14, right);
+
+        Assert.Equal(tip, route.Tip);
+        Assert.Equal(right ? 262 : 55, route.LabelEdge.X);
+        Assert.Equal(65, route.LabelEdge.Y);
+        Assert.True(right ? route.Knee.X > tip.X : route.Knee.X < tip.X);
+        Assert.True(right
+            ? route.Tip.X <= route.Knee.X && route.Knee.X <= route.LabelEdge.X
+            : route.Tip.X >= route.Knee.X && route.Knee.X >= route.LabelEdge.X);
+    }
+
+    [Fact]
+    public void ExactlyCollinearTipLabelsStaySeparateAcrossTinySignChanges()
+    {
+        foreach (var dy in new[] { -0.02, 0.0, 0.02 })
+        {
+            var anchors = new[]
+            {
+                new PhasorLabelAnchor(246, 119.99, 48, 14, true, false),
+                new PhasorLabelAnchor(187, 119.99 + dy, 48, 14, true, true)
+            };
+            var labels = PhasorLabelLayout.Arrange(anchors, 310, 215, 18, 42);
+            Assert.True(labels[1].Y + anchors[1].Height <= labels[0].Y);
+        }
+    }
+
     [Fact]
     public void SixVectorsSharingOneAngleStillReceiveDistinctStableLabelSlots()
     {
