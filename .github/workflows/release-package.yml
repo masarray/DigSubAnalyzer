@@ -1,4 +1,4 @@
-name: Release Windows portable package
+name: Release Windows installer and portable package
 
 on:
   workflow_dispatch:
@@ -45,7 +45,7 @@ jobs:
   package:
     name: Validate and package Windows x64
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
 
     steps:
       - name: Checkout
@@ -93,6 +93,24 @@ jobs:
           $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
           .\scripts\verify-release-package.ps1 -PackageZip $zip
 
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler installation failed.' }
+
+      - name: Compile Inno installer
+        shell: pwsh
+        run: .\scripts\publish-windows-installer.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - name: Smoke test Inno installation and repair
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $installer = ".\artifacts\release\ProcessBusInsight-v$version-win-x64-setup.exe"
+          $stage = ".\artifacts\package\ProcessBusInsight-v$version-win-x64-portable"
+          .\scripts\verify-windows-installer.ps1 -Installer $installer -StageDir $stage
+
       - name: Create release manifest
         shell: pwsh
         run: |
@@ -102,6 +120,11 @@ jobs:
             commit = '${{ github.sha }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
+            primaryDistribution = 'inno-setup-exe'
+            secondaryDistribution = 'portable-zip'
+            offlineManuals = @('User Manual.pdf', 'Quick Start.pdf')
+            upgradeMode = 'stable-inno-appid-in-place-repair'
+            installerSigned = $false
             communityLicense = 'GPL-3.0-or-later'
             historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -111,8 +134,9 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable
+          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-installer-and-portable
           path: |
+            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-setup.exe
             artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
             artifacts/release/SHA256SUMS.txt
             artifacts/release/release-manifest.json
@@ -129,13 +153,14 @@ jobs:
           $version = '${{ steps.version.outputs.value }}'
           $tag = "v$version"
           $zip = "artifacts/release/ProcessBusInsight-v$version-win-x64-portable.zip"
+          $installer = "artifacts/release/ProcessBusInsight-v$version-win-x64-setup.exe"
           $sha = "artifacts/release/SHA256SUMS.txt"
           $manifest = "artifacts/release/release-manifest.json"
           $notesFile = '${{ github.event.inputs.release_notes_file }}'
           if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.0.md' }
           if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
 
-          $releaseArgs = @('release', 'create', $tag, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
+          $releaseArgs = @('release', 'create', $tag, $installer, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
           $isDraft = '${{ github.event.inputs.draft }}'
           $isPrerelease = '${{ github.event.inputs.prerelease }}'
           if ('${{ github.event_name }}' -eq 'push') {
@@ -146,7 +171,7 @@ jobs:
 
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $zip $sha $manifest --clobber
+            gh release upload $tag $installer $zip $sha $manifest --clobber
           } else {
             gh @releaseArgs
           }
