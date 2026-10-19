@@ -17,6 +17,9 @@ The ZIP contains:
 ProcessBusInsight.exe
 Quick Start.pdf
 User Manual.pdf
+Quick Start.md
+User Manual.md
+ManualSources.json
 Install and Update.md
 README.txt
 LICENSE.txt
@@ -48,7 +51,9 @@ The final active Apache-2.0 revision is commit `85d43a0fe58a5888a9e8008c168ab76d
 
 ## Required documentation
 
-The portable package includes `docs/QUICK_START.pdf` and `docs/USER_MANUAL.pdf`. They are intentionally tracked even though generated PDFs are otherwise ignored.
+The packaged **Quick Start.pdf** and **User Manual.pdf** are regenerated from their corresponding Markdown sources at build time, not copied from historically tracked PDF files. `ManualSources.json` records SHA256 for each Markdown source and generated PDF. Both the portable and installer verification reject stale/mismatched pairs.
+
+Older tracked PDFs may remain in the repository for historical website references but are never packaged as the current offline manuals. Build requires Python with pinned `reportlab==4.4.9`; end users do not need Python or ReportLab.
 
 ```powershell
 git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
@@ -58,6 +63,8 @@ git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
 
 ```powershell
 .\scripts\repository-health.ps1 -ExpectedVersion "1.4.0"
+python -m pip install reportlab==4.4.9
+python .\scripts\render-offline-manuals.py
 .\scripts\publish-windows-portable.ps1 -Version "1.4.0"
 .\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.0-win-x64-portable.zip"
 .\scripts\publish-windows-installer.ps1 -Version "1.4.0"
@@ -66,7 +73,7 @@ git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
 
 ## GitHub workflows
 
-The candidate workflow runs for supported pull-request branches (including `fix/*`, `feat/*`, `stabilization/*`, `architecture/*`, `legal/*`) when relevant files change. It restores, builds, tests, packages, verifies the ZIP and legal documents, creates a candidate manifest, and uploads the candidate without publishing a public release.
+The candidate workflow runs for supported pull-request branches (including `fix/*`, `feat/*`, `stabilization/*`, `architecture/*`, `legal/*`) when relevant files change. It restores, builds, tests, renders current offline PDFs, packages, verifies the ZIP/manual source hashes and legal documents, creates a candidate manifest, and uploads the candidate without publishing a public release.
 
 The release workflow builds on manual dispatch or tags matching `v*`. **A tag push cannot publish a public release.** A public release is an explicit manual `publish_release=true` from `main` requiring `field_acceptance_verified=true`; this must correspond to the current final installer and documented physical soak gate. The workflow restores, builds, tests, packages the Inno EXE and optional ZIP, smoke-tests installation/repair/uninstall, produces checksums and a release manifest, and uploads evidence before publication.
 
