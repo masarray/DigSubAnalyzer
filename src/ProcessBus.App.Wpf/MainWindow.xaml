@@ -546,6 +546,7 @@
                                     <!-- Primary action stays readable: icon + label -->
                                     <Button x:Name="StartCaptureButton"
                                             Command="{Binding StartCommand}"
+                                             IsEnabled="{Binding CanStartCapture}"
                                             ToolTipService.InitialShowDelay="180">
                                         <Button.ToolTip>
                                             <ToolTip Style="{StaticResource GlassToolTipStyle}" Content="Start live SV/GOOSE/PTP capture"/>
