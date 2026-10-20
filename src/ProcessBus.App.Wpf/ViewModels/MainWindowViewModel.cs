@@ -154,6 +154,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string _goosePublisherFilterText = string.Empty;
     private string _selectedGooseIdFilter = "All";
     private readonly ICollectionView _gooseHistoryView;
+    private readonly ICollectionView _goosePublisherRowsView;
 
     private readonly ObservableCollection<TrafficHealthTargetRow> _diagnosticTargets = new();
     private TrafficHealthTargetRow? _selectedDiagnosticTarget;
@@ -174,6 +175,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<GooseTrafficRow> GooseHistory => _gooseHistory;
     public ICollectionView GooseHistoryView => _gooseHistoryView;
+    public ICollectionView GoosePublisherRowsView => _goosePublisherRowsView;
     public ObservableCollection<TrafficHealthTargetRow> DiagnosticTargets => _diagnosticTargets;
 
     public TrafficHealthTargetRow? SelectedDiagnosticTarget
@@ -233,6 +235,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            _goosePublisherRowsView.Refresh();
+            OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
     }
 
@@ -272,6 +276,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            _goosePublisherRowsView.Refresh();
+            OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
     }
 
@@ -747,6 +753,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         _gooseHistoryView = CollectionViewSource.GetDefaultView(_gooseHistory);
         _gooseHistoryView.Filter = FilterGooseHistory;
+        _goosePublisherRowsView = CollectionViewSource.GetDefaultView(_gooseCatalog.Rows);
+        _goosePublisherRowsView.Filter = FilterGoosePublisher;
 
         StartCommand = new AsyncRelayCommand(StartAsync);
         StopCommand = new AsyncRelayCommand(StopAsync);
@@ -4421,6 +4429,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Unit = channel.Unit,
             Freshness = channel.Freshness
         };
+
+    private bool FilterGoosePublisher(object item) =>
+        item is GoosePublisherRow row &&
+        GoosePublisherCatalog.MatchesFilter(row.Current, SelectedGooseIdFilter, GoosePublisherFilterText);
 
     private bool FilterGooseHistory(object item)
     {
