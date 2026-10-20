@@ -2049,30 +2049,32 @@
 
                                             <!-- VOLTAGE -->
                                             <TextBlock Margin="0,6,6,0"
-               Text="Voltage scale"
+               Text="U scale"
                Foreground="#D6E8F8"
                FontWeight="SemiBold"
                FontSize="11.5"/>
-                                            <ComboBox Width="120"
+                                            <ComboBox Width="154"
               Margin="0,0,10,0"
               Style="{StaticResource CompactComboBoxStyle}"
               Foreground="#FFFFFF"
               FontWeight="SemiBold"
               ItemsSource="{Binding WaveformVoltageScaleOptions}"
-              SelectedItem="{Binding WaveformVoltageScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+              SelectedItem="{Binding WaveformVoltageScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="{Binding WaveformVoltageScale}"/>
 
                                             <!-- CURRENT -->
                                             <TextBlock Margin="0,6,6,0"
-               Text="Current scale"
+               Text="I scale"
                Foreground="#D6E8F8"
                FontWeight="SemiBold"
                FontSize="11.5"/>
-                                            <ComboBox Width="100"
+                                            <ComboBox Width="142"
               Style="{StaticResource CompactComboBoxStyle}"
               Foreground="#FFFFFF"
               FontWeight="SemiBold"
               ItemsSource="{Binding WaveformCurrentScaleOptions}"
-              SelectedItem="{Binding WaveformCurrentScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+              SelectedItem="{Binding WaveformCurrentScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="{Binding WaveformCurrentScale}"/>
 
                                         </WrapPanel>
                                         <controls:WaveformPanelControl Grid.Row="2"
