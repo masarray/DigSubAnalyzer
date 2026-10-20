@@ -44,7 +44,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string _selectedAdapterId = string.Empty;
     private SvStreamItem? _selectedStream;
     private GooseMessageItem? _selectedGooseMessage;
+    private readonly GoosePublisherCatalog _gooseCatalog = new();
+    private GoosePublisherKey? _selectedGoosePublisherKey;
     private GooseTrafficRow? _selectedGooseTrafficRow;
+    private bool _gooseInspectHistoricalEvent;
+    private IReadOnlyList<string> _gooseIdFilterOptions = ["All"];
     private IReadOnlyList<GooseMessageItem> _gooseMessages = Array.Empty<GooseMessageItem>();
     private GooseMonitorSnapshot _gooseSnapshot = new();
     private IReadOnlyList<PhasorDisplayItem> _phasors = Array.Empty<PhasorDisplayItem>();
@@ -123,7 +127,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ? invalid.Description : "Select a real Npcap capture adapter.";
 
     private readonly ObservableCollection<GooseTrafficRow> _gooseHistory = new();
-    private readonly Dictionary<string, GooseMessageItem> _lastGooseState = new();
+    private readonly Dictionary<GoosePublisherKey, GooseMessageItem> _lastGooseState = new();
     private readonly Queue<GooseTrafficRow> _pendingGooseRows = new();
     private readonly Queue<DiagnosticEventItem> _pendingDiagnosticEvents = new();
     private readonly ObservableCollection<DiagnosticEventItem> _calmDiagnosticEvents = new();
@@ -233,20 +237,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public IReadOnlyList<string> GooseIdFilterOptions
-    {
-        get
-        {
-            var values = _gooseMessages
-                .Select(m => string.IsNullOrWhiteSpace(m.GoId) ? m.GoCbRef : m.GoId)
-                .Where(v => !string.IsNullOrWhiteSpace(v) && !string.Equals(v, "N/A", StringComparison.OrdinalIgnoreCase))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+    // Replace ComboBox options only if identities change, not with each UI tick.
+    public IReadOnlyList<string> GooseIdFilterOptions => _gooseIdFilterOptions;
 
-            values.Insert(0, "All");
-            return values;
-        }
+    private void UpdateGooseIdFilterOptions()
+    {
+        var values = _gooseMessages
+            .Select(m => string.IsNullOrWhiteSpace(m.GoId) ? m.GoCbRef : m.GoId)
+            .Where(v => !string.IsNullOrWhiteSpace(v) && !string.Equals(v, "N/A", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+            .Prepend("All")
+            .ToArray();
+        if (_gooseIdFilterOptions.SequenceEqual(values, StringComparer.Ordinal))
+            return;
+        _gooseIdFilterOptions = values;
+        OnPropertyChanged(nameof(GooseIdFilterOptions));
     }
 
     public string SelectedGooseIdFilter
@@ -254,7 +260,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         get => _selectedGooseIdFilter;
         set
         {
-            var next = string.IsNullOrWhiteSpace(value) ? "All" : value;
+            // WPF can write null while replacing a ComboBox ItemsSource.
+            // Clear is the explicit "All" option, never a transient null.
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+            var next = value;
             if (string.Equals(_selectedGooseIdFilter, next, StringComparison.Ordinal))
                 return;
 
@@ -286,16 +296,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public IReadOnlyList<GooseDatasetValueDisplayItem> SelectedGooseDatasetValues =>
-        BuildGooseDatasetValues(SelectedGooseMessage);
+        BuildGooseDatasetValues(GooseInspectorMessage);
 
     public string SelectedGooseSemanticText
     {
         get
         {
-            if (SelectedGooseMessage is null)
-                return "Select a GOOSE publisher to inspect semantic DataSet values.";
+            var inspected = GooseInspectorMessage;
+            if (inspected is null)
+                return "Select a GOOSE publisher or timeline event to inspect typed DataSet values.";
 
-            var match = ResolveSclGooseStream(SelectedGooseMessage);
+            var match = ResolveSclGooseStream(inspected);
             if (match is null)
                 return HasSclProject
                     ? "Semantic source: generic typed decode; no matching SCL GOOSE DataSet found."
@@ -817,44 +828,96 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    // Stable ListView containers: snapshot messages never own WPF selection.
     public IReadOnlyList<GooseMessageItem> GooseMessages => _gooseMessages;
+    public ObservableCollection<GoosePublisherRow> GoosePublisherRows => _gooseCatalog.Rows;
+
+    public GoosePublisherRow? SelectedGoosePublisherRow
+    {
+        get => _gooseCatalog.Find(_selectedGoosePublisherKey);
+        set
+        {
+            // Ignore WPF's transient null during view/container recycling.
+            // ClearAsync is the explicit reset path.
+            if (value is null)
+                return;
+            if (value.Key == _selectedGoosePublisherKey && !_gooseInspectHistoricalEvent)
+                return;
+
+            _selectedGoosePublisherKey = value.Key;
+            _selectedGooseMessage = value.Current;
+            _gooseInspectHistoricalEvent = false;
+            BeginWorkspaceTargetTransition();
+            OnPropertyChanged();
+            RaiseGooseInspectorProperties();
+            RaiseDiagnosticScopeProperties();
+            RaiseAdvancedProperties();
+        }
+    }
 
     public GooseMessageItem? SelectedGooseMessage
     {
         get => _selectedGooseMessage;
         set
         {
-            if (ReferenceEquals(_selectedGooseMessage, value))
+            if (value is null)
                 return;
-
-            BeginWorkspaceTargetTransition();
-            _selectedGooseMessage = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(SelectedGooseDatasetValues));
-            OnPropertyChanged(nameof(SelectedGooseSemanticText));
-            RaiseDiagnosticScopeProperties();
-            RaiseAdvancedProperties();
+            var row = _gooseCatalog.Find(GoosePublisherKey.From(value));
+            if (row is not null)
+                SelectedGoosePublisherRow = row;
         }
     }
 
+    // Independent user intent: selecting a timeline event pins its historical
+    // coherent frame; clicking a publisher returns the inspector to live mode.
     public GooseTrafficRow? SelectedGooseTrafficRow
     {
         get => _selectedGooseTrafficRow;
         set
         {
-            if (ReferenceEquals(_selectedGooseTrafficRow, value))
+            if (value is null || ReferenceEquals(_selectedGooseTrafficRow, value))
                 return;
-
-            BeginWorkspaceTargetTransition();
             _selectedGooseTrafficRow = value;
-            _selectedGooseMessage = value?.Source;
-
+            _gooseInspectHistoricalEvent = true;
+            BeginWorkspaceTargetTransition();
             OnPropertyChanged();
-            OnPropertyChanged(nameof(SelectedGooseMessage));
-            OnPropertyChanged(nameof(SelectedGooseDatasetValues));
-            OnPropertyChanged(nameof(SelectedGooseSemanticText));
+            RaiseGooseInspectorProperties();
             RaiseAdvancedProperties();
         }
+    }
+
+    public GooseMessageItem? GooseInspectorMessage =>
+        _gooseInspectHistoricalEvent ? _selectedGooseTrafficRow?.Source : _selectedGooseMessage;
+
+    public string GooseInspectorDatasetCountText =>
+        (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
+
+    public string GooseInspectorModeText
+    {
+        get
+        {
+            var item = GooseInspectorMessage;
+            if (item is null)
+                return "Select a publisher for live values or an event for historical evidence.";
+            if (_gooseInspectHistoricalEvent)
+                return $"Pinned event · {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · historical values";
+            var ttl = Math.Max(1000.0, item.TimeAllowedToLiveMilliseconds);
+            var stale = SelectedGoosePublisherRow?.IsStale == true ||
+                        DateTime.UtcNow - item.LastSeenUtc > TimeSpan.FromMilliseconds(ttl);
+            return stale
+                ? $"STALE · last received {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · last valid values retained"
+                : "Live publisher · latest received typed DataSet values";
+        }
+    }
+
+    private void RaiseGooseInspectorProperties()
+    {
+        OnPropertyChanged(nameof(SelectedGooseMessage));
+        OnPropertyChanged(nameof(GooseInspectorMessage));
+        OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
+        OnPropertyChanged(nameof(GooseInspectorModeText));
+        OnPropertyChanged(nameof(SelectedGooseDatasetValues));
+        OnPropertyChanged(nameof(SelectedGooseSemanticText));
     }
 
     public GooseMonitorSnapshot GooseSnapshot => _gooseSnapshot;
@@ -895,8 +958,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (IsGooseTabActive)
             {
                 FlushBufferedGooseRows();
-                if (SelectedGooseTrafficRow is null && _gooseHistory.Count > 0)
-                    SelectedGooseTrafficRow = _gooseHistory[^1];
             }
             if (IsDebugTabActive)
                 UpdateDebugDisplaySnapshot();
@@ -2086,15 +2147,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _gooseSnapshot = gooseSnapshot;
             _gooseMessages = _gooseSnapshot.Messages;
-            if (_selectedGooseMessage is not null)
-            {
-                _selectedGooseMessage = _gooseMessages.FirstOrDefault(x => string.Equals(x.MessageId, _selectedGooseMessage.MessageId, StringComparison.OrdinalIgnoreCase))
-                    ?? _selectedGooseMessage;
-            }
+            _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey);
+            _selectedGooseMessage = SelectedGoosePublisherRow?.Current;
+            UpdateGooseIdFilterOptions();
 
             foreach (var msg in _gooseSnapshot.Messages)
             {
-                var key = $"{msg.GoId}|{msg.GoCbRef}|{msg.DataSet}";
+                var key = GoosePublisherKey.From(msg);
 
                 if (!_lastGooseState.TryGetValue(key, out var last))
                 {
@@ -2165,11 +2224,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             SynchronizeSelectedStreamRow();
             var selectedStreamId = _selectedStream?.StreamId;
-
-            if (IsGooseTabActive && SelectedGooseTrafficRow is null && _gooseHistory.Count > 0)
-            {
-                SelectedGooseTrafficRow = _gooseHistory[^1];
-            }
 
             if (IsAnalyzerTabActive)
             {
@@ -2755,18 +2809,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private void RaiseGooseProperties()
     {
         OnPropertyChanged(nameof(GooseSnapshot));
-        OnPropertyChanged(nameof(GooseMessages));
         OnPropertyChanged(nameof(GooseStatusText));
         OnPropertyChanged(nameof(GooseTotalMessagesText));
         OnPropertyChanged(nameof(GooseDetectedCountText));
         OnPropertyChanged(nameof(GoosePublisherCountText));
-        OnPropertyChanged(nameof(GooseIdFilterOptions));
         OnPropertyChanged(nameof(GooseFilterSummaryText));
         OnPropertyChanged(nameof(GooseEmptyTitle));
         OnPropertyChanged(nameof(GooseEmptyGuidance));
-        OnPropertyChanged(nameof(SelectedGooseDatasetValues));
-        OnPropertyChanged(nameof(SelectedGooseSemanticText));
-        _gooseHistoryView.Refresh();
+        if (!_gooseInspectHistoricalEvent && _selectedGoosePublisherKey.HasValue)
+            RaiseGooseInspectorProperties();
     }
 
     private void RaiseTimingProperties()
@@ -4262,8 +4313,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             s.StatusSoftBrush = "#1C2A38";
         }
 
+        // Stop keeps the last selected publisher as STALE; Clear removes it.
         _gooseMessages = Array.Empty<GooseMessageItem>();
+        _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey);
         _gooseSnapshot = new GooseMonitorSnapshot();
+        UpdateGooseIdFilterOptions();
+        RaiseGooseInspectorProperties();
 
         OnPropertyChanged(nameof(Streams));
         OnPropertyChanged(nameof(SelectedStream));
@@ -4281,6 +4336,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _state.ClearRuntimeData();
         _gooseSnapshot = new GooseMonitorSnapshot { StatusText = "Cleared" };
         _gooseMessages = Array.Empty<GooseMessageItem>();
+        _gooseCatalog.Clear();
+        _selectedGoosePublisherKey = null;
+        _gooseInspectHistoricalEvent = false;
+        UpdateGooseIdFilterOptions();
         _gooseHistory.Clear();
         _lastGooseState.Clear();
         _pendingGooseRows.Clear();
@@ -4307,10 +4366,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _frequencyStable = true;
         UpdateDebugDisplaySnapshot();
         RaiseAll(DateTime.UtcNow, force: true);
-        OnPropertyChanged(nameof(SelectedGooseMessage));
+        OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         OnPropertyChanged(nameof(SelectedGooseTrafficRow));
-        OnPropertyChanged(nameof(SelectedGooseDatasetValues));
-        OnPropertyChanged(nameof(SelectedGooseSemanticText));
+        RaiseGooseInspectorProperties();
     }
 
     private void UpdateRefreshCadence()
@@ -4627,7 +4685,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 _gooseHistory.RemoveAt(0);
         }
 
-        _gooseHistoryView.Refresh();
+        if (flushed > 0)
+            _gooseHistoryView.Refresh();
     }
 
     private void TryFlushBufferedGooseRows()
