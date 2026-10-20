@@ -62,7 +62,10 @@ public sealed record GooseQualityInfo(
     bool OperatorBlocked,
     IReadOnlyList<string> DetailFlags)
 {
-    public string Summary => Validity;
+    public string Summary => Validity +
+        (Source == "substituted" ? " · substituted" : string.Empty) +
+        (Test ? " · test" : string.Empty) +
+        (OperatorBlocked ? " · blocked" : string.Empty);
     public string DetailText =>
         $"Validity: {Validity}  |  Source: {Source}  |  Test: {Test.ToString().ToLowerInvariant()}  |  " +
         $"Operator blocked: {OperatorBlocked.ToString().ToLowerInvariant()}  |  " +
