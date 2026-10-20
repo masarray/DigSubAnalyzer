@@ -28,7 +28,7 @@
 - [ ] Installer install → repair → offline PDFs/Markdown docs → uninstall smoke test succeeds
 - [ ] EXE and ZIP checksums and candidate/release manifests are generated
 
-## Runtime smoke test
+## Optional field/hardware smoke test (ongoing post-release QA)
 
 - [ ] Application starts without Npcap crash-handling regressions
 - [ ] Physical/known adapter can start and stop cleanly
@@ -77,8 +77,8 @@
 
 - [ ] Create signed/verified tag where available
 - [ ] Publish Inno Setup installer (primary), optional portable ZIP, `SHA256SUMS.txt`, and `release-manifest.json`
-- [ ] Confirm `docs/validation/V1.4.1_PUBLIC_RELEASE_ACCEPTANCE.md` is signed off for the final commit and installed candidate (historic approval is insufficient)
-- [ ] Public release is manually dispatched **from main** with current field acceptance confirmation; pushing a tag cannot silently publish
+- [ ] Record latest CI and release installer checks for the final main commit in `docs/validation/V1.4.1_PUBLIC_RELEASE_ACCEPTANCE.md`; physical soak feedback is optional.
+- [ ] Public stable release is explicitly source-approved on **main** and runs the existing release-package workflow with publish=true, prerelease=false, draft=false. Tag push cannot silently publish.
 - [ ] Mark beta releases as prerelease
 - [ ] Confirm GitHub Pages and download links
 - [ ] Do not replace a historical Apache release asset with a post-transition GPL binary under the same tag; use the new version `v1.4.0-beta.2` or later
