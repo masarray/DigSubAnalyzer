@@ -1,0 +1,11 @@
+Release: Process Bus Insight v1.4.1
+Channel: public stable
+Approval: repository owner explicitly requested immediate public stable open-source release on 2026-10-21
+Source: main, merged PR #47 (merge commit 20b2427ff9e7b39cea28b4fdeb93248851b248ba)
+Evidence: Windows CI and 185 xUnit tests, Runtime Architecture, Runtime Stability, Dependency Security, prior CodeQL and Inno candidate install/repair/uninstall validation
+Release workflow: .github/workflows/release-package.yml
+Dispatch: version=1.4.1; publish_release=true; prerelease=false; draft=false
+Primary asset: ProcessBusInsight-v1.4.1-win-x64-setup.exe
+Secondary: portable ZIP, SHA256SUMS, release manifest
+Scope: GPL-3.0-or-later community software for receive-only SMV/GOOSE/PTP monitoring
+Note: extended field hardware QA continues separately as optional engineering feedback; do not make unsupported device-specific performance claims.
