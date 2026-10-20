@@ -2514,7 +2514,7 @@
                                     </UniformGrid.Style>
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
-                                            CornerRadius="9" Padding="12,10" Margin="0,0,12,0"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
                                             ToolTip="{Binding Diagnostics.JitterStatusText}">
                                         <StackPanel>
                                             <TextBlock Text="ARRIVAL JITTER" Foreground="#9BC7E4" FontSize="10.5"
@@ -2532,7 +2532,7 @@
                                     </Border>
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
-                                            CornerRadius="9" Padding="12,10" Margin="0,0,12,0"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
                                             ToolTip="Discontinuous smpCnt transitions for the selected SV stream. Not the number of missing samples.">
                                         <StackPanel>
                                             <TextBlock Text="SMP COUNT JUMPS" Foreground="#9BC7E4" FontSize="10.5"
@@ -2549,7 +2549,7 @@
                                     </Border>
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
-                                            CornerRadius="9" Padding="12,10" Margin="0,0,12,0"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
                                             ToolTip="Missing sample count comes from selected SV smpCnt continuity; decoder rejects are capture-wide.">
                                         <StackPanel>
                                             <TextBlock Text="MISSING SAMPLES" Foreground="#9BC7E4" FontSize="10.5"
@@ -2628,7 +2628,7 @@
                                     </UniformGrid.Style>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding PtpTransportText}">
                                         <StackPanel>
                                             <TextBlock Text="SOURCE" Foreground="#91B3CF"
@@ -2644,7 +2644,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding PtpProfileText}">
                                         <StackPanel>
                                             <TextBlock Text="TWO-STEP" Foreground="#91B3CF"
@@ -2660,7 +2660,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding PtpRateText}">
                                         <StackPanel>
                                             <TextBlock Text="MESSAGE FLOW" Foreground="#91B3CF"
@@ -2706,7 +2706,7 @@
                                     </UniformGrid.Style>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
                                         <StackPanel>
                                             <TextBlock Text="PUBLISHER" Foreground="#91B3CF"
@@ -2722,7 +2722,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
                                         <StackPanel>
                                             <TextBlock Text="HEALTH" Foreground="#91B3CF"
@@ -2738,7 +2738,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
                                         <StackPanel>
                                             <TextBlock Text="STATE NUMBER" Foreground="#91B3CF"
