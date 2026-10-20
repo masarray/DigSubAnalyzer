@@ -74,7 +74,16 @@ try {
             }
         }
         $build = Get-Content (Join-Path $installDir 'BuildInfo.json') -Raw | ConvertFrom-Json
-        if ($build.schema -ne 'processbus-build-v1' -or $build.commit -cnotmatch '^[0-9a-f]{40}
+        if ($build.schema -ne 'processbus-build-v1' -or
+            ([string]$build.commit).Length -ne 40 -or
+            [string]$build.commit -cnotmatch "^[0-9a-f]{40}") {
+            throw 'Installed build provenance invalid.'
+        }
+        $exeHash = (Get-FileHash -LiteralPath (Join-Path $installDir 'ProcessBusInsight.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($exeHash -cne $build.executableSha256) {
+            throw 'Installed executable hash does not match the build provenance.'
+        }
+        Write-Host "Installed payload and offline manuals verified (run $attempt / 2)."
     }
 
     $uninstallArguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
