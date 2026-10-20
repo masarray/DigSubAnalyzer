@@ -3,14 +3,30 @@ using ProcessBus.Core.Models;
 namespace ProcessBus.Core.Presentation;
 
 /// <summary>
-/// Bounded presentation projection only: forensic events are never modified or
-/// discarded. Group exact repeated messages from the same severity/source,
-/// keeping the newest timestamp and number of occurrences in the visible
-/// window. Deliberately do not normalize technical identifiers or numbers.
+/// Bounded, source-faithful UI projection of up to 200 newest forensic reports.
+/// Raw events and their full evidence are never edited. Only known periodic
+/// report families may aggregate despite changing detail fields.
 /// </summary>
 public static class DiagnosticEventSummarizer
 {
     public const int MaxSourceRows = 200;
+    private const string SvArrivalExcursionTitle = "SV arrival timing excursions >= 300 us";
+
+    /// <summary>
+    /// The analyzer emits periodic timing summaries with dynamic total/smpCnt/Δ.
+    /// Those are successive reports about the same fault family, not separate
+    /// categories. Keep severity and svID separate in the caller's key; never
+    /// normalize arbitrary numeric evidence or unrelated diagnostic titles.
+    /// </summary>
+    public static string GetGroupingText(string message)
+    {
+        if (message.StartsWith(SvArrivalExcursionTitle, StringComparison.Ordinal) &&
+            message.Length > SvArrivalExcursionTitle.Length &&
+            message[SvArrivalExcursionTitle.Length] == ':')
+            return SvArrivalExcursionTitle;
+
+        return message;
+    }
 
     public static IReadOnlyList<DiagnosticEventItem> Summarize(
         IReadOnlyList<DiagnosticEventItem> newestFirst)
@@ -19,11 +35,12 @@ public static class DiagnosticEventSummarizer
             return Array.Empty<DiagnosticEventItem>();
 
         var result = new List<DiagnosticEventItem>(Math.Min(newestFirst.Count, MaxSourceRows));
-        var byKey = new Dictionary<(string Severity, string Message, string Source), DiagnosticEventItem>();
+        var byKey = new Dictionary<(string Severity, string Family, string Source), DiagnosticEventItem>();
         for (var i = 0; i < newestFirst.Count && i < MaxSourceRows; i++)
         {
             var source = newestFirst[i];
-            var key = (source.Severity, source.Message, source.SourceText);
+            var groupText = GetGroupingText(source.Message);
+            var key = (source.Severity, groupText, source.SourceText);
             if (byKey.TryGetValue(key, out var existing))
             {
                 existing.OccurrenceCount++;
@@ -38,11 +55,13 @@ public static class DiagnosticEventSummarizer
                 FirstOccurrenceUtc = source.TimestampUtc,
                 Severity = source.Severity,
                 Message = source.Message,
-                OccurrenceCount = 1
+                OccurrenceCount = 1,
+                IsPeriodicSummary = groupText == SvArrivalExcursionTitle
             };
             result.Add(item);
             byKey.Add(key, item);
         }
+
         return result;
     }
 }
