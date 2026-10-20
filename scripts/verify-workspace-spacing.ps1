@@ -36,8 +36,22 @@ function Has-Definitions([string]$DefinitionName, [string]$ChildName, [string]$A
 }
 
 # Main three-column shell is the operator's visual alignment reference.
+# Before this fix, the left explorer spanned BOTH the workspace row and its
+# footer-gap row; that made its bottom edge 8 DIP lower than the main panel.
+$shells = @($window.SelectNodes("//w:Grid[w:Grid.ColumnDefinitions/w:ColumnDefinition[@Width='280']]", $ns))
+Assert-True ($shells.Count -eq 1) 'exactly one three-column workspace shell'
+$shell = $shells[0]
+$leftExplorer = $shell.SelectSingleNode("w:Border[@Grid.Column='0' and @Grid.Row='0']", $ns)
+Assert-True ($null -ne $leftExplorer) 'left explorer exists in the workspace row'
+Assert-True ($leftExplorer.GetAttribute('Grid.RowSpan') -in @('', '1')) 'left explorer cannot overlap footer-gap row'
+$mainCanvas = $shell.SelectSingleNode("w:Grid[@Grid.Column='2' and @Grid.Row='0']", $ns)
+Assert-True ($null -ne $mainCanvas) 'main workspace canvas shares left explorer row'
+$footer = $shell.SelectSingleNode("w:Border[@Grid.Row='2']", $ns)
+Assert-True ($null -ne $footer) 'workspace footer is separated from the panel row'
+Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' '*,8,28') 'uniform 8-DIP footer gutter'
 Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '280,8,*,8,320') 'shell columns must have 8 DIP gutters'
 Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,8,320') 'Analyzer waveform/inspector gutter'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,8,320') 'overlay aligns with outer explorer gutter'
 Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' '0.82*,8,1.18*') 'Analyzer phasor/measurement gap'
 
 # All five customer-facing workspaces share the same horizontal or vertical rhythm.
@@ -63,6 +77,12 @@ foreach ($rule in @(
 $styles = $theme.SelectNodes("//w:Style[@x:Key='DenseGroupBorderStyle']/w:Setter[@Property='Padding']", $ns)
 Assert-True ($styles.Count -eq 1 -and $styles[0].GetAttribute('Value') -eq '{StaticResource WorkspacePanelInset}') 'shared primary panel padding'
 $source = Get-Content -LiteralPath $windowPath -Raw
+$diagnosticsStart = $source.IndexOf('<!-- Immediate SV engineering evidence')
+$diagnosticsEnd = $source.IndexOf('<!-- Event Log:', $diagnosticsStart)
+Assert-True ($diagnosticsStart -ge 0 -and $diagnosticsEnd -gt $diagnosticsStart) 'Diagnostics evidence bounds'
+$diagnostics = $source.Substring($diagnosticsStart, $diagnosticsEnd - $diagnosticsStart)
+$legacyCardGapCount = ([regex]::Matches($diagnostics, '(?s)<Border\b[^>]*\bMargin="0,0,12,0"')).Count
+Assert-True ($legacyCardGapCount -eq 0) 'no legacy 12-DIP gaps between adjacent diagnostic cards'
 foreach ($name in @('WorkspacePanelInset', 'WorkspacePanelGapBelow', 'WorkspaceHeroInset')) {
     Assert-True ($source.Contains("{StaticResource $name}")) "workspace must use spacing token $name"
 }
