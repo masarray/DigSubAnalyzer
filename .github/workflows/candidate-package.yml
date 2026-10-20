@@ -25,6 +25,7 @@ on:
       - "installer/**"
       - "scripts/verify-release-package.ps1"
       - "scripts/repository-health.ps1"
+      - "scripts/verify-workspace-spacing.ps1"
       - "docs/RELEASE_NOTES_v*.md"
       - ".github/workflows/candidate-package.yml"
       - ".github/workflows/release-package.yml"
@@ -101,6 +102,10 @@ jobs:
       - name: Repository health gate
         shell: pwsh
         run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
+
+      - name: Workspace spacing geometry gate
+        shell: pwsh
+        run: .\scripts\verify-workspace-spacing.ps1
 
       - name: Restore
         run: dotnet restore .\ProcessBusSuite.sln
