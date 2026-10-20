@@ -77,7 +77,7 @@
         </Style>
 
         <Style x:Key="PremiumWorkspaceHeroStyle" TargetType="Border">
-            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Padding" Value="{StaticResource WorkspaceHeroInset}"/>
             <Setter Property="BorderBrush" Value="#28618F"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
@@ -94,7 +94,7 @@
         </Style>
 
         <Style x:Key="PremiumWorkspacePanelStyle" TargetType="Border">
-            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Padding" Value="{StaticResource WorkspacePanelInset}"/>
             <Setter Property="Background" Value="#0A1A2A"/>
             <Setter Property="BorderBrush" Value="#21496A"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -103,7 +103,7 @@
         </Style>
 
         <Style x:Key="PremiumInsightCardStyle" TargetType="Border">
-            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Padding" Value="{StaticResource WorkspacePanelInset}"/>
             <Setter Property="Background" Value="#0D2033"/>
             <Setter Property="BorderBrush" Value="#255173"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -1321,7 +1321,7 @@
                                            VerticalAlignment="Center"/>
                             </Grid>
 
-                            <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                            <StackPanel Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <TextBlock Text="Search"
                                            Foreground="#7FA8CC"
                                            FontSize="10.5"
@@ -1332,7 +1332,7 @@
                                          ToolTip="Filter publisher, GOOSE ID, APPID, MAC, or DataSet"/>
                             </StackPanel>
 
-                            <Grid Grid.Row="2" Margin="0,0,0,14">
+                            <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="10"/>
@@ -1540,7 +1540,7 @@
                                            Text="Source and capture confidence"/>
                             </StackPanel>
 
-                            <Border Grid.Row="1" Style="{StaticResource DenseMetricCardStyle}" Margin="0,0,0,8">
+                            <Border Grid.Row="1" Style="{StaticResource DenseMetricCardStyle}" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <StackPanel>
                                     <TextBlock Text="PTP Status" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Margin="0,8,0,0" Text="{Binding PtpStatusText}" Foreground="#EAF6FF" FontWeight="SemiBold" TextWrapping="Wrap"/>
@@ -1548,7 +1548,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="2" Style="{StaticResource DenseMetricCardStyle}" Margin="0,0,0,8">
+                            <Border Grid.Row="2" Style="{StaticResource DenseMetricCardStyle}" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <StackPanel>
                                     <TextBlock Text="Capture confidence" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Margin="0,8,0,0" Text="{Binding TimingConfidenceBadgeText}" Foreground="#F6D781"
@@ -3506,7 +3506,7 @@
                                             <TextBlock Text="Timing evidence" Style="{StaticResource PanelTitleTextStyle}" Margin="0,0,0,12"/>
                                             
 
-                                            <Border Background="#0E2539" BorderThickness="0" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                            <Border Background="#0E2539" BorderThickness="0" CornerRadius="8" Padding="12" Margin="{StaticResource WorkspacePanelGapBelow}">
                                                 <StackPanel>
                                                     <TextBlock Text="Assessment" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                     <TextBlock Margin="0,7,0,0" Text="{Binding TimingConfidenceBadgeText}"
