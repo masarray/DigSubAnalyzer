@@ -134,6 +134,32 @@ public sealed class GoosePublisherCatalog
         return changed;
     }
 
+    /// <summary>Same deterministic filter for publisher exploration; filtering
+    /// never changes the operator's selected publisher key.</summary>
+    public static bool MatchesFilter(GooseMessageItem message, string? gooseId, string? search)
+    {
+        if (!string.IsNullOrWhiteSpace(gooseId) &&
+            !string.Equals(gooseId, "All", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(message.GoId, gooseId, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(message.GoCbRef, gooseId, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(search))
+            return true;
+
+        var text = search.Trim();
+        return Contains(message.GoId, text) ||
+               Contains(message.GoCbRef, text) ||
+               Contains(message.AppId, text) ||
+               Contains(message.DataSet, text) ||
+               Contains(message.SourceMac, text) ||
+               Contains(message.DestinationMac, text);
+
+        static bool Contains(string? field, string text) =>
+            !string.IsNullOrWhiteSpace(field) &&
+            field.Contains(text, StringComparison.OrdinalIgnoreCase);
+    }
+
     public void Clear()
     {
         _byKey.Clear();
