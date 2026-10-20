@@ -12,11 +12,6 @@ on:
         required: true
         default: false
         type: boolean
-      field_acceptance_verified:
-        description: "I confirm documented real-NIC capture, injector agreement, and soak acceptance on the target Windows configuration"
-        required: true
-        default: false
-        type: boolean
       prerelease:
         description: Mark GitHub Release as prerelease
         required: true
@@ -75,20 +70,18 @@ jobs:
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Release version: $version"
 
-      # Tags can build reproducible packages, but never auto-publish an
-      # unreviewed stable release simply because a tag was pushed.
-      - name: Public release authorization gate
+      # A stable label identifies a supported community software build,
+      # NOT an IEC 61850 conformance certificate or calibrated bench result.
+      # Keep publication explicit and main-only; field FAT is transparently
+      # described in notes, but is not a gate to open-source distribution.
+      - name: Public release main branch gate
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
         shell: pwsh
         env:
-          FIELD_ACCEPTANCE: ${{ inputs.field_acceptance_verified }}
           RUN_REF: ${{ github.ref }}
         run: |
           if ($env:RUN_REF -ne 'refs/heads/main') {
-            throw 'Public releases must be built from the validated main branch.'
-          }
-          if ($env:FIELD_ACCEPTANCE -ne 'true') {
-            throw 'Public release blocked: field acceptance has not been explicitly verified.'
+            throw 'Public release must be built from validated main.'
           }
 
       - name: Repository health gate
