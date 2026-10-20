@@ -64,7 +64,8 @@ public sealed class GoosePublisherSelectionTests
         catalog.Reconcile([Frame(source: b.SourceMac, sq: 10)], key);
         Assert.Same(selected, catalog.Find(key));
         Assert.True(selected!.IsStale);
-        Assert.Single(catalog.Rows);
+        Assert.Equal(2, catalog.Rows.Count); // A is retained STALE while B stays live.
+        Assert.False(catalog.Find(GoosePublisherKey.From(b))!.IsStale);
         catalog.Reconcile([Frame(sq: 30), Frame(source: b.SourceMac, sq: 11)], key);
         Assert.Same(selected, catalog.Find(key));
         Assert.False(selected!.IsStale);
