@@ -212,6 +212,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(GooseRetransmissionModeText));
             OnPropertyChanged(nameof(GooseFilterSummaryText));
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
         }
     }
@@ -227,6 +228,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _goosePublisherFilterText = value ?? string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(GooseFilterSummaryText));
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
         }
     }
@@ -259,10 +261,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedGooseIdFilter = next;
             OnPropertyChanged();
             OnPropertyChanged(nameof(GooseFilterSummaryText));
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
         }
     }
 
+    public string GooseEmptyTitle => _gooseMessages.Count == 0
+        ? "No GOOSE publisher observed" : "No matching GOOSE events";
+    public string GooseEmptyGuidance => _gooseMessages.Count == 0
+        ? "Check physical adapter, VLAN visibility and publisher traffic."
+        : IncludeGooseRetransmission
+            ? "Review the selected GOOSE ID filter and capture path."
+            : "No matching state changes. Include retransmissions to inspect traffic activity.";
     public string GooseRetransmissionModeText => IncludeGooseRetransmission ? "Retrans ON" : "Retrans OFF";
     public string GoosePublisherCountText => $"{_gooseMessages.Count} publisher{(_gooseMessages.Count == 1 ? string.Empty : "s")}";
     public string GooseFilterSummaryText
@@ -2751,6 +2761,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GoosePublisherCountText));
         OnPropertyChanged(nameof(GooseIdFilterOptions));
         OnPropertyChanged(nameof(GooseFilterSummaryText));
+        OnPropertyChanged(nameof(GooseEmptyTitle));
+        OnPropertyChanged(nameof(GooseEmptyGuidance));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
         _gooseHistoryView.Refresh();
