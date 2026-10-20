@@ -41,11 +41,20 @@ try {
         }
     }
 
+    # Current source commit must be tied to the exact shipped EXE.
     $build = Get-Content (Join-Path $temp "BuildInfo.json") -Raw | ConvertFrom-Json
     if ($build.schema -ne "processbus-build-v1" -or
-        $build.commit -cnotmatch '^[0-9a-f]{40}
-    # shipped in the installed package. Prevent an obsolete portable-only
-    # PDF from passing release verification after setup guidance changes.
+        [string]$build.commit -cnotmatch "^[0-9a-f]{40}" -or
+        ([string]$build.commit).Length -ne 40 -or
+        [string]$build.version -notmatch "^\d+\.\d+\.\d+") {
+        throw "Missing or invalid candidate source provenance."
+    }
+    $exeHash = (Get-FileHash (Join-Path $temp "$AppName.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($exeHash -cne $build.executableSha256) {
+        throw "Packaged EXE hash differs from BuildInfo.json; refuse ambiguous version."
+    }
+
+    # PDFs must match the exact Markdown editions staged with this build.
     $manualManifest = Get-Content (Join-Path $temp "ManualSources.json") -Raw | ConvertFrom-Json
     if ($manualManifest.format -ne "ProcessBusInsight-offline-manuals-v1") {
         throw "Manual verification failed: missing provenance format."
