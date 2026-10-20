@@ -3,10 +3,10 @@
 
     <!-- Compact workspace geometry: shared by Analyzer, Diagnostics, GOOSE,
          Timing/PTP and SCL. Outer column gutters 16 DIP; between stacked
-         primary panels 12 DIP; small control-level rhythm 4/8 DIP. -->
+         primary panels 8 DIP; small control-level rhythm 4/8 DIP. -->
     <Thickness x:Key="WorkspacePanelInset">12</Thickness>
     <Thickness x:Key="WorkspaceHeroInset">16,12</Thickness>
-    <Thickness x:Key="WorkspacePanelGapBelow">0,0,0,12</Thickness>
+    <Thickness x:Key="WorkspacePanelGapBelow">0,0,0,8</Thickness>
 
     <!-- =========================================================
          VECTOR ICON SYSTEM v1 — Material/Fluent-like Path icons
