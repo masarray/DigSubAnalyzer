@@ -874,10 +874,10 @@
                 <Grid.ColumnDefinitions>
                     <!-- Locked workspace layout: left explorer / main canvas / right inspector -->
                     <ColumnDefinition Width="280"/>
-                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="8"/>
                     <!-- GAP -->
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="8"/>
                     <!-- GAP -->
                     <ColumnDefinition Width="320"/>
                 </Grid.ColumnDefinitions>
@@ -889,7 +889,6 @@
 
                 <Border Grid.Column="0"
         Grid.Row="0"
-        Grid.RowSpan="2"
         Style="{StaticResource DenseGroupBorderStyle}"
         Background="{StaticResource PanelDeepBrush}">
 
@@ -1943,7 +1942,7 @@
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
@@ -2118,7 +2117,7 @@
           Opacity="0.94">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="0.82*"/>
-                                        <RowDefinition Height="12"/>
+                                        <RowDefinition Height="8"/>
                                         <RowDefinition Height="1.18*"/>
                                     </Grid.RowDefinitions>
 
@@ -2435,9 +2434,9 @@
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
@@ -2993,7 +2992,7 @@
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="400"/>
                                 </Grid.ColumnDefinitions>
 
@@ -3449,9 +3448,9 @@
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -3459,9 +3458,9 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="1.15*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="8"/>
                                             <ColumnDefinition Width="1.1*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="8"/>
                                             <ColumnDefinition Width="1.2*"/>
                                         </Grid.ColumnDefinitions>
 
@@ -3497,7 +3496,7 @@
                                 <Grid Grid.Row="2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="1.1*"/>
-                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="8"/>
                                         <ColumnDefinition Width="1.4*"/>
                                     </Grid.ColumnDefinitions>
 
@@ -3947,7 +3946,7 @@
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -3979,7 +3978,7 @@
                                 <Grid Grid.Row="2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="1.18*"/>
-                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="8"/>
                                         <ColumnDefinition Width="0.92*"/>
                                     </Grid.ColumnDefinitions>
 
@@ -4354,7 +4353,7 @@
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
 
