@@ -771,6 +771,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             RaiseModeStateChanged();
         });
         GooseInteractionCommand = new RelayCommand(() => DeferGooseUiFlush());
+        GooseReturnToLiveCommand = new RelayCommand(ReturnGooseToLive);
 
         _timer = new DispatcherTimer
         {
@@ -855,6 +856,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseInspectHistoricalEvent = false;
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsGooseHistoryPinned));
             RaiseGooseInspectorProperties();
             RaiseDiagnosticScopeProperties();
             RaiseAdvancedProperties();
@@ -887,9 +889,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseInspectHistoricalEvent = true;
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsGooseHistoryPinned));
             RaiseGooseInspectorProperties();
             RaiseAdvancedProperties();
         }
+    }
+
+    public bool IsGooseHistoryPinned => _gooseInspectHistoricalEvent && _selectedGooseTrafficRow is not null;
+
+    private void ReturnGooseToLive()
+    {
+        if (!_gooseInspectHistoricalEvent)
+            return;
+        _gooseInspectHistoricalEvent = false;
+        OnPropertyChanged(nameof(IsGooseHistoryPinned));
+        RaiseGooseInspectorProperties();
+        RaiseAdvancedProperties();
     }
 
     public GooseMessageItem? GooseInspectorMessage =>
@@ -1079,6 +1094,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ClearCommand { get; }
     public ICommand SwitchToRawCommand { get; }
     public ICommand GooseInteractionCommand { get; }
+    public ICommand GooseReturnToLiveCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
@@ -4344,6 +4360,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _gooseCatalog.Clear();
         _selectedGoosePublisherKey = null;
         _gooseInspectHistoricalEvent = false;
+        OnPropertyChanged(nameof(IsGooseHistoryPinned));
         UpdateGooseIdFilterOptions();
         _gooseHistory.Clear();
         _lastGooseState.Clear();
@@ -4485,6 +4502,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             .Select(value =>
             {
                 semanticByIndex.TryGetValue(value.Index, out var semantic);
+                // Only matching SCL metadata can identify a specific MMS BIT STRING as q.
+                // A generic BitString must never be treated as breaker state or quality.
+                var isMappedQuality = semantic?.IsQuality == true;
+                var decodedQuality = isMappedQuality &&
+                    GooseQualityPresentation.TryDecode(value.RawHex, value.Type, out var parsedQuality)
+                    ? parsedQuality : null;
                 return new GooseDatasetValueDisplayItem
                 {
                     Index = value.Index,
@@ -4493,6 +4516,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     SemanticText = semantic is null ? "Generic typed decode" : "SCL DataSet entry",
                     ValueText = BuildSemanticGooseValueText(value, semantic),
                     RawHexText = value.RawHex,
+                    QualitySummaryText = decodedQuality?.Summary ?? string.Empty,
+                    QualityDetailsText = decodedQuality?.DetailText ??
+                        (isMappedQuality ? "Quality q not decoded; inspect the original MMS bits." : string.Empty),
                     IsChanged = value.IsChanged,
                     PreviousValueText = string.IsNullOrWhiteSpace(value.PreviousValue)
                         ? value.PreviousValue
@@ -4713,48 +4739,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
 public sealed class GooseDatasetValueDisplayItem
 {
+    private static readonly Brush NormalValueBrush = FrozenBrush(228, 241, 253);
+    private static readonly Brush ChangedValueBrush = FrozenBrush(255, 190, 82);
+
     public int Index { get; init; }
     public string NameText { get; init; } = string.Empty;
     public string TypeText { get; init; } = "Unknown";
     public string SemanticText { get; init; } = "Generic typed decode";
     public string ValueText { get; init; } = "-";
     public string RawHexText { get; init; } = string.Empty;
+    public string QualitySummaryText { get; init; } = string.Empty;
+    public string QualityDetailsText { get; init; } = string.Empty;
     public bool IsChanged { get; init; }
     public string PreviousValueText { get; init; } = string.Empty;
 
-    public string DisplayValueText => ValueText switch
-    {
-        "10" => "[10] CLOSE",
-        "01" => "[01] OPEN",
-        _ => ValueText
-    };
-
+    // No guesswork: raw "10"/"01" is not an IEC 61850 DPC state unless
+    // the SCL-aware value formatter has already verified the CDC.
+    public string DisplayValueText => string.IsNullOrEmpty(QualitySummaryText)
+        ? ValueText : QualitySummaryText;
+    public string IndexText => Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public string RawHexDisplayText => string.IsNullOrWhiteSpace(RawHexText) ? "Not available" : RawHexText;
     public string ChangeText => IsChanged && !string.IsNullOrWhiteSpace(PreviousValueText)
-        ? $"changed: {PreviousValueText} -> {ValueText}"
-        : IsChanged ? "changed" : string.Empty;
-
+        ? $"Changed from {PreviousValueText}" : IsChanged ? "Changed (previous value unavailable)" : string.Empty;
     public Visibility ChangeVisibility => IsChanged ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility RawHexVisibility => string.IsNullOrWhiteSpace(RawHexText) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility QualityDetailsVisibility => string.IsNullOrWhiteSpace(QualityDetailsText)
+        ? Visibility.Collapsed : Visibility.Visible;
+    public Brush ValueBrush => IsChanged ? ChangedValueBrush : NormalValueBrush;
 
-    public Brush ValueBrush => ResolveBrush(ValueText, IsChanged);
-
-    private static Brush ResolveBrush(string value, bool isChanged)
+    private static Brush FrozenBrush(byte red, byte green, byte blue)
     {
-        if (isChanged)
-            return new SolidColorBrush(Color.FromRgb(255, 190, 82));
-
-        if (bool.TryParse(value, out var b))
-            return b
-                ? new SolidColorBrush(Color.FromRgb(255, 80, 80))
-                : new SolidColorBrush(Color.FromRgb(55, 214, 122));
-
-        if (value == "10")
-            return new SolidColorBrush(Color.FromRgb(255, 80, 80));
-
-        if (value == "01")
-            return new SolidColorBrush(Color.FromRgb(55, 214, 122));
-
-        return new SolidColorBrush(Color.FromRgb(143, 168, 191));
+        var brush = new SolidColorBrush(Color.FromRgb(red, green, blue));
+        brush.Freeze();
+        return brush;
     }
 }
 
