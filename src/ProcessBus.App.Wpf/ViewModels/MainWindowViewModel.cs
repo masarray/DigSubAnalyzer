@@ -43,7 +43,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _relaxDestinationCheck = true;
     private string _selectedAdapterId = string.Empty;
     private SvStreamItem? _selectedStream;
-    private GooseMessageItem? _selectedGooseMessage;
     private readonly GoosePublisherCatalog _gooseCatalog = new();
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private GooseTrafficRow? _selectedGooseTrafficRow;
@@ -845,7 +844,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return;
 
             _selectedGoosePublisherKey = value.Key;
-            _selectedGooseMessage = value.Current;
             _gooseInspectHistoricalEvent = false;
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
@@ -857,7 +855,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public GooseMessageItem? SelectedGooseMessage
     {
-        get => _selectedGooseMessage;
+        get => SelectedGoosePublisherRow?.Current;
         set
         {
             if (value is null)
@@ -887,7 +885,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public GooseMessageItem? GooseInspectorMessage =>
-        _gooseInspectHistoricalEvent ? _selectedGooseTrafficRow?.Source : _selectedGooseMessage;
+        _gooseInspectHistoricalEvent ? _selectedGooseTrafficRow?.Source : SelectedGooseMessage;
 
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
@@ -2148,7 +2146,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseSnapshot = gooseSnapshot;
             _gooseMessages = _gooseSnapshot.Messages;
             _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey);
-            _selectedGooseMessage = SelectedGoosePublisherRow?.Current;
             UpdateGooseIdFilterOptions();
 
             foreach (var msg in _gooseSnapshot.Messages)
@@ -4345,7 +4342,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _pendingGooseRows.Clear();
         _pendingDiagnosticEvents.Clear();
         _lastGooseHistoryTimeUtc = null;
-        _selectedGooseMessage = null;
         _selectedGooseTrafficRow = null;
         _selectedStream = null;
         _phasors = Array.Empty<PhasorDisplayItem>();
@@ -4685,8 +4681,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 _gooseHistory.RemoveAt(0);
         }
 
-        if (flushed > 0)
-            _gooseHistoryView.Refresh();
+        // CollectionView observes ObservableCollection adds/removes and filters
+        // each new row automatically. Refresh() here resets DataGrid selection.
     }
 
     private void TryFlushBufferedGooseRows()
