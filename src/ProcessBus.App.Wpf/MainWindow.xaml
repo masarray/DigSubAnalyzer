@@ -1407,7 +1407,7 @@
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,8"/>
 
-                                <ListView ItemsSource="{Binding GoosePublisherRows}"
+                                <ListView ItemsSource="{Binding GoosePublisherRowsView}"
                                           SelectedItem="{Binding SelectedGoosePublisherRow, Mode=TwoWay}"
                                           Background="Transparent"
                                           BorderThickness="0"
