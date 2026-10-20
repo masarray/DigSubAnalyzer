@@ -29,7 +29,8 @@ public static class GooseQualityPresentation
         if (bytes[0] != 3)
             return false;
 
-        bool Set(int index) => (bytes[1 + index / 8] & (0x80 >> (index % 8))) != 0;
+        var qualityBits = (uint)((bytes[1] << 8) | bytes[2]);
+        bool Set(int index) => (qualityBits & (1u << (15 - index))) != 0;
         var validityBits = (Set(0) ? 2 : 0) | (Set(1) ? 1 : 0);
         var validity = validityBits switch
         {
