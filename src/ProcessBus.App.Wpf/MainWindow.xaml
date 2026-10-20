@@ -2368,30 +2368,30 @@
                                                         </DockPanel>
                                                         <UniformGrid Columns="4">
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="P" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="P" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding TotalActivePowerText}" Foreground="#EEF8FF"
-                                                                           FontSize="11.2" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding TotalActivePowerText}"/>
                                                             </StackPanel>
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="Q" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="Q" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding TotalReactivePowerText}" Foreground="#EEF8FF"
-                                                                           FontSize="11.2" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding TotalReactivePowerText}"/>
                                                             </StackPanel>
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="S" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="S" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding TotalApparentPowerText}" Foreground="#EEF8FF"
-                                                                           FontSize="11.2" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding TotalApparentPowerText}"/>
                                                             </StackPanel>
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="PF" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="PF" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding PowerFactorText}" Foreground="#EEF8FF"
-                                                                           FontSize="11.2" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding PowerFactorText}"/>
                                                             </StackPanel>
@@ -4272,7 +4272,7 @@
                                                                 <Setter Property="TextTrimming" Value="None"/>
                                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                                 <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-                                                                <Setter Property="LineHeight" Value="15"/>
+                                                                <Setter Property="LineHeight" Value="16"/>
                                                             </Style>
                                                         </DataGrid.Resources>
                                                         <DataGrid.Columns>
@@ -4280,7 +4280,7 @@
                                                             <DataGridTemplateColumn Header="Signal" Width="2.35*">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate>
-                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}" FontFamily="Consolas" FontSize="11" ToolTip="{Binding DisplayName}"/>
+                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}" FontFamily="Consolas" FontSize="12" ToolTip="{Binding DisplayName}"/>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
