@@ -876,6 +876,7 @@ public sealed class RawProcessBusAnalyzer
         // Eight bits for the eight verified instMag/q channels; no per-frame
         // dictionary/heap allocation. Only trusted q layouts can set a bit.
         private byte _untrustedChannelMask;
+        private readonly int[] _qualityGoodRuns = new int[8];
         private bool _previousMultiAsduFrame;
         private bool _knownFourI4VMapping;
         private bool _lastMappingDisplayAccepted = true;
@@ -1253,6 +1254,12 @@ public sealed class RawProcessBusAnalyzer
                 }
             }
             _untrustedChannelMask = untrustedMask;
+            if (acceptForDisplay && trustedLayout)
+            {
+                for (var index = 0; index < _qualityGoodRuns.Length; index++)
+                    _qualityGoodRuns[index] = (untrustedMask & (1 << index)) != 0
+                        ? 0 : Math.Min(_qualityGoodRuns[index] + 1, 65536);
+            }
             var allUntrusted = untrustedMask == 0xFF;
             QualityStatusText = quality switch
             {
@@ -1380,6 +1387,18 @@ public sealed class RawProcessBusAnalyzer
             if (index >= 0 && (_untrustedChannelMask & (1 << index)) != 0)
                 return _lastAnalogValues is not null ? ChannelFreshness.Held : ChannelFreshness.Missing;
 
+            // A single valid frame after a bad-quality burst is not enough to
+            // label an older held waveform LIVE. Wait for a whole fresh scope
+            // acquisition to be received since that channel last went bad.
+            if (_knownFourI4VMapping && index >= 0)
+            {
+                var required = Math.Clamp(
+                    ResolveArsvinPointsPerCycle(ResolveSamplesPerCycle()) * _scopeCycles,
+                    32, 640);
+                if (_qualityGoodRuns[index] < required)
+                    return _lastAnalogValues is not null ? ChannelFreshness.Held : ChannelFreshness.Missing;
+            }
+
             // Each trace needs a complete coherent window. A compressed subset
             // would move points on the time axis and misrepresent physical phase.
             if (window.Count == 0 || window.Any(frame => !frame.GetValue(channel).HasValue))
@@ -1417,6 +1436,7 @@ public sealed class RawProcessBusAnalyzer
         {
             foreach (var samples in _channelSamples.Values)
                 samples.Clear();
+            Array.Clear(_qualityGoodRuns);
 
             ClearScopeAcquisition(clearPublishedSnapshot: true);
 
