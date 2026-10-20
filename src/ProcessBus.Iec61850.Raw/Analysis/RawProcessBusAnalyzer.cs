@@ -873,6 +873,9 @@ public sealed class RawProcessBusAnalyzer
         private SvChannelMappingProfile? _lastDecodedMapping;
         private int _lastDecodedElementCount = -1;
         private bool _qualityAccepted = true;
+        // Eight bits for the eight verified instMag/q channels; no per-frame
+        // dictionary/heap allocation. Only trusted q layouts can set a bit.
+        private byte _untrustedChannelMask;
         private bool _previousMultiAsduFrame;
         private bool _knownFourI4VMapping;
         private bool _lastMappingDisplayAccepted = true;
@@ -1231,14 +1234,29 @@ public sealed class RawProcessBusAnalyzer
                          e.TypeText.Contains("instMag", StringComparison.OrdinalIgnoreCase))));
             }
 
-            var quality = payload.Length == 64 && _knownFourI4VMapping
+            var trustedLayout = payload.Length == 64 && _knownFourI4VMapping;
+            var quality = trustedLayout
                 ? FourI4VQuality.Assess(payload)
                 : FourI4VQuality.MeasurementState.UnknownLayout;
+            byte untrustedMask = 0;
+            if (trustedLayout)
+            {
+                for (var index = 0; index < OmicronInstMagQualityMap.Length; index++)
+                {
+                    if (FourI4VQuality.AssessChannel(payload, index * 2) ==
+                        FourI4VQuality.MeasurementState.Untrusted)
+                        untrustedMask |= (byte)(1 << index);
+                }
+            }
+            _untrustedChannelMask = untrustedMask;
+            var allUntrusted = untrustedMask == 0xFF;
             QualityStatusText = quality switch
             {
                 FourI4VQuality.MeasurementState.Good => "4I+4V quality good",
                 FourI4VQuality.MeasurementState.Test => "4I+4V TEST data (laboratory stimulus)",
                 FourI4VQuality.MeasurementState.OperatorBlocked => "4I+4V operator-blocked data",
+                FourI4VQuality.MeasurementState.Untrusted when !allUntrusted =>
+                    $"4I+4V partial quality invalid: {System.Numerics.BitOperations.PopCount((uint)untrustedMask)} channel(s) held",
                 FourI4VQuality.MeasurementState.Untrusted => "4I+4V quality invalid: measurement withheld",
                 _ => "Quality mapping not verified"
             };
@@ -1246,12 +1264,20 @@ public sealed class RawProcessBusAnalyzer
             if (quality == FourI4VQuality.MeasurementState.Untrusted)
             {
                 QualityRejectedSamples++;
-                if (_qualityAccepted)
+                if (allUntrusted)
                 {
-                    _qualityAccepted = false;
-                    ClearRenderBuffers();
+                    // The entire payload is untrustworthy. Preserve the
+                    // pre-existing fail-closed contract; no stale "LIVE" values.
+                    if (_qualityAccepted)
+                    {
+                        _qualityAccepted = false;
+                        ClearRenderBuffers();
+                    }
+                    return;
                 }
-                return;
+                // Partial invalidity: never discard unrelated live channels.
+                // Invalid q channels are omitted from this scope frame, while
+                // trustworthy peers continue on the same smpCnt timeline.
             }
             _qualityAccepted = true;
 
@@ -1277,7 +1303,7 @@ public sealed class RawProcessBusAnalyzer
                         continue;
 
                     mappedCount++;
-                    if (acceptForDisplay)
+                    if (acceptForDisplay && !IsChannelUntrusted(element.ElementIndex))
                     {
                         var sample = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(element.ElementIndex * 4, 4));
                         samples.Add(smpCnt, sample, samplesPerCycle);
@@ -1319,7 +1345,7 @@ public sealed class RawProcessBusAnalyzer
 
             foreach (var (channel, elementIndex) in OmicronInstMagQualityMap)
             {
-                if (!acceptForDisplay)
+                if (!acceptForDisplay || IsChannelUntrusted(elementIndex))
                     continue;
                 var sample = BinaryPrimitives.ReadInt32BigEndian(payload.Slice(elementIndex * 4, 4));
                 _channelSamples[channel].Add(smpCnt, sample, samplesPerCycle);
@@ -1336,6 +1362,26 @@ public sealed class RawProcessBusAnalyzer
                     : "Raw 4I4V instMag/q candidate profile";
                 MappedChannelNamesText = "Ia, Ib, Ic, In, Ua, Ub, Uc, Un | Used elements: 0, 2, 4, 6, 8, 10, 12, 14";
             }
+        }
+
+        private bool IsChannelUntrusted(int elementIndex) =>
+            _knownFourI4VMapping && elementIndex >= 0 && elementIndex <= 14 &&
+            (elementIndex & 1) == 0 &&
+            (_untrustedChannelMask & (1 << (elementIndex / 2))) != 0;
+
+        private ChannelFreshness ResolveChannelFreshness(string channel, IReadOnlyList<ScopeSampleFrame> window)
+        {
+            var index = Array.FindIndex(OmicronInstMagQualityMap,
+                item => string.Equals(item.Channel, channel, StringComparison.Ordinal));
+            if (index >= 0 && (_untrustedChannelMask & (1 << index)) != 0)
+                return _lastAnalogValues is not null ? ChannelFreshness.Held : ChannelFreshness.Missing;
+
+            // Each trace needs a complete coherent window. A compressed subset
+            // would move points on the time axis and misrepresent physical phase.
+            if (window.Count == 0 || window.Any(frame => !frame.GetValue(channel).HasValue))
+                return _lastAnalogValues is not null ? ChannelFreshness.Held : ChannelFreshness.Missing;
+
+            return ChannelFreshness.Live;
         }
 
         private static string BuildMappingSignature(SvChannelMappingProfile? mappingProfile, int decodedElementCount)
@@ -1398,6 +1444,20 @@ public sealed class RawProcessBusAnalyzer
         {
             var unit = SvEngineeringScaleFactors.Unit(_engineeringScale, channel);
             var factor = SvEngineeringScaleFactors.Factor(_engineeringScale, channel);
+            var freshness = ResolveChannelFreshness(channel, coherentWindow);
+            if (freshness != ChannelFreshness.Live)
+            {
+                var previous = _lastAnalogValues is null ? null : GetAnalogChannel(_lastAnalogValues, channel);
+                return new ChannelValueModel(channel)
+                {
+                    Unit = unit,
+                    Freshness = previous is { RmsValue: not null } ? ChannelFreshness.Held : ChannelFreshness.Missing,
+                    InstantValue = previous?.InstantValue,
+                    RmsValue = previous?.RmsValue,
+                    AngleDegrees = previous?.AngleDegrees
+                };
+            }
+
             var rawInstant = GetLatestScopeValue(channel);
             var instant = rawInstant.HasValue ? rawInstant.Value * factor : (double?)null;
             var rawAngle = GetFundamentalAngleDegrees(coherentWindow, channel, samplesPerCycle);
@@ -1410,7 +1470,8 @@ public sealed class RawProcessBusAnalyzer
                 InstantValue = instant,
                 RmsValue = rms,
                 AngleDegrees = angle,
-                Unit = unit
+                Unit = unit,
+                Freshness = ChannelFreshness.Live
             };
         }
 
@@ -1460,6 +1521,23 @@ public sealed class RawProcessBusAnalyzer
 
             foreach (var channel in channels)
             {
+                var freshness = ResolveChannelFreshness(channel, coherentWindow);
+                if (freshness != ChannelFreshness.Live)
+                {
+                    var previous = _lastScopeWaveform?.VoltageSeries.Concat(_lastScopeWaveform.CurrentSeries)
+                        .FirstOrDefault(series => string.Equals(series.Name, channel, StringComparison.Ordinal));
+                    result.Add(new WaveformSeriesModel
+                    {
+                        Name = channel,
+                        Unit = SvEngineeringScaleFactors.Unit(_engineeringScale, channel),
+                        Samples = previous?.Samples ?? Array.Empty<double>(),
+                        ShapeSeverity = "Unknown",
+                        ShapeStatusText = previous is null ? "Missing valid channel samples" : "Held: invalid/incomplete channel evidence",
+                        Freshness = previous is null ? ChannelFreshness.Missing : ChannelFreshness.Held
+                    });
+                    continue;
+                }
+
                 var scopeWindow = GetChannelSamples(coherentWindow, channel);
                 if (scopeWindow.Count < 2)
                     continue;
@@ -1478,7 +1556,8 @@ public sealed class RawProcessBusAnalyzer
                     ShapeStatusText = shape.StatusText,
                     ShapeResidualPercent = shape.ResidualPercent,
                     CrestFactor = shape.CrestFactor,
-                    HasShapeDistortion = shape.HasDistortion
+                    HasShapeDistortion = shape.HasDistortion,
+                    Freshness = ChannelFreshness.Live
                 });
             }
 
