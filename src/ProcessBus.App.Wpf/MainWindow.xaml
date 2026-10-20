@@ -1414,6 +1414,8 @@
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
+                                            <!-- Re-clicking the already selected publisher must exit pinned-event mode. -->
+                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="GoosePublisherRow_PreviewMouseLeftButtonDown"/>
                                             <Setter Property="Padding" Value="0"/>
                                             <Setter Property="Margin" Value="0,0,0,8"/>
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
