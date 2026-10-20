@@ -1675,12 +1675,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : _outOfSequenceCount > 0 ? "JUMP"
         : "CONTINUOUS";
 
+    // Derived from SV smpCnt continuity, not independent NIC-loss proof.
     public string PacketLossText =>
         _streamStale
-            ? "Loss: stream stale"
+            ? "smpCnt: stream stale"
             : _packetLossPercent < 0.01
-                ? "Loss: OK"
-                : $"Loss: {_packetLossPercent:0.00}%";
+                ? "smpCnt gaps: none"
+                : $"smpCnt gaps: {_packetLossPercent:0.00}%";
 
     public string OutOfSequenceText =>
         _outOfSequenceCount == 0
