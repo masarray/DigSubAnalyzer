@@ -2099,6 +2099,7 @@
                                         <controls:WaveformPanelControl Grid.Row="2"
                                                                    d:Visibility="Collapsed"
                                            Snapshot="{Binding Waveform}"
+                                           IsStreamLive="{Binding SelectedStream.IsActive}"
                                            StreamKey="{Binding SelectedStream.StreamId}"
                                            ShowMode="{Binding WaveformShowMode}"
                                            LayoutMode="{Binding WaveformLayoutMode}"
@@ -2209,7 +2210,7 @@
                                                                Foreground="#91B3CF" FontSize="10.5"/>
                                                 </Grid>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ua.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ua.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2236,7 +2237,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ub.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ub.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2263,7 +2264,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Uc.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Uc.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2292,7 +2293,7 @@
                                                 <TextBlock Margin="5,10,0,4" Text="CURRENT"
                                                            FontSize="10.5" FontWeight="SemiBold" Foreground="#91B3CF"/>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ia.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ia.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2319,7 +2320,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ib.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ib.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2346,7 +2347,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ic.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ic.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
