@@ -13,6 +13,7 @@ public sealed class PhasorDisplayItem
     public double? Magnitude { get; init; }
     public double? AngleDegrees { get; init; }
     public string Unit { get; init; } = string.Empty;
+    public ChannelFreshness Freshness { get; init; } = ChannelFreshness.Live;
     public bool HasValue => Magnitude.HasValue && AngleDegrees.HasValue;
     public string MagnitudeDisplayText => Magnitude.HasValue ? $"{Magnitude:0.###}" : "N/A";
     public string AngleDisplayText => AngleDegrees.HasValue ? $"{AngleDegrees:0.###} deg" : "N/A";
