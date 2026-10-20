@@ -1,5 +1,5 @@
 # Fail the Windows release pipeline if primary WPF panel gutters regress.
-# Geometric source contract: 16 DIP between major columns, 12 DIP between
+# Geometric source contract: 8 DIP between major columns, 8 DIP between
 # primary vertical panels. Inner label/control spacing remains 4/8 DIP.
 [CmdletBinding()]
 param(
@@ -36,24 +36,24 @@ function Has-Definitions([string]$DefinitionName, [string]$ChildName, [string]$A
 }
 
 # Main three-column shell is the operator's visual alignment reference.
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '280,16,*,16,320') 'shell columns must have 16 DIP gutters'
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,16,320') 'Analyzer waveform/inspector gutter'
-Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' '0.82*,12,1.18*') 'Analyzer phasor/measurement gap'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '280,8,*,8,320') 'shell columns must have 8 DIP gutters'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,8,320') 'Analyzer waveform/inspector gutter'
+Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' '0.82*,8,1.18*') 'Analyzer phasor/measurement gap'
 
 # All five customer-facing workspaces share the same horizontal or vertical rhythm.
-Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,12,Auto,12,Auto,Auto,*') 'Diagnostics primary vertical gutters'
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,16,400') 'GOOSE timeline/inspector gutter'
-Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,12,Auto,12,*') 'Timing/PTP major sections'
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.15*,16,1.1*,16,1.2*') 'Timing/PTP header-card gutters'
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.1*,16,1.4*') 'Timing/PTP evidence gutter'
-Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,12,*') 'SCL hero/body vertical gutter'
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.18*,16,0.92*') 'SCL catalog/inspector gutter'
+Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,8,Auto,8,Auto,Auto,*') 'Diagnostics primary vertical gutters'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,8,400') 'GOOSE timeline/inspector gutter'
+Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,8,Auto,8,*') 'Timing/PTP major sections'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.15*,8,1.1*,8,1.2*') 'Timing/PTP header-card gutters'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.1*,8,1.4*') 'Timing/PTP evidence gutter'
+Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,8,*') 'SCL hero/body vertical gutter'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.18*,8,0.92*') 'SCL catalog/inspector gutter'
 
 # Standardize padding via named tokens, not brittle per-tab copies.
 foreach ($rule in @(
     @{ Name = 'WorkspacePanelInset'; Value = '12' },
     @{ Name = 'WorkspaceHeroInset'; Value = '16,12' },
-    @{ Name = 'WorkspacePanelGapBelow'; Value = '0,0,0,12' }
+    @{ Name = 'WorkspacePanelGapBelow'; Value = '0,0,0,8' }
 )) {
     $nodes = $theme.SelectNodes("//w:Thickness[@x:Key='$($rule.Name)']", $ns)
     Assert-True ($nodes.Count -eq 1) "one shared token: $($rule.Name)"
@@ -66,4 +66,4 @@ $source = Get-Content -LiteralPath $windowPath -Raw
 foreach ($name in @('WorkspacePanelInset', 'WorkspacePanelGapBelow', 'WorkspaceHeroInset')) {
     Assert-True ($source.Contains("{StaticResource $name}")) "workspace must use spacing token $name"
 }
-Write-Host 'WPF workspace spacing contract: PASS (16 DIP columns / 12 DIP panel gaps, named insets)'
+Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'
