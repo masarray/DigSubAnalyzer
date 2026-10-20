@@ -67,11 +67,13 @@ public sealed class LiveRenderCoalescer
 
     private static bool SamePhasorChannel(ChannelValueModel a, ChannelValueModel b) =>
         a.RmsValue == b.RmsValue &&
+        a.Freshness == b.Freshness &&
         a.AngleDegrees == b.AngleDegrees &&
         string.Equals(a.Unit, b.Unit, StringComparison.Ordinal);
 
     private static bool SameChannel(ChannelValueModel a, ChannelValueModel b) =>
         a.InstantValue == b.InstantValue && a.RmsValue == b.RmsValue &&
+        a.Freshness == b.Freshness &&
         a.AngleDegrees == b.AngleDegrees &&
         string.Equals(a.Unit, b.Unit, StringComparison.Ordinal);
 
@@ -102,6 +104,7 @@ public sealed class LiveRenderCoalescer
                 x.ShapeResidualPercent != y.ShapeResidualPercent ||
                 x.CrestFactor != y.CrestFactor ||
                 x.HasShapeDistortion != y.HasShapeDistortion ||
+                x.Freshness != y.Freshness ||
                 x.Samples.Count != y.Samples.Count)
                 return false;
 
