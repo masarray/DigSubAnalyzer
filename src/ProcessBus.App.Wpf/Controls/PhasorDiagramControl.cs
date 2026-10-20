@@ -189,8 +189,10 @@ public sealed class PhasorDiagramControl : FrameworkElement
             var pen = item.Family == PhasorFamily.Voltage ? VoltagePens[phase] : CurrentPens[phase];
             var arrowPen = item.Family == PhasorFamily.Voltage ? pen : CurrentArrowPens[phase];
 
+            dc.PushOpacity(ChannelFreshnessDisplay.Opacity(item.Freshness));
             dc.DrawLine(pen, center, tip);
             DrawArrow(dc, center, tip, arrowPen, item.Family == PhasorFamily.Voltage ? 9.5 : 8.0);
+            dc.Pop();
             vectors.Add(new RenderedVector(item, tip, brush,
                 CreateText(ToPhaseLabel(item.Name), 11.0, brush, LabelTypeface)));
         }
@@ -218,6 +220,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
         {
             var vector = vectors[i];
             var position = positions[i];
+            dc.PushOpacity(ChannelFreshnessDisplay.Opacity(vector.Item.Freshness));
             var route = PhasorCalloutRouting.Route(
                 new PhasorCalloutPoint(vector.Tip.X, vector.Tip.Y),
                 position, vector.Label.Width, vector.Label.Height, anchors[i].Right);
@@ -235,6 +238,7 @@ public sealed class PhasorDiagramControl : FrameworkElement
                 new Point(route.Knee.X, route.Knee.Y),
                 new Point(route.LabelEdge.X, route.LabelEdge.Y));
             dc.DrawText(vector.Label, new Point(position.X, position.Y));
+            dc.Pop();
         }
         dc.Pop();
 
