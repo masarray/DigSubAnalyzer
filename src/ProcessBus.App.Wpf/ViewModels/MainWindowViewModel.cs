@@ -4550,9 +4550,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // Incrementally reconcile at most 200 display rows. Recreating every
         // ListView item on each arrival would flicker, reset scroll and defeat
         // the calm design. Raw forensic Events remain untouched.
+        // Match the same keys as the core projection. Comparing full Message
+        // would wrongly append every periodic summary because its total and
+        // latest sample counters change on each emitted report.
         static bool SameKey(DiagnosticEventItem a, DiagnosticEventItem b) =>
-            a.Severity == b.Severity && a.Message == b.Message &&
-            a.SourceText == b.SourceText;
+            a.Severity == b.Severity &&
+            a.SourceText == b.SourceText &&
+            DiagnosticEventSummarizer.GetGroupingText(a.Message) ==
+                DiagnosticEventSummarizer.GetGroupingText(b.Message);
 
         for (var i = 0; i < projection.Count; i++)
         {
