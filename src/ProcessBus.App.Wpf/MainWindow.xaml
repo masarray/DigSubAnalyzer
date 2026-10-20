@@ -77,7 +77,7 @@
         </Style>
 
         <Style x:Key="PremiumWorkspaceHeroStyle" TargetType="Border">
-            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Padding" Value="{StaticResource WorkspaceHeroInset}"/>
             <Setter Property="BorderBrush" Value="#28618F"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
@@ -94,7 +94,7 @@
         </Style>
 
         <Style x:Key="PremiumWorkspacePanelStyle" TargetType="Border">
-            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Padding" Value="{StaticResource WorkspacePanelInset}"/>
             <Setter Property="Background" Value="#0A1A2A"/>
             <Setter Property="BorderBrush" Value="#21496A"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -103,7 +103,7 @@
         </Style>
 
         <Style x:Key="PremiumInsightCardStyle" TargetType="Border">
-            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Padding" Value="{StaticResource WorkspacePanelInset}"/>
             <Setter Property="Background" Value="#0D2033"/>
             <Setter Property="BorderBrush" Value="#255173"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -335,10 +335,11 @@
                                           ItemsSource="{Binding Adapters}"
                                           SelectedValuePath="Id"
                                           SelectedValue="{Binding SelectedAdapterId, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="Select capture adapter"/>
+                                          ToolTip="{Binding SelectedAdapterDiagnostic}"/>
 
                                 <Button Margin="8,0,0,0"
                                         Command="{Binding StartCommand}"
+                                         IsEnabled="{Binding CanStartCapture}"
                                         ToolTipService.InitialShowDelay="180">
                                     <Button.ToolTip>
                                         <ToolTip Style="{StaticResource GlassToolTipStyle}" Content="Start live SV/GOOSE/PTP capture"/>
@@ -545,6 +546,7 @@
                                     <!-- Primary action stays readable: icon + label -->
                                     <Button x:Name="StartCaptureButton"
                                             Command="{Binding StartCommand}"
+                                             IsEnabled="{Binding CanStartCapture}"
                                             ToolTipService.InitialShowDelay="180">
                                         <Button.ToolTip>
                                             <ToolTip Style="{StaticResource GlassToolTipStyle}" Content="Start live SV/GOOSE/PTP capture"/>
@@ -872,10 +874,10 @@
                 <Grid.ColumnDefinitions>
                     <!-- Locked workspace layout: left explorer / main canvas / right inspector -->
                     <ColumnDefinition Width="280"/>
-                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="8"/>
                     <!-- GAP -->
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="8"/>
                     <!-- GAP -->
                     <ColumnDefinition Width="320"/>
                 </Grid.ColumnDefinitions>
@@ -887,7 +889,6 @@
 
                 <Border Grid.Column="0"
         Grid.Row="0"
-        Grid.RowSpan="2"
         Style="{StaticResource DenseGroupBorderStyle}"
         Background="{StaticResource PanelDeepBrush}">
 
@@ -1084,7 +1085,8 @@
                                                     Margin="6,0,0,0"
                                                     VerticalAlignment="Center"
                                                     CornerRadius="9"
-                                                    Background="{Binding StatusSoftBrush}">
+                                                    Background="{Binding StatusSoftBrush}"
+                                                    ToolTip="{Binding IssueSummaryText}">
                                                 <TextBlock FontSize="8.8"
                                                            FontWeight="Bold"
                                                            Text="{Binding DisplayStatusText}"
@@ -1318,7 +1320,7 @@
                                            VerticalAlignment="Center"/>
                             </Grid>
 
-                            <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                            <StackPanel Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <TextBlock Text="Search"
                                            Foreground="#7FA8CC"
                                            FontSize="10.5"
@@ -1329,7 +1331,7 @@
                                          ToolTip="Filter publisher, GOOSE ID, APPID, MAC, or DataSet"/>
                             </StackPanel>
 
-                            <Grid Grid.Row="2" Margin="0,0,0,14">
+                            <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="10"/>
@@ -1537,7 +1539,7 @@
                                            Text="Source and capture confidence"/>
                             </StackPanel>
 
-                            <Border Grid.Row="1" Style="{StaticResource DenseMetricCardStyle}" Margin="0,0,0,8">
+                            <Border Grid.Row="1" Style="{StaticResource DenseMetricCardStyle}" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <StackPanel>
                                     <TextBlock Text="PTP Status" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Margin="0,8,0,0" Text="{Binding PtpStatusText}" Foreground="#EAF6FF" FontWeight="SemiBold" TextWrapping="Wrap"/>
@@ -1545,7 +1547,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="2" Style="{StaticResource DenseMetricCardStyle}" Margin="0,0,0,8">
+                            <Border Grid.Row="2" Style="{StaticResource DenseMetricCardStyle}" Margin="{StaticResource WorkspacePanelGapBelow}">
                                 <StackPanel>
                                     <TextBlock Text="Capture confidence" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Margin="0,8,0,0" Text="{Binding TimingConfidenceBadgeText}" Foreground="#F6D781"
@@ -1604,7 +1606,7 @@
                             </StackPanel>
 
                             <Border Grid.Row="1"
-                                    Margin="0,0,0,10"
+                                    Margin="{StaticResource WorkspacePanelGapBelow}"
                                     Style="{StaticResource CompactExplorerCardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="Project summary"
@@ -1940,7 +1942,7 @@
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
@@ -1989,30 +1991,10 @@
                                                         </Style>
                                                     </Border.Style>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Ellipse Width="6" Height="6" Fill="#2AFF9C" Margin="0,0,5,0" VerticalAlignment="Center">
-                                                            <Ellipse.Style>
-                                                                <Style TargetType="Ellipse">
-                                                                    <Setter Property="Opacity" Value="0.55"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsSelectedSvReceiving}" Value="True">
-                                                                            <DataTrigger.EnterActions>
-                                                                                <BeginStoryboard x:Name="LiveDotPulseStoryboard">
-                                                                                    <Storyboard AutoReverse="True" RepeatBehavior="Forever">
-                                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                                                         From="0.45" To="1"
-                                                                                                         Duration="0:0:0.75"/>
-                                                                                    </Storyboard>
-                                                                                </BeginStoryboard>
-                                                                            </DataTrigger.EnterActions>
-                                                                            <DataTrigger.ExitActions>
-                                                                                <RemoveStoryboard BeginStoryboardName="LiveDotPulseStoryboard"/>
-                                                                            </DataTrigger.ExitActions>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Ellipse.Style>
-                                                        </Ellipse>
-                                                        <TextBlock Text="LIVE"
+                                                        <Ellipse Width="6" Height="6" Fill="#2AFF9C" Opacity="0.75"
+                                                                 Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="RX"
+                                                                   ToolTip="SV frames arriving. Check stream LIVE · WARN separately for quality and continuity."
                                                                    FontSize="9"
                                                                    FontWeight="Bold"
                                                                    Foreground="#B9FFE0"/>
@@ -2067,35 +2049,38 @@
 
                                             <!-- VOLTAGE -->
                                             <TextBlock Margin="0,6,6,0"
-               Text="Voltage scale"
+               Text="U scale"
                Foreground="#D6E8F8"
                FontWeight="SemiBold"
                FontSize="11.5"/>
-                                            <ComboBox Width="120"
+                                            <ComboBox Width="154"
               Margin="0,0,10,0"
               Style="{StaticResource CompactComboBoxStyle}"
               Foreground="#FFFFFF"
               FontWeight="SemiBold"
               ItemsSource="{Binding WaveformVoltageScaleOptions}"
-              SelectedItem="{Binding WaveformVoltageScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+              SelectedItem="{Binding WaveformVoltageScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="{Binding WaveformVoltageScale}"/>
 
                                             <!-- CURRENT -->
                                             <TextBlock Margin="0,6,6,0"
-               Text="Current scale"
+               Text="I scale"
                Foreground="#D6E8F8"
                FontWeight="SemiBold"
                FontSize="11.5"/>
-                                            <ComboBox Width="100"
+                                            <ComboBox Width="142"
               Style="{StaticResource CompactComboBoxStyle}"
               Foreground="#FFFFFF"
               FontWeight="SemiBold"
               ItemsSource="{Binding WaveformCurrentScaleOptions}"
-              SelectedItem="{Binding WaveformCurrentScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+              SelectedItem="{Binding WaveformCurrentScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="{Binding WaveformCurrentScale}"/>
 
                                         </WrapPanel>
                                         <controls:WaveformPanelControl Grid.Row="2"
                                                                    d:Visibility="Collapsed"
                                            Snapshot="{Binding Waveform}"
+                                           IsStreamLive="{Binding SelectedStream.IsActive}"
                                            StreamKey="{Binding SelectedStream.StreamId}"
                                            ShowMode="{Binding WaveformShowMode}"
                                            LayoutMode="{Binding WaveformLayoutMode}"
@@ -2114,7 +2099,7 @@
           Opacity="0.94">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="0.82*"/>
-                                        <RowDefinition Height="12"/>
+                                        <RowDefinition Height="8"/>
                                         <RowDefinition Height="1.18*"/>
                                     </Grid.RowDefinitions>
 
@@ -2144,6 +2129,7 @@
                                             <!-- RUNTIME CONTROL (DIMATIKAN DI DESIGNER) -->
                                             <controls:PhasorDiagramControl Grid.Row="1"
                                        ItemsSource="{Binding Phasors}"
+                                       IsStreamLive="{Binding SelectedStream.IsActive}"
                                        MinHeight="210"
                                        SnapsToDevicePixels="True"
                                        d:Visibility="Collapsed"/>
@@ -2205,7 +2191,7 @@
                                                                Foreground="#91B3CF" FontSize="10.5"/>
                                                 </Grid>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ua.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ua.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2232,7 +2218,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ub.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ub.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2259,7 +2245,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Uc.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Uc.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2288,7 +2274,7 @@
                                                 <TextBlock Margin="5,10,0,4" Text="CURRENT"
                                                            FontSize="10.5" FontWeight="SemiBold" Foreground="#91B3CF"/>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ia.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ia.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2315,7 +2301,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ib.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ib.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2342,7 +2328,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <Border Style="{StaticResource MeterReadoutRowStyle}">
+                                                <Border Style="{StaticResource MeterReadoutRowStyle}" Opacity="{Binding AnalogValues.Ic.FreshnessOpacity}" ToolTip="{Binding AnalogValues.Ic.FreshnessText}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
     <ColumnDefinition Width="32"/>
@@ -2376,36 +2362,36 @@
                                                             <TextBlock DockPanel.Dock="Left" Text="Power estimate"
                                                                        Foreground="#A6CBE3" FontSize="11"
                                                                        FontWeight="SemiBold"/>
-                                                            <TextBlock DockPanel.Dock="Right" Text="Nominal scale"
+                                                            <TextBlock DockPanel.Dock="Right" Text="Nominal · uncalibrated"
                                                                        Foreground="#90B5D0" FontSize="9.5"
                                                                        ToolTip="{Binding EngineeringScaleExplanation}"/>
                                                         </DockPanel>
                                                         <UniformGrid Columns="4">
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="P" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="P" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding TotalActivePowerText}" Foreground="#EEF8FF"
-                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding TotalActivePowerText}"/>
                                                             </StackPanel>
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="Q" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="Q" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding TotalReactivePowerText}" Foreground="#EEF8FF"
-                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding TotalReactivePowerText}"/>
                                                             </StackPanel>
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="S" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="S" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding TotalApparentPowerText}" Foreground="#EEF8FF"
-                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding TotalApparentPowerText}"/>
                                                             </StackPanel>
                                                             <StackPanel Margin="0,0,3,0">
-                                                                <TextBlock Text="PF" Foreground="#8DAFCA" FontSize="9.5"/>
+                                                                <TextBlock Text="PF" Foreground="#8DAFCA" FontSize="10"/>
                                                                 <TextBlock Text="{Binding PowerFactorText}" Foreground="#EEF8FF"
-                                                                           FontSize="10.5" FontFamily="Consolas"
+                                                                           FontSize="12" FontFamily="Consolas"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            ToolTip="{Binding PowerFactorText}"/>
                                                             </StackPanel>
@@ -2430,9 +2416,9 @@
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
@@ -2510,10 +2496,10 @@
                                     </UniformGrid.Style>
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
-                                            CornerRadius="9" Padding="12,10" Margin="0,0,12,0"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
                                             ToolTip="{Binding Diagnostics.JitterStatusText}">
                                         <StackPanel>
-                                            <TextBlock Text="ARRIVAL JITTER" Foreground="#9BC7E4" FontSize="10.5"
+                                            <TextBlock Text="ARRIVAL Δ · HOST" Foreground="#9BC7E4" FontSize="10.5"
                                                        FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Diagnostics.SvJitterHeadlineText}"
                                                        Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
@@ -2528,7 +2514,7 @@
                                     </Border>
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
-                                            CornerRadius="9" Padding="12,10" Margin="0,0,12,0"
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
                                             ToolTip="Discontinuous smpCnt transitions for the selected SV stream. Not the number of missing samples.">
                                         <StackPanel>
                                             <TextBlock Text="SMP COUNT JUMPS" Foreground="#9BC7E4" FontSize="10.5"
@@ -2545,10 +2531,10 @@
                                     </Border>
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
-                                            CornerRadius="9" Padding="12,10" Margin="0,0,12,0"
-                                            ToolTip="Missing sample count comes from selected SV smpCnt continuity; decoder rejects are capture-wide.">
+                                            CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
+                                            ToolTip="Gaps are inferred from selected SV smpCnt transitions, not independently confirmed Ethernet packet losses. Decoder rejects are capture-wide.">
                                         <StackPanel>
-                                            <TextBlock Text="MISSING SAMPLES" Foreground="#9BC7E4" FontSize="10.5"
+                                            <TextBlock Text="INFERRED SV GAPS" Foreground="#9BC7E4" FontSize="10.5"
                                                        FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Diagnostics.SvMissingSamplesText}"
                                                        Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
@@ -2624,7 +2610,7 @@
                                     </UniformGrid.Style>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding PtpTransportText}">
                                         <StackPanel>
                                             <TextBlock Text="SOURCE" Foreground="#91B3CF"
@@ -2640,7 +2626,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding PtpProfileText}">
                                         <StackPanel>
                                             <TextBlock Text="TWO-STEP" Foreground="#91B3CF"
@@ -2656,7 +2642,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding PtpRateText}">
                                         <StackPanel>
                                             <TextBlock Text="MESSAGE FLOW" Foreground="#91B3CF"
@@ -2702,7 +2688,7 @@
                                     </UniformGrid.Style>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
                                         <StackPanel>
                                             <TextBlock Text="PUBLISHER" Foreground="#91B3CF"
@@ -2718,7 +2704,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
                                         <StackPanel>
                                             <TextBlock Text="HEALTH" Foreground="#91B3CF"
@@ -2734,7 +2720,7 @@
                                     </Border>
                                     <Border Background="#0F2538" BorderBrush="#294864"
                                             BorderThickness="1" CornerRadius="9" Padding="12,10"
-                                            Margin="0,0,12,0"
+                                            Margin="0,0,8,0"
                                             ToolTip="{Binding SelectedDiagnosticTarget.IssueSummaryText}">
                                         <StackPanel>
                                             <TextBlock Text="STATE NUMBER" Foreground="#91B3CF"
@@ -2917,7 +2903,7 @@
 
                                         
 
-                                        <ListView ItemsSource="{Binding Events}"
+                                        <ListView ItemsSource="{Binding CalmDiagnosticEvents}"
                                               SelectedItem="{Binding SelectedDiagnosticEvent, Mode=TwoWay}"
                                               VirtualizingPanel.IsVirtualizing="True"
                                               VirtualizingPanel.VirtualizationMode="Recycling"
@@ -2961,13 +2947,16 @@
                                                         <TextBlock Grid.Column="2" Text="{Binding SourceText}"
                                                                    Foreground="#9EBBD4" FontSize="11"
                                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                                   ToolTip="{Binding Message}" Margin="0,0,12,0"/>
-                                                        <TextBlock Grid.Column="3" Text="{Binding FindingText}"
-                                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                                   FontSize="11.5" FontWeight="SemiBold"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   VerticalAlignment="Center"
-                                                                   ToolTip="{Binding Message}"/>
+                                                                   ToolTip="{Binding EvidenceTooltip}" Margin="0,0,12,0"/>
+                                                        <DockPanel Grid.Column="3" LastChildFill="True" VerticalAlignment="Center"
+                                                                   ToolTip="{Binding EvidenceTooltip}">
+                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding OccurrenceText}"
+                                                                       Foreground="#84B1D0" FontFamily="Consolas"
+                                                                       FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding FindingText}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                                       FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center"/>
+                                                        </DockPanel>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ListView.ItemTemplate>
@@ -2988,14 +2977,14 @@
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="14"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="400"/>
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Main event timeline: lean, readable, no debug ornaments. -->
                                 <Border Grid.Column="0"
                                         Style="{StaticResource DenseGroupBorderStyle}"
-                                        Padding="14">
+                                        Padding="{StaticResource WorkspacePanelInset}">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -3165,12 +3154,12 @@
                                             </Border.Style>
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                                         MaxWidth="390">
-                                                <TextBlock Text="No GOOSE state changes"
+                                                <TextBlock Text="{Binding GooseEmptyTitle}"
                                                            Foreground="#E5F2FF" FontSize="15"
                                                            FontWeight="SemiBold" TextAlignment="Center"/>
                                                 <TextBlock Margin="0,8,0,0" TextAlignment="Center" TextWrapping="Wrap"
                                                            Foreground="#A6C4DB" FontSize="11.5"
-                                                           Text="Check publisher and VLAN visibility, or enable retransmissions."
+                                                           Text="{Binding GooseEmptyGuidance}"
                                                            ToolTip="An empty state-change view does not prove the publisher is offline. Confirm the adapter, SPAN/TAP path, VLAN and goID filters."/>
                                             </StackPanel>
                                         </Border>
@@ -3180,7 +3169,7 @@
                                 <!-- Right inspector: clean grouped information, typed values emphasized. -->
                                 <Border Grid.Column="2"
                                         Style="{StaticResource DenseGroupBorderStyle}"
-                                        Padding="14">
+                                        Padding="{StaticResource WorkspacePanelInset}">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel>
                                             <TextBlock Text="GOOSE Inspector"
@@ -3444,9 +3433,9 @@
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -3454,9 +3443,9 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="1.15*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="8"/>
                                             <ColumnDefinition Width="1.1*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="8"/>
                                             <ColumnDefinition Width="1.2*"/>
                                         </Grid.ColumnDefinitions>
 
@@ -3492,7 +3481,7 @@
                                 <Grid Grid.Row="2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="1.1*"/>
-                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="8"/>
                                         <ColumnDefinition Width="1.4*"/>
                                     </Grid.ColumnDefinitions>
 
@@ -3501,7 +3490,7 @@
                                             <TextBlock Text="Timing evidence" Style="{StaticResource PanelTitleTextStyle}" Margin="0,0,0,12"/>
                                             
 
-                                            <Border Background="#0E2539" BorderThickness="0" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                            <Border Background="#0E2539" BorderThickness="0" CornerRadius="8" Padding="12" Margin="{StaticResource WorkspacePanelGapBelow}">
                                                 <StackPanel>
                                                     <TextBlock Text="Assessment" Foreground="#8FB8D8" FontSize="11" FontWeight="SemiBold"/>
                                                     <TextBlock Margin="0,7,0,0" Text="{Binding TimingConfidenceBadgeText}"
@@ -3602,13 +3591,13 @@
                                                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Time" Binding="{Binding TimeText}" Width="110"/>
-                                                <DataGridTextColumn Header="Transport" Binding="{Binding Transport}" Width="110"/>
-                                                <DataGridTextColumn Header="Message" Binding="{Binding MessageType}" Width="120"/>
-                                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="170"/>
-                                                <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="170"/>
-                                                <DataGridTextColumn Header="Domain" Binding="{Binding DomainText}" Width="70"/>
-                                                <DataGridTextColumn Header="Seq" Binding="{Binding SequenceIdText}" Width="70"/>
+                                                <DataGridTextColumn Header="Time" Binding="{Binding TimeText}" Width="103"/>
+                                                <DataGridTextColumn Header="Transport" Binding="{Binding Transport}" Width="154"/>
+                                                <DataGridTextColumn Header="Message" Binding="{Binding MessageType}" Width="100"/>
+                                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="160"/>
+                                                <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="160"/>
+                                                <DataGridTextColumn Header="Domain" Binding="{Binding DomainText}" Width="63"/>
+                                                <DataGridTextColumn Header="Seq" Binding="{Binding SequenceIdText}" Width="61"/>
                                                 <DataGridTextColumn Header="Clock ID" Binding="{Binding ClockIdentity}" Width="*"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
@@ -3942,7 +3931,7 @@
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -3974,7 +3963,7 @@
                                 <Grid Grid.Row="2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="1.18*"/>
-                                        <ColumnDefinition Width="14"/>
+                                        <ColumnDefinition Width="8"/>
                                         <ColumnDefinition Width="0.92*"/>
                                     </Grid.ColumnDefinitions>
 
@@ -4283,7 +4272,7 @@
                                                                 <Setter Property="TextTrimming" Value="None"/>
                                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                                 <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-                                                                <Setter Property="LineHeight" Value="15"/>
+                                                                <Setter Property="LineHeight" Value="16"/>
                                                             </Style>
                                                         </DataGrid.Resources>
                                                         <DataGrid.Columns>
@@ -4291,7 +4280,7 @@
                                                             <DataGridTemplateColumn Header="Signal" Width="2.35*">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate>
-                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}"/>
+                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}" FontFamily="Consolas" FontSize="12" ToolTip="{Binding DisplayName}"/>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
@@ -4349,7 +4338,7 @@
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
 

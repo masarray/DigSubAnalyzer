@@ -48,6 +48,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private IReadOnlyList<GooseMessageItem> _gooseMessages = Array.Empty<GooseMessageItem>();
     private GooseMonitorSnapshot _gooseSnapshot = new();
     private IReadOnlyList<PhasorDisplayItem> _phasors = Array.Empty<PhasorDisplayItem>();
+    private IReadOnlyList<PhasorDisplayItem>? _lastRaisedPhasors;
     private AnalogValuesSnapshot? _lastPhasorSourceSnapshot;
     private StreamDetailsModel? _displayedSelectedStreamDetails;
     private AnalogValuesSnapshot _displayedAnalogValues = new();
@@ -110,17 +111,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _isRunning = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSwitchCaptureMode));
+            OnPropertyChanged(nameof(CanStartCapture));
             OnPropertyChanged(nameof(IsSelectedSvReceiving));
         }
     }
 
     public bool IsRawMode => true;
     public bool CanSwitchCaptureMode => !IsRunning;
+    public bool CanStartCapture => !IsRunning && GetSelectedAdapter()?.IsCaptureCapable == true;
+    public string SelectedAdapterDiagnostic => GetSelectedAdapter() is { IsCaptureCapable: false } invalid
+        ? invalid.Description : "Select a real Npcap capture adapter.";
 
     private readonly ObservableCollection<GooseTrafficRow> _gooseHistory = new();
     private readonly Dictionary<string, GooseMessageItem> _lastGooseState = new();
     private readonly Queue<GooseTrafficRow> _pendingGooseRows = new();
     private readonly Queue<DiagnosticEventItem> _pendingDiagnosticEvents = new();
+    private readonly ObservableCollection<DiagnosticEventItem> _calmDiagnosticEvents = new();
+    private DiagnosticEventItem? _lastAggregatedTopEvent;
+    private DiagnosticEventItem? _lastAggregatedBottomEvent;
+    private int _lastAggregatedEventCount = -1;
     private DateTime? _lastGooseHistoryTimeUtc;
     private DateTime _gooseInteractionUntilUtc = DateTime.MinValue;
     private bool _isGooseInteractionActive;
@@ -203,6 +212,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(GooseRetransmissionModeText));
             OnPropertyChanged(nameof(GooseFilterSummaryText));
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
         }
     }
@@ -218,6 +228,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _goosePublisherFilterText = value ?? string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(GooseFilterSummaryText));
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
         }
     }
@@ -250,10 +261,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedGooseIdFilter = next;
             OnPropertyChanged();
             OnPropertyChanged(nameof(GooseFilterSummaryText));
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
         }
     }
 
+    public string GooseEmptyTitle => _gooseMessages.Count == 0
+        ? "No GOOSE publisher observed" : "No matching GOOSE events";
+    public string GooseEmptyGuidance => _gooseMessages.Count == 0
+        ? "Check physical adapter, VLAN visibility and publisher traffic."
+        : IncludeGooseRetransmission
+            ? "Review the selected GOOSE ID filter and capture path."
+            : "No matching state changes. Include retransmissions to inspect traffic activity.";
     public string GooseRetransmissionModeText => IncludeGooseRetransmission ? "Retrans ON" : "Retrans OFF";
     public string GoosePublisherCountText => $"{_gooseMessages.Count} publisher{(_gooseMessages.Count == 1 ? string.Empty : "s")}";
     public string GooseFilterSummaryText
@@ -768,6 +787,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<NetworkAdapterInfo> Adapters { get; }
     public ObservableCollection<SvStreamItem> Streams { get; }
+    // Raw evidence remains in Events. Only Diagnostics uses this bounded
+    // grouped presentation projection, rebuilt when the forensic window changes.
+    public ObservableCollection<DiagnosticEventItem> CalmDiagnosticEvents => _calmDiagnosticEvents;
     public ObservableCollection<DiagnosticEventItem> Events { get; }
     public SvStreamItem? SelectedStream
     {
@@ -1653,12 +1675,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : _outOfSequenceCount > 0 ? "JUMP"
         : "CONTINUOUS";
 
+    // Derived from SV smpCnt continuity, not independent NIC-loss proof.
     public string PacketLossText =>
         _streamStale
-            ? "Loss: stream stale"
+            ? "smpCnt: stream stale"
             : _packetLossPercent < 0.01
-                ? "Loss: OK"
-                : $"Loss: {_packetLossPercent:0.00}%";
+                ? "smpCnt gaps: none"
+                : $"smpCnt gaps: {_packetLossPercent:0.00}%";
 
     public string OutOfSequenceText =>
         _outOfSequenceCount == 0
@@ -1975,8 +1998,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedAdapterId = value;
             var selected = Adapters.FirstOrDefault(adapter => adapter.Id == value);
             _rawDataSource.SelectAdapter(value, selected?.RawDeviceName ?? string.Empty);
-            SaveLastAdapterId(value);
+            if (selected?.IsCaptureCapable == true)
+                SaveLastAdapterId(value);
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanStartCapture));
+            OnPropertyChanged(nameof(SelectedAdapterDiagnostic));
             OnPropertyChanged(nameof(AdapterTimingRiskText));
             OnPropertyChanged(nameof(TimingConfidenceText));
             OnPropertyChanged(nameof(TimingConfidenceBadgeText));
@@ -2105,6 +2131,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 BufferDiagnosticEvents(snapshot.Events);
 
             _state.ApplySnapshot(snapshot, mergeEvents: IsDiagnosticsTabActive);
+            if (IsDiagnosticsTabActive)
+                UpdateCalmDiagnosticEvents();
             PruneStaleStreamWorkspaces(now);
             UpdateStreamStaleState();
             if (now - _lastDiagnosticTargetRefreshUtc >= TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
@@ -2289,16 +2317,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedEngineeringScale));
         OnPropertyChanged(nameof(EngineeringScaleExplanation));
 
-        // ARSVIN-style display contract: phasor vectors are derived from the latest
-        // engineering snapshot on every UI refresh. Do not use object-reference caching
-        // here. The raw analyzer may legitimately hold/reuse an AnalogValuesSnapshot while
-        // the SV window is settling, and previous reference caching made the phasor panel
-        // appear frozen until a user click rebuilt the SV workspace. Six vectors are cheap;
-        // correctness and responsiveness are more important than suppressing this tiny
-        // allocation.
+        // One SSOT: derive vectors from the selected stream's engineering snapshot.
+        // Do not recalculate arrows when only the instantaneous sample has changed.
+        // Exact RMS/angle comparisons retain immediate response to genuine transients.
         _displayedAnalogValues = analogValues;
         if (_lastPhasorSourceSnapshot is null ||
-            !LiveRenderCoalescer.SameAnalog(_lastPhasorSourceSnapshot, _displayedAnalogValues) ||
+            !LiveRenderCoalescer.SamePhasors(_lastPhasorSourceSnapshot, _displayedAnalogValues) ||
             !string.Equals(_lastPhasorSourceStreamId, selectedStreamId, StringComparison.Ordinal))
         {
             _phasors = BuildPhasorItems(_displayedAnalogValues);
@@ -2666,8 +2690,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(WaveformHeaderWindowText));
         OnPropertyChanged(nameof(WaveformHeaderStatusText));
         OnPropertyChanged(nameof(WaveformShapeStatusText));
-        if (force || analogChanged)
+        if (force || !ReferenceEquals(_lastRaisedPhasors, _phasors))
+        {
+            _lastRaisedPhasors = _phasors;
             OnPropertyChanged(nameof(Phasors));
+        }
         OnPropertyChanged(nameof(WaveformVoltageScale));
         OnPropertyChanged(nameof(WaveformCurrentScale));
     }
@@ -2735,6 +2762,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GoosePublisherCountText));
         OnPropertyChanged(nameof(GooseIdFilterOptions));
         OnPropertyChanged(nameof(GooseFilterSummaryText));
+        OnPropertyChanged(nameof(GooseEmptyTitle));
+        OnPropertyChanged(nameof(GooseEmptyGuidance));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
         _gooseHistoryView.Refresh();
@@ -4204,6 +4233,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task StartAsync()
     {
+        if (!CanStartCapture)
+            return;
+
         await _rawDataSource.StartAsync();
         IsRunning = _rawDataSource.IsRunning;
 
@@ -4296,20 +4328,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         };
     }
 
-    private static IReadOnlyList<PhasorDisplayItem> BuildPhasorItems(AnalogValuesSnapshot analogValues)
-    {
-        var referenceName = ResolvePhasorReferenceName(analogValues);
-
-        return
-        [
-            CreatePhasor("Ua", PhasorFamily.Voltage, analogValues.Ua, forceAngleZero: string.Equals(referenceName, "Ua", StringComparison.OrdinalIgnoreCase)),
-            CreatePhasor("Ub", PhasorFamily.Voltage, analogValues.Ub),
-            CreatePhasor("Uc", PhasorFamily.Voltage, analogValues.Uc),
-            CreatePhasor("Ia", PhasorFamily.Current, analogValues.Ia, forceAngleZero: string.Equals(referenceName, "Ia", StringComparison.OrdinalIgnoreCase)),
-            CreatePhasor("Ib", PhasorFamily.Current, analogValues.Ib),
-            CreatePhasor("Ic", PhasorFamily.Current, analogValues.Ic)
-        ];
-    }
+    private static IReadOnlyList<PhasorDisplayItem> BuildPhasorItems(AnalogValuesSnapshot analogValues) =>
+    [
+        CreatePhasor("Ua", PhasorFamily.Voltage, analogValues.Ua),
+        CreatePhasor("Ub", PhasorFamily.Voltage, analogValues.Ub),
+        CreatePhasor("Uc", PhasorFamily.Voltage, analogValues.Uc),
+        CreatePhasor("Ia", PhasorFamily.Current, analogValues.Ia),
+        CreatePhasor("Ib", PhasorFamily.Current, analogValues.Ib),
+        CreatePhasor("Ic", PhasorFamily.Current, analogValues.Ic)
+    ];
 
     private (double P, double Q, double S) ComputeThreePhasePower()
     {
@@ -4320,7 +4347,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private static string FormatPower(double value, string unit)
     {
-        if (!double.IsFinite(value)) return "N/A (scaling not verified)";
+        if (!double.IsFinite(value)) return "N/A";
         var abs = Math.Abs(value);
         if (abs >= 1_000_000.0)
             return $"{value / 1_000_000.0:0.00} M{unit}";
@@ -4329,28 +4356,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return $"{value:0.00} {unit}";
     }
 
-    private static string? ResolvePhasorReferenceName(AnalogValuesSnapshot analogValues)
-    {
-        if (analogValues.Ua.RmsValue.HasValue)
-            return "Ua";
-
-        if (analogValues.Ia.RmsValue.HasValue)
-            return "Ia";
-
-        return null;
-    }
-
-    private static PhasorDisplayItem CreatePhasor(string name, PhasorFamily family, ChannelValueModel channel, bool forceAngleZero = false)
-    {
-        return new PhasorDisplayItem
+    private static PhasorDisplayItem CreatePhasor(string name, PhasorFamily family, ChannelValueModel channel) =>
+        new()
         {
             Name = name,
             Family = family,
             Magnitude = channel.RmsValue,
-            AngleDegrees = forceAngleZero && channel.AngleDegrees.HasValue ? 0.0 : channel.AngleDegrees,
-            Unit = channel.Unit
+            // The engine alone owns relative-angle/reference interpretation.
+            AngleDegrees = channel.AngleDegrees,
+            Unit = channel.Unit,
+            Freshness = channel.Freshness
         };
-    }
 
     private bool FilterGooseHistory(object item)
     {
@@ -4515,6 +4531,60 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         _isGooseInteractionActive = true;
         _gooseInteractionUntilUtc = DateTime.UtcNow.Add(GooseInteractionQuietPeriod);
+    }
+
+    private void UpdateCalmDiagnosticEvents()
+    {
+        var count = Events.Count;
+        var top = count == 0 ? null : Events[0];
+        var bottom = count == 0 ? null : Events[^1];
+        if (count == _lastAggregatedEventCount &&
+            ReferenceEquals(top, _lastAggregatedTopEvent) &&
+            ReferenceEquals(bottom, _lastAggregatedBottomEvent))
+            return;
+
+        _lastAggregatedEventCount = count;
+        _lastAggregatedTopEvent = top;
+        _lastAggregatedBottomEvent = bottom;
+        var projection = DiagnosticEventSummarizer.Summarize(Events);
+        // Incrementally reconcile at most 200 display rows. Recreating every
+        // ListView item on each arrival would flicker, reset scroll and defeat
+        // the calm design. Raw forensic Events remain untouched.
+        // Match the same keys as the core projection. Comparing full Message
+        // would wrongly append every periodic summary because its total and
+        // latest sample counters change on each emitted report.
+        static bool SameKey(DiagnosticEventItem a, DiagnosticEventItem b) =>
+            a.Severity == b.Severity &&
+            a.SourceText == b.SourceText &&
+            DiagnosticEventSummarizer.GetGroupingText(a.Message) ==
+                DiagnosticEventSummarizer.GetGroupingText(b.Message);
+
+        for (var i = 0; i < projection.Count; i++)
+        {
+            var next = projection[i];
+            var found = -1;
+            for (var j = i; j < _calmDiagnosticEvents.Count; j++)
+            {
+                if (!SameKey(_calmDiagnosticEvents[j], next))
+                    continue;
+                found = j;
+                break;
+            }
+            if (found < 0)
+                _calmDiagnosticEvents.Insert(i, next);
+            else
+            {
+                if (found != i)
+                    _calmDiagnosticEvents.Move(found, i);
+                var existing = _calmDiagnosticEvents[i];
+                if (existing.OccurrenceCount != next.OccurrenceCount ||
+                    existing.TimestampUtc != next.TimestampUtc ||
+                    existing.FirstOccurrenceUtc != next.FirstOccurrenceUtc)
+                    _calmDiagnosticEvents[i] = next;
+            }
+        }
+        while (_calmDiagnosticEvents.Count > projection.Count)
+            _calmDiagnosticEvents.RemoveAt(_calmDiagnosticEvents.Count - 1);
     }
 
     private void BufferDiagnosticEvents(IReadOnlyList<DiagnosticEventItem> events)

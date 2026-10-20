@@ -14,13 +14,15 @@ Process Bus Insight is a receive-only Windows analyzer for IEC 61850 Process Bus
 
 Use a safe capture path such as a TAP, mirror port, or isolated engineering test switch. Avoid connecting an unverified PC directly into a protection-critical path. Install Npcap when raw Ethernet frame capture is required.
 
-## Running the portable package
+## Install, update, or run the portable option
 
-1. Download the latest Windows x64 portable ZIP from GitHub Releases.
-2. Extract it to a local folder, for example `C:\Tools\ProcessBusInsight`.
-3. Run `ProcessBusInsight.exe`.
-4. Select the physical Ethernet adapter connected to the Process Bus traffic.
-5. Start capture.
+1. Obtain `ProcessBusInsight-vX.Y.Z-win-x64-setup.exe` from the official GitHub Releases page and compare its SHA256 with the published manifest.
+2. Close the analyzer before installing or upgrading. Run the Inno Setup installer (administrator privileges are required for Program Files). It retains the previous install directory during in-place upgrades.
+3. Start **Process Bus Insight** from the Windows Start Menu. The installed folder includes **User Manual.pdf**, **Quick Start.pdf**, **Install and Update.md**, and separate offline Bench tools; these do not require network access.
+4. Install Npcap separately for live raw Ethernet capture. If its architecture or native driver is incompatible, the selector reports `Npcap unavailable — capture disabled`; no dummy Ethernet entry is usable for capture.
+5. Select the physical Ethernet adapter connected to an authorized TAP/SPAN/test network, then start capture.
+
+A manual portable ZIP remains available for specialist use. If a same-version installation is damaged, rerun that setup EXE for repair; use Windows Installed apps or the Start Menu to uninstall. This is **operator-initiated updating**, not automatic background updating. The current installer is unsigned, so verify source and SHA256 and follow your organization's software policy.
 
 ## Main workflow
 
@@ -34,7 +36,7 @@ Use a safe capture path such as a TAP, mirror port, or isolated engineering test
 
 ## Sampled Values view
 
-Use the SV workspace to check stream identity, APPID, svID, VLAN, source MAC, continuity counters, waveform, phasor, and metering context. Treat missing stream or mismatch indications as investigation leads, not final protection conclusions until the network capture path is confirmed.
+Use the SV workspace to check stream identity, APPID, svID, VLAN, source MAC, continuity counters, waveform, phasor, and metering context. The phasor plot uses independent voltage/current RMS scales, solid U and dashed I arrows, and an explicit held-state indicator when the stream is stale. An amber **LIVE · WARN** stream badge means samples are arriving but continuity/arrival diagnostics require review; a green waveform LIVE badge signals activity, not clean integrity. Treat missing stream or mismatch indications as investigation leads, not final protection conclusions until the network capture path is confirmed.
 
 ## GOOSE inspector
 
@@ -53,7 +55,7 @@ Load SCD, ICD, or CID files when engineering files are available. The app can co
 Common causes:
 
 - Wrong adapter selected.
-- Npcap is not installed or capture permission is restricted.
+- Npcap is not installed, its native x64 libraries cannot load, or capture permission is restricted.
 - Switch mirror port is not configured correctly.
 - VLAN traffic is not forwarded to the capture port.
 - PC is connected to the wrong network segment.

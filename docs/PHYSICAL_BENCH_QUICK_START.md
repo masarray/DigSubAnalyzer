@@ -1,12 +1,12 @@
 # Physical test quick start — DigSubAnalyzer / Process Bus Insight
 
-This folder is included in the **Windows x64 release candidate ZIP** so the bench
+This folder is included in the **installed Windows x64 application and optional portable ZIP** so the bench
 does not need a .NET SDK. Run only on an authorized, isolated engineering process
 bus. The analyzer is **receive-only** and cannot operate or protect an IED.
 
 ## 1. Run the desktop application
 
-1. Extract the entire ZIP, not just the EXE, to a local folder.
+1. Install the Inno Setup candidate to a local Windows test machine (or extract the entire optional portable ZIP).
 2. Install Npcap separately with appropriate raw Ethernet capture rights.
 3. Run `ProcessBusInsight.exe` in the package root.
 4. Select the verified adapter connected to an independent TAP/SPAN (preserve
@@ -24,7 +24,7 @@ the NIC do **not** establish clock discipline or lock.
 
 ## 2. Screen the same wire recording with the bundled CLI
 
-Open PowerShell in the extracted package directory. Replace file paths with
+Open PowerShell in the installed program directory or extracted package directory. Replace file paths with
 files collected on your **own local bench**:
 
 ```powershell
@@ -72,5 +72,5 @@ Before any **physical acceptance** claim, independently verify:
 
 The detailed step-by-step sign-off matrix is in
 `Bench/M4_ARSTACK_INTEROP_ACCEPTANCE.md`. Record the candidate artifact run
-ID and checksums with your evidence. This candidate is not a stable/certified
+ID and checksums with your evidence. A candidate without documented physical acceptance is not a stable/certified
 release and provides no switching, control or protection-action authority.

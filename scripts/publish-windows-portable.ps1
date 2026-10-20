@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.4.0-beta.2",
+    [string]$Version = "1.4.1",
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$AppName = "ProcessBusInsight",
@@ -14,8 +14,14 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 if ([string]::IsNullOrWhiteSpace($Version)) { throw "Version cannot be empty." }
 
+# Each Inno candidate needs an unambiguous source revision.
+$sourceCommit = (& git rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceCommit.Length -ne 40 -or
+    $sourceCommit -cnotmatch "^[a-f0-9]{40}") {
+    throw "Packaging requires a Git checkout and valid source commit SHA."
+}
 $requiredReleaseDocs = @(
-    "docs/QUICK_START.pdf", "docs/USER_MANUAL.pdf", "LICENSE", "NOTICE",
+    "docs/QUICK_START.md", "docs/USER_MANUAL.md", "docs/INSTALLATION_AND_UPDATE.md", "LICENSE", "NOTICE",
     "COMMERCIAL-LICENSE.md", "COPYRIGHT.md", "TRADEMARK.md",
     "THIRD_PARTY_NOTICES.md", "docs/LICENSING.md"
 )
@@ -30,6 +36,31 @@ if ($licenseText -notmatch 'GNU GENERAL PUBLIC LICENSE' -or $licenseText -notmat
 if (Test-Path (Join-Path $repoRoot "LICENSE-APACHE-2.0")) {
     throw "Historical Apache license must not be staged as a current release license."
 }
+
+# Release PDFs are rendered fresh from the canonical Markdown source and
+# cryptographically tied to the two Markdown files in the same installer.
+# Old tracked PDFs must never silently enter a new public package.
+$manualDir = Join-Path $repoRoot "$OutputRoot/generated-docs"
+$manualManifestPath = Join-Path $manualDir "manual-manifest.json"
+if (-not (Test-Path -LiteralPath $manualManifestPath)) {
+    throw "Current offline PDF manual manifest missing. Run python scripts/render-offline-manuals.py first."
+}
+$manualManifest = Get-Content -LiteralPath $manualManifestPath -Raw | ConvertFrom-Json
+if ($manualManifest.format -ne "ProcessBusInsight-offline-manuals-v1") { throw 'Unsupported manual manifest format.' }
+foreach ($entry in $manualManifest.files) {
+    if ($entry.source -notin @("QUICK_START.md", "USER_MANUAL.md")) {
+        throw "Unexpected manual source: $($entry.source)"
+    }
+    $src = Join-Path $repoRoot ("docs/" + $entry.source)
+    $pdf = Join-Path $manualDir $entry.pdf
+    if (-not (Test-Path -LiteralPath $pdf)) { throw "Missing generated PDF $pdf" }
+    $sourceHash = (Get-FileHash -LiteralPath $src -Algorithm SHA256).Hash
+    $pdfHash = (Get-FileHash -LiteralPath $pdf -Algorithm SHA256).Hash
+    if ($sourceHash -ne $entry.sourceSha256 -or $pdfHash -ne $entry.pdfSha256) {
+        throw "Offline PDF not synchronized with $($entry.source); regenerate manuals."
+    }
+}
+if (@($manualManifest.files).Count -ne 2) { throw "Exactly two offline PDF manuals are required." }
 
 $portableName = "$AppName-v$Version-$Runtime-portable"
 $publishDir = Join-Path $repoRoot "$OutputRoot/publish/$portableName/publish"
@@ -110,17 +141,27 @@ Copy-Item (Join-Path $repoRoot "docs/PHYSICAL_BENCH_QUICK_START.md") (Join-Path 
 
 $packageReadme = @"
 Process Bus Insight / DigSubAnalyzer
-Windows portable package
+Windows self-contained distribution payload
 Version: $Version
 Community license: GPL-3.0-or-later
 
+This payload is packaged both by the Inno Setup installer (recommended)
+and as a separate optional portable ZIP.
+
+INSTALLER: Run the official win-x64-setup.exe. It installs this payload,
+Start Menu shortcuts, offline manuals and uninstaller to Program Files.
+UPDATE: Close the analyzer and run the newer installer (no uninstall needed).
+PORTABLE: Extract the ZIP completely and run $AppName.exe.
+
 1. Install Npcap separately when live raw Ethernet capture is required.
-2. Extract this ZIP to a local folder.
-3. Run $AppName.exe.
-4. Use an authorized TAP, mirror port, or isolated engineering test network.
-5. For physical SV/PTP test evidence read Bench/START_HERE.md.
-6. Bench/ProcessBus.InteropCli.exe works offline and does not need the .NET SDK.
-7. Bench/measure-m4-bench.ps1 records local process CPU/memory during a bench run.
+   Missing/incompatible native Npcap must not produce a fake usable adapter.
+2. Use an authorized TAP, mirror port, or isolated engineering test network.
+3. Read Quick Start.pdf, User Manual.pdf and Install and Update.md offline.
+   Current Markdown editions are included and cryptographically bound to PDFs
+   through ManualSources.json.
+4. For physical SV/PTP evidence read Bench/START_HERE.md.
+5. Bench/ProcessBus.InteropCli.exe works offline without the .NET SDK.
+6. Bench/measure-m4-bench.ps1 records local process CPU/memory.
    A diagnostic broadcast mirror does NOT prove the canonical VLAN SV path.
 
 Included legal documents:
@@ -143,8 +184,12 @@ $copyMap = @(
     @{ Source = "TRADEMARK.md"; Destination = "TRADEMARK.md" },
     @{ Source = "THIRD_PARTY_NOTICES.md"; Destination = "THIRD_PARTY_NOTICES.md" },
     @{ Source = "docs/LICENSING.md"; Destination = "Licensing.md" },
-    @{ Source = "docs/QUICK_START.pdf"; Destination = "Quick Start.pdf" },
-    @{ Source = "docs/USER_MANUAL.pdf"; Destination = "User Manual.pdf" }
+    @{ Source = "$OutputRoot/generated-docs/Quick Start.pdf"; Destination = "Quick Start.pdf" },
+    @{ Source = "$OutputRoot/generated-docs/User Manual.pdf"; Destination = "User Manual.pdf" },
+    @{ Source = "$OutputRoot/generated-docs/manual-manifest.json"; Destination = "ManualSources.json" },
+    @{ Source = "docs/QUICK_START.md"; Destination = "Quick Start.md" },
+    @{ Source = "docs/USER_MANUAL.md"; Destination = "User Manual.md" },
+    @{ Source = "docs/INSTALLATION_AND_UPDATE.md"; Destination = "Install and Update.md" }
 )
 foreach ($item in $copyMap) {
     $source = Join-Path $repoRoot $item.Source
@@ -155,6 +200,17 @@ foreach ($item in $copyMap) {
 if (Test-Path (Join-Path $stageDir "LICENSE-APACHE-2.0")) {
     throw "Historical Apache license must not appear in a current GPL package."
 }
+
+# Include SHA-linked provenance beside the EXE, both in Inno and portable
+# artifacts, so operators can identify a stale or alternate install path.
+$payloadProvenance = [ordered]@{
+    schema = "processbus-build-v1"
+    version = $Version
+    commit = $sourceCommit
+    executableSha256 = (Get-FileHash -LiteralPath (Join-Path $stageDir "$AppName.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+    githubRunId = if ($env:GITHUB_RUN_ID) { $env:GITHUB_RUN_ID } else { "" }
+}
+$payloadProvenance | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $stageDir "BuildInfo.json") -Encoding UTF8
 
 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $stageDir "*") -DestinationPath $zipPath -Force

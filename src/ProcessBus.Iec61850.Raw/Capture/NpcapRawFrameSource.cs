@@ -1,10 +1,17 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using ProcessBus.Core.Services;
 
 namespace ProcessBus.Iec61850.Raw.Capture;
 
 public sealed class NpcapRawFrameSource : IRawFrameSource
 {
+    static NpcapRawFrameSource()
+    {
+        // Capture and catalog resolve exactly the same trusted Npcap binary.
+        NpcapNativeLibrary.RegisterFor(typeof(NpcapRawFrameSource).Assembly);
+    }
+
     private const int SnapshotLength = 65536;
     private const int ReadTimeoutMilliseconds = 100;
     private const int DataLinkEthernet = 1;

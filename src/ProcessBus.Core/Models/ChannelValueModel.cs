@@ -14,6 +14,9 @@ public sealed class ChannelValueModel
     public double? RmsValue { get; init; }
     public double? AngleDegrees { get; init; }
     public string Unit { get; init; } = string.Empty;
+    public ChannelFreshness Freshness { get; init; } = ChannelFreshness.Live;
+    public double FreshnessOpacity => ChannelFreshnessDisplay.Opacity(Freshness);
+    public string FreshnessText => ChannelFreshnessDisplay.Suffix(Freshness);
 
     // The operator ledger keeps the numerical readout and its unit in separate columns.
     // Do not infer V/A when engineering scale authority has not supplied a unit.

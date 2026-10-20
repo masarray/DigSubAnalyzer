@@ -4,6 +4,16 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ## [Unreleased]
 
+### Implemented in release-candidate branch (public stable acceptance pending)
+
+- Unified selected-stream phasor RMS/angle display without UI-side nominal phase overrides; improved six-vector label collisions, separate measured U/I scales, legible 270° convention, stale data and live-with-warning semantics
+- Removed fabricated Ethernet adapter fallback and pinned native Npcap discovery/capture to trusted Windows x64 system library paths
+- Added deterministic phasor, compact-caption, adapter and status regression tests
+- Made Inno Setup self-contained EXE the primary Windows distribution, with same-version repair, in-place upgrade, offline manuals and install/repair/uninstall CI evidence
+- Generated packaged PDF manuals from current Markdown source, with SHA256 provenance and stale-PDF rejection
+- Hardened stable publication to manual main-only authorization after documented physical acceptance; no automatic public release on tag push
+- Physical target-NIC/injector 60-minute acceptance remains pending for the current candidate; earlier 1.3.0 soak evidence does not substitute
+
 ### Planned
 
 - Sanitized golden PCAP/PCAPNG replay corpus with broader interoperability scenarios

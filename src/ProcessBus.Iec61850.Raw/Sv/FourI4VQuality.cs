@@ -10,6 +10,26 @@ public static class FourI4VQuality
 {
     public enum MeasurementState { Good, Test, OperatorBlocked, Untrusted, UnknownLayout }
 
+    /// <summary>
+    /// Read the q word for one explicitly known instMag/q pair. ElementIndex
+    /// denotes the INT32 magnitude, not the byte offset or q element.
+    /// Unknown layouts must never be assessed by an assumed pair ordering.
+    /// </summary>
+    public static MeasurementState AssessChannel(ReadOnlySpan<byte> payload, int elementIndex)
+    {
+        if (payload.Length != 64 || elementIndex < 0 ||
+            elementIndex > 14 || (elementIndex & 1) != 0)
+            return MeasurementState.UnknownLayout;
+
+        var q = BinaryPrimitives.ReadUInt32BigEndian(
+            payload.Slice((elementIndex + 1) * sizeof(int), sizeof(uint)));
+        if ((q & ~((1U << 11) | (1U << 12))) != 0)
+            return MeasurementState.Untrusted;
+        if ((q & (1U << 12)) != 0)
+            return MeasurementState.OperatorBlocked;
+        return (q & (1U << 11)) != 0 ? MeasurementState.Test : MeasurementState.Good;
+    }
+
     public static MeasurementState Assess(ReadOnlySpan<byte> payload)
     {
         if (payload.Length != 64)

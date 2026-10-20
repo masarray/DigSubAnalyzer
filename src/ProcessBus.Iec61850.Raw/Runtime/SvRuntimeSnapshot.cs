@@ -92,6 +92,7 @@ public sealed class SvRuntimeChannelSnapshot
     internal SvRuntimeChannelSnapshot(
         string name,
         string unit,
+        ChannelFreshness freshness,
         double? instantValue,
         double? rmsValue,
         double? angleDegrees,
@@ -104,6 +105,7 @@ public sealed class SvRuntimeChannelSnapshot
     {
         Name = name;
         Unit = unit;
+        Freshness = freshness;
         InstantValue = instantValue;
         RmsValue = rmsValue;
         AngleDegrees = angleDegrees;
@@ -117,6 +119,7 @@ public sealed class SvRuntimeChannelSnapshot
 
     public string Name { get; }
     public string Unit { get; }
+    public ChannelFreshness Freshness { get; }
     public double? InstantValue { get; }
     public double? RmsValue { get; }
     public double? AngleDegrees { get; }
@@ -205,6 +208,7 @@ public static class SvRuntimeSnapshotFactory
             return new SvRuntimeChannelSnapshot(
                 name,
                 analog?.Unit ?? series?.Unit ?? string.Empty,
+                series?.Freshness ?? analog?.Freshness ?? ChannelFreshness.Missing,
                 analog?.InstantValue,
                 analog?.RmsValue,
                 analog?.AngleDegrees,

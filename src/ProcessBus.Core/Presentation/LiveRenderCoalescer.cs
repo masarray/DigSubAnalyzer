@@ -51,8 +51,29 @@ public sealed class LiveRenderCoalescer
         SameChannel(left.Ua, right.Ua) && SameChannel(left.Ub, right.Ub) &&
         SameChannel(left.Uc, right.Uc) && SameChannel(left.Un, right.Un);
 
+    /// <summary>
+    /// Only RMS magnitude, electrical angle and engineering unit define a displayed
+    /// phasor. A new instantaneous SV sample must update the digital readout without
+    /// forcing six arrow/label recalculations when the phasors themselves are unchanged.
+    /// No quantization: genuine small angle or magnitude changes still redraw.
+    /// </summary>
+    public static bool SamePhasors(AnalogValuesSnapshot left, AnalogValuesSnapshot right) =>
+        SamePhasorChannel(left.Ua, right.Ua) &&
+        SamePhasorChannel(left.Ub, right.Ub) &&
+        SamePhasorChannel(left.Uc, right.Uc) &&
+        SamePhasorChannel(left.Ia, right.Ia) &&
+        SamePhasorChannel(left.Ib, right.Ib) &&
+        SamePhasorChannel(left.Ic, right.Ic);
+
+    private static bool SamePhasorChannel(ChannelValueModel a, ChannelValueModel b) =>
+        a.RmsValue == b.RmsValue &&
+        a.Freshness == b.Freshness &&
+        a.AngleDegrees == b.AngleDegrees &&
+        string.Equals(a.Unit, b.Unit, StringComparison.Ordinal);
+
     private static bool SameChannel(ChannelValueModel a, ChannelValueModel b) =>
         a.InstantValue == b.InstantValue && a.RmsValue == b.RmsValue &&
+        a.Freshness == b.Freshness &&
         a.AngleDegrees == b.AngleDegrees &&
         string.Equals(a.Unit, b.Unit, StringComparison.Ordinal);
 
@@ -83,6 +104,7 @@ public sealed class LiveRenderCoalescer
                 x.ShapeResidualPercent != y.ShapeResidualPercent ||
                 x.CrestFactor != y.CrestFactor ||
                 x.HasShapeDistortion != y.HasShapeDistortion ||
+                x.Freshness != y.Freshness ||
                 x.Samples.Count != y.Samples.Count)
                 return false;
 

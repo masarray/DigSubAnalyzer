@@ -117,6 +117,17 @@ public sealed class WaveformPanelControl : FrameworkElement
             typeof(WaveformPanelControl),
             new FrameworkPropertyMetadata("Auto", FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty IsStreamLiveProperty =
+        DependencyProperty.Register(
+            nameof(IsStreamLive), typeof(bool), typeof(WaveformPanelControl),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public bool IsStreamLive
+    {
+        get => (bool)GetValue(IsStreamLiveProperty);
+        set => SetValue(IsStreamLiveProperty, value);
+    }
+
     public WaveformSnapshot? Snapshot
     {
         get => (WaveformSnapshot?)GetValue(SnapshotProperty);
@@ -266,17 +277,34 @@ public sealed class WaveformPanelControl : FrameworkElement
         var legendX = rect.Left + 103;
         foreach (var visible in laneSeries)
         {
-            var legend = CreateText(visible.Name, 10.5, LabelBrush, LabelTypeface);
+            var suffix = ChannelFreshnessDisplay.Suffix(visible.Freshness);
+            var title = suffix.Length == 0 ? visible.Name : visible.Name + " " + suffix;
+            var legend = CreateText(title, 10.5, LabelBrush, LabelTypeface);
+            dc.PushOpacity(TraceOpacity(IsStreamLive, visible.Freshness));
             dc.DrawEllipse(GetSeriesBrush(visible.Name), null,
                 new Point(legendX, rect.Top + 15), 3.5, 3.5);
             dc.DrawText(legend, new Point(legendX + 7, rect.Top + 7));
-            legendX += legend.Width + 25;
+            dc.Pop();
+            legendX += legend.Width + 22;
+        }
+
+        if (!IsStreamLive)
+        {
+            var staleText = CreateText("STALE · last valid samples", 10, ShapeWarningBrush, TitleTypeface);
+            dc.DrawText(staleText,
+                new Point(rect.Right - staleText.Width - 12, rect.Top + 8));
+        }
+        else if (laneSeries.Any(item => item.Freshness != ChannelFreshness.Live))
+        {
+            var held = CreateText("PARTIAL · quality held", 10, ShapeWarningBrush, TitleTypeface);
+            if (legendX + 14 < rect.Right - held.Width - 12)
+                dc.DrawText(held, new Point(rect.Right - held.Width - 12, rect.Top + 8));
         }
 
         DrawGrid(dc, innerRect);
         DrawYAxisScale(dc, innerRect, amplitudeMax, lane.Unit);
 
-        if (laneSeries.Count == 0)
+        if (laneSeries.Count == 0 || laneSeries.All(item => item.Samples.Count < 2))
         {
             DrawCenteredMessage(dc, innerRect, $"{lane.Title} samples pending");
             return;
@@ -284,7 +312,12 @@ public sealed class WaveformPanelControl : FrameworkElement
 
         var stacked = string.Equals(LayoutMode, "Stacked", StringComparison.OrdinalIgnoreCase);
         for (var index = 0; index < laneSeries.Count; index++)
-            DrawSeries(dc, innerRect, laneSeries[index], amplitudeMax, stacked, index, laneSeries.Count);
+        {
+            var trace = laneSeries[index];
+            dc.PushOpacity(TraceOpacity(IsStreamLive, trace.Freshness));
+            DrawSeries(dc, innerRect, trace, amplitudeMax, stacked, index, laneSeries.Count);
+            dc.Pop();
+        }
 
         // Inspection overlay is interactive only: never obstruct live curves
         // with a permanent cursor/tooltip when the operator is not inspecting.
@@ -320,10 +353,13 @@ public sealed class WaveformPanelControl : FrameworkElement
                     ShapeStatusText = item.ShapeStatusText,
                     ShapeResidualPercent = item.ShapeResidualPercent,
                     CrestFactor = item.CrestFactor,
-                    HasShapeDistortion = item.HasShapeDistortion
+                    HasShapeDistortion = item.HasShapeDistortion,
+                    Freshness = item.Freshness
                 };
             })
-            .Where(item => item.Samples.Count >= 2)
+            // Keep missing/held identities for honest per-phase legends; only
+            // trusted valid points are rendered as bright, live waveform.
+            .Where(item => item.Samples.Count >= 2 || item.Freshness != ChannelFreshness.Live)
             .ToArray();
     }
 
@@ -412,11 +448,21 @@ public sealed class WaveformPanelControl : FrameworkElement
         if (hasPhysicalUnits && !isVoltage && TryParseCurrentScalePeak(scaleText, out var fixedCurrentPeak))
             return Math.Max(fixedCurrentPeak, 1.0);
 
-        var observedPeak = ResolveRobustObservedPeak(series);
+        // Held channels must not drive the fresh auto-range. If the entire
+        // publisher stopped, keep its last range: no false auto-zoom on hold.
+        var savedPeak = isVoltage ? _voltageAutoPeak : _currentAutoPeak;
+        if (!IsStreamLive && savedPeak > 0)
+            return savedPeak;
+
+        var trusted = series.Where(item => item.Freshness == ChannelFreshness.Live).ToArray();
+        if (trusted.Length == 0 && savedPeak > 0)
+            return savedPeak;
+        var amplitudeSeries = trusted.Length > 0 ? trusted : series;
+        var observedPeak = ResolveRobustObservedPeak(amplitudeSeries);
 
         observedPeak = Math.Max(observedPeak, 1.0);
 
-        var rmsPeakEstimate = ResolveRmsBasedPeak(series);
+        var rmsPeakEstimate = ResolveRmsBasedPeak(amplitudeSeries);
         var targetPeak = Math.Max(observedPeak * 1.08, rmsPeakEstimate * AutoScaleHeadroom);
         targetPeak = Math.Max(targetPeak, 1.0);
 
@@ -990,6 +1036,10 @@ public sealed class WaveformPanelControl : FrameworkElement
         dc.DrawText(CreateText(sampleRateText, 10.5, MutedBrush, LabelTypeface), new Point(rect.Left, rect.Bottom + 3));
         dc.DrawText(CreateText(frequencyText, 10.5, MutedBrush, LabelTypeface), new Point(rect.Right - 106, rect.Bottom + 3));
     }
+
+    // Presentation only: no fade animations/timers or per-sample state.
+    public static double TraceOpacity(bool streamLive, ChannelFreshness freshness) =>
+        streamLive ? ChannelFreshnessDisplay.Opacity(freshness) : 0.38;
 
     private static Brush GetSeriesBrush(string name)
     {

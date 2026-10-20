@@ -1,0 +1,48 @@
+name: Publish approved Process Bus Insight v1.4.1 stable
+
+# Single-use, source-controlled publication approval. Not every commit or tag
+# can publish a release. The marker is created after the reviewed PR is merged.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/release/v1.4.1.approved"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch_stable:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check immutable release identity
+        id: existing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v1.4.1 --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v1.4.1 already exists, refusing to replace assets."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch Windows stable release
+        if: steps.existing.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh workflow run release-package.yml --repo "$GH_REPO" --ref main \
+            -f version=1.4.1 \
+            -f publish_release=true \
+            -f prerelease=false \
+            -f draft=false \
+            -f release_notes_file=docs/RELEASE_NOTES_v1.4.1.md
+          echo "Dispatched approved public stable v1.4.1 release."

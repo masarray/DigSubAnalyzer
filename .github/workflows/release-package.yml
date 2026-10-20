@@ -1,14 +1,14 @@
-name: Release Windows portable package
+name: Release Windows installer and portable package
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version label, for example 1.4.0
+        description: Version label, for example 1.4.1
         required: true
-        default: 1.4.0
+        default: 1.4.1
       publish_release:
-        description: Create or update a GitHub Release
+        description: Publish GitHub Release after successful validation (manual only)
         required: true
         default: false
         type: boolean
@@ -25,7 +25,7 @@ on:
       release_notes_file:
         description: Markdown file used as release body
         required: true
-        default: docs/RELEASE_NOTES_v1.4.0.md
+        default: docs/RELEASE_NOTES_v1.4.1.md
   push:
     tags:
       - "v*"
@@ -45,7 +45,7 @@ jobs:
   package:
     name: Validate and package Windows x64
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
 
     steps:
       - name: Checkout
@@ -70,9 +70,27 @@ jobs:
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Release version: $version"
 
+      # A stable label identifies a supported community software build,
+      # NOT an IEC 61850 conformance certificate or calibrated bench result.
+      # Keep publication explicit and main-only; field FAT is transparently
+      # described in notes, but is not a gate to open-source distribution.
+      - name: Public release main branch gate
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
+        shell: pwsh
+        env:
+          RUN_REF: ${{ github.ref }}
+        run: |
+          if ($env:RUN_REF -ne 'refs/heads/main') {
+            throw 'Public release must be built from validated main.'
+          }
+
       - name: Repository health gate
         shell: pwsh
         run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
+
+      - name: Workspace spacing geometry gate
+        shell: pwsh
+        run: .\scripts\verify-workspace-spacing.ps1
 
       - name: Restore
         run: dotnet restore .\ProcessBusSuite.sln
@@ -82,6 +100,14 @@ jobs:
 
       - name: Test
         run: dotnet test .\ProcessBusSuite.sln -c Release --no-build --logger "trx;LogFileName=release-tests.trx" --results-directory .\TestResults
+
+      - name: Generate current offline PDF manuals
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check reportlab==4.4.9
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned ReportLab PDF build dependency unavailable.' }
+          python .\scripts\render-offline-manuals.py
+          if ($LASTEXITCODE -ne 0) { throw 'Offline manual PDF generation failed.' }
 
       - name: Publish portable package
         shell: pwsh
@@ -93,6 +119,24 @@ jobs:
           $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
           .\scripts\verify-release-package.ps1 -PackageZip $zip
 
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler installation failed.' }
+
+      - name: Compile Inno installer
+        shell: pwsh
+        run: .\scripts\publish-windows-installer.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - name: Smoke test Inno installation and repair
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $installer = ".\artifacts\release\ProcessBusInsight-v$version-win-x64-setup.exe"
+          $stage = ".\artifacts\package\ProcessBusInsight-v$version-win-x64-portable"
+          .\scripts\verify-windows-installer.ps1 -Installer $installer -StageDir $stage
+
       - name: Create release manifest
         shell: pwsh
         run: |
@@ -102,6 +146,11 @@ jobs:
             commit = '${{ github.sha }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
+            primaryDistribution = 'inno-setup-exe'
+            secondaryDistribution = 'portable-zip'
+            offlineManuals = @('User Manual.pdf', 'Quick Start.pdf')
+            upgradeMode = 'stable-inno-appid-in-place-repair'
+            installerSigned = $false
             communityLicense = 'GPL-3.0-or-later'
             historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -111,8 +160,9 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable
+          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-installer-and-portable
           path: |
+            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-setup.exe
             artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
             artifacts/release/SHA256SUMS.txt
             artifacts/release/release-manifest.json
@@ -121,7 +171,7 @@ jobs:
           retention-days: 30
 
       - name: Publish GitHub Release
-        if: ${{ github.event_name == 'push' || github.event.inputs.publish_release == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,24 +179,25 @@ jobs:
           $version = '${{ steps.version.outputs.value }}'
           $tag = "v$version"
           $zip = "artifacts/release/ProcessBusInsight-v$version-win-x64-portable.zip"
+          $installer = "artifacts/release/ProcessBusInsight-v$version-win-x64-setup.exe"
           $sha = "artifacts/release/SHA256SUMS.txt"
           $manifest = "artifacts/release/release-manifest.json"
           $notesFile = '${{ github.event.inputs.release_notes_file }}'
-          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.0.md' }
+          if ([string]::IsNullOrWhiteSpace($notesFile)) { $notesFile = 'docs/RELEASE_NOTES_v1.4.1.md' }
           if (-not (Test-Path $notesFile)) { throw "Release notes file not found: $notesFile" }
 
-          $releaseArgs = @('release', 'create', $tag, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
+          $releaseArgs = @('release', 'create', $tag, $installer, $zip, $sha, $manifest, '--title', "Process Bus Insight $tag", '--notes-file', $notesFile, '--target', '${{ github.sha }}')
           $isDraft = '${{ github.event.inputs.draft }}'
           $isPrerelease = '${{ github.event.inputs.prerelease }}'
-          if ('${{ github.event_name }}' -eq 'push') {
-            $isPrerelease = if ($version -match '-') { 'true' } else { 'false' }
-          }
+          # A pre-release version must always remain a prerelease.
+          if ($version -match '-') { $isPrerelease = 'true' }
           if ($isDraft -eq 'true') { $releaseArgs += '--draft' }
           if ($isPrerelease -eq 'true') { $releaseArgs += '--prerelease' }
 
+          # Immutable release identity: never overwrite a published historical
+          # EXE/ZIP/checksum with a new binary under the same semver tag.
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $zip $sha $manifest --clobber
-          } else {
-            gh @releaseArgs
+            throw "Release $tag already exists. Bump VersionPrefix; public assets are immutable."
           }
+          gh @releaseArgs

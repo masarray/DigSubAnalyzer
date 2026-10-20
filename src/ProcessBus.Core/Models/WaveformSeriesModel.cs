@@ -4,6 +4,7 @@ public sealed class WaveformSeriesModel
 {
     public required string Name { get; init; }
     public string Unit { get; init; } = string.Empty;
+    public ChannelFreshness Freshness { get; init; } = ChannelFreshness.Live;
     public IReadOnlyList<double> Samples { get; init; } = Array.Empty<double>();
     public string ShapeSeverity { get; init; } = "Unknown";
     public string ShapeStatusText { get; init; } = "Shape pending";

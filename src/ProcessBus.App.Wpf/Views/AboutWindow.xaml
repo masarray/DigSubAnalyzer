@@ -263,14 +263,24 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="18,0,0,0">
-                    <TextBlock Text="Version 1.0.0"
+                    <TextBlock x:Name="InstalledVersionText"
+                               Text="Version unknown"
                                Foreground="{StaticResource TextMain}"
                                FontWeight="SemiBold"
                                HorizontalAlignment="Right"/>
-                    <TextBlock Text="Build 2026.04"
+                    <TextBlock x:Name="InstalledBuildText"
+                               Text="Build provenance unavailable"
                                Foreground="{StaticResource TextMuted}"
-                               FontSize="12"
+                               FontSize="11"
                                HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="InstalledPathText"
+                               Text="Executable location unavailable"
+                               Foreground="{StaticResource TextMuted}"
+                               FontSize="10"
+                               MaxWidth="260"
+                               TextTrimming="CharacterEllipsis"
+                               HorizontalAlignment="Right"
+                               ToolTipService.ShowDuration="30000"/>
                 </StackPanel>
             </Grid>
         </Border>

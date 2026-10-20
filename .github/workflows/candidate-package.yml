@@ -15,8 +15,17 @@ on:
       - "src/**"
       - "tests/**"
       - "scripts/publish-windows-portable.ps1"
+      - "scripts/publish-windows-installer.ps1"
+      - "scripts/render-offline-manuals.py"
+      - "docs/USER_MANUAL.md"
+      - "docs/QUICK_START.md"
+      - "docs/INSTALLATION_AND_UPDATE.md"
+      - "docs/RELEASE_PACKAGING.md"
+      - "scripts/verify-windows-installer.ps1"
+      - "installer/**"
       - "scripts/verify-release-package.ps1"
       - "scripts/repository-health.ps1"
+      - "scripts/verify-workspace-spacing.ps1"
       - "docs/RELEASE_NOTES_v*.md"
       - ".github/workflows/candidate-package.yml"
       - ".github/workflows/release-package.yml"
@@ -38,7 +47,7 @@ jobs:
     name: Build verified Windows x64 candidate
     if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'stabilization/') || startsWith(github.head_ref, 'architecture/') || startsWith(github.head_ref, 'legal/') || startsWith(github.head_ref, 'fix/') || startsWith(github.head_ref, 'feat/')
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
 
     steps:
       - name: Checkout
@@ -66,9 +75,37 @@ jobs:
           "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Candidate version: $version"
 
+      - name: Reject already-published version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.version.outputs.value }}"
+          # GitHub CLI exits 1 for an expected 404. On modern PowerShell runners
+          # a failed native command can terminate the step BEFORE LASTEXITCODE
+          # is inspected. Query the REST status explicitly; 404 is an unused
+          # version, 200 is already published, and other statuses fail closed.
+          $uri = "https://api.github.com/repos/${{ github.repository }}/releases/tags/$tag"
+          $response = Invoke-WebRequest -Uri $uri -Method Get -SkipHttpErrorCheck -Headers @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          if ($response.StatusCode -eq 200) {
+            throw "Version $tag was already published. Bump VersionPrefix; never replace historical public binaries."
+          }
+          if ($response.StatusCode -ne 404) {
+            throw "Unable to establish release-version availability: HTTP $($response.StatusCode)."
+          }
+          Write-Host "Unused release version verified: $tag"
+
       - name: Repository health gate
         shell: pwsh
         run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
+
+      - name: Workspace spacing geometry gate
+        shell: pwsh
+        run: .\scripts\verify-workspace-spacing.ps1
 
       - name: Restore
         run: dotnet restore .\ProcessBusSuite.sln
@@ -79,6 +116,14 @@ jobs:
       - name: Test
         run: dotnet test .\ProcessBusSuite.sln -c Release --no-build --logger "trx;LogFileName=candidate-tests.trx" --results-directory .\TestResults
 
+      - name: Generate current offline PDF manuals
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check reportlab==4.4.9
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned ReportLab PDF build dependency unavailable.' }
+          python .\scripts\render-offline-manuals.py
+          if ($LASTEXITCODE -ne 0) { throw 'Offline manual PDF generation failed.' }
+
       - name: Publish portable package
         shell: pwsh
         run: .\scripts\publish-windows-portable.ps1 -Version '${{ steps.version.outputs.value }}' -Configuration Release -Runtime win-x64
@@ -88,6 +133,24 @@ jobs:
         run: |
           $zip = ".\artifacts\release\ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip"
           .\scripts\verify-release-package.ps1 -PackageZip $zip
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler installation failed.' }
+
+      - name: Compile Inno installer
+        shell: pwsh
+        run: .\scripts\publish-windows-installer.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - name: Smoke test Inno installation and repair
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $installer = ".\artifacts\release\ProcessBusInsight-v$version-win-x64-setup.exe"
+          $stage = ".\artifacts\package\ProcessBusInsight-v$version-win-x64-portable"
+          .\scripts\verify-windows-installer.ps1 -Installer $installer -StageDir $stage
 
       - name: Create candidate manifest
         shell: pwsh
@@ -100,6 +163,10 @@ jobs:
             sourceRef = '${{ github.head_ref || github.ref_name }}'
             runtime = 'win-x64'
             framework = 'net8.0-windows'
+            primaryDistribution = 'inno-setup-exe'
+            offlineManuals = @('User Manual.pdf', 'Quick Start.pdf')
+            upgradeMode = 'stable-inno-appid-in-place-repair'
+            installerSigned = $false
             communityLicense = 'GPL-3.0-or-later'
             historicalBoundary = '85d43a0fe58a5888a9e8008c168ab76d2333ea87'
             timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -109,9 +176,9 @@ jobs:
       - name: Upload verified candidate
         uses: actions/upload-artifact@v7
         with:
-          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-candidate-${{ github.run_number }}
+          name: ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-inno-candidate-${{ github.run_number }}
           path: |
-            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-portable.zip
+            artifacts/release/ProcessBusInsight-v${{ steps.version.outputs.value }}-win-x64-setup.exe
             artifacts/release/SHA256SUMS.txt
             artifacts/release/candidate-manifest.json
             TestResults/**

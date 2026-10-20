@@ -2,15 +2,22 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using ProcessBus.Core.Models;
+using ProcessBus.Core.Presentation;
 
 namespace ProcessBus.App.Wpf.Controls;
 
+/// <summary>
+/// A strictly presentational six-vector plot. Angles and magnitudes come ONLY from
+/// the selected stream's engineering snapshot; no nominal templates, tweening,
+/// phase correction, or packet-rate redraws are performed by this control.
+/// </summary>
 public sealed class PhasorDiagramControl : FrameworkElement
 {
     private const double VoltageRadiusFactor = 0.96;
-    private const double CurrentRadiusFactor = 0.78;
-    private const double VoltageLineThickness = 3.2;
-    private const double CurrentLineThickness = 2.8;
+    private const double CurrentRadiusFactor = 0.73;
+    private const double VoltageLineThickness = 2.7;
+    private const double CurrentLineThickness = 2.4;
+
     private IReadOnlyList<PhasorDisplayItem> _visualItems = Array.Empty<PhasorDisplayItem>();
 
     public static readonly DependencyProperty ItemsSourceProperty =
@@ -23,26 +30,67 @@ public sealed class PhasorDiagramControl : FrameworkElement
                 FrameworkPropertyMetadataOptions.AffectsRender,
                 OnItemsSourceChanged));
 
-    private static readonly double[] RingFractions = [0.25, 0.5, 0.75, 1.0];
+    public static readonly DependencyProperty IsStreamLiveProperty =
+        DependencyProperty.Register(
+            nameof(IsStreamLive),
+            typeof(bool),
+            typeof(PhasorDiagramControl),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     private static readonly Brush PanelBrush = CreateBrush("#0C1B2B");
-    private static readonly Brush TextPrimaryBrush = CreateBrush("#EAF3FF");
     private static readonly Brush TextSecondaryBrush = CreateBrush("#A7B8CB");
     private static readonly Brush TextMutedBrush = CreateBrush("#7E93AA");
+    private static readonly Brush StaleBrush = CreateBrush("#F0B533");
     private static readonly Brush OriginBrush = CreateBrush("#EAF3FF");
+    private static readonly Brush OriginInnerBrush = CreateBrush("#1D8FFF");
 
-    private static readonly Brush PhaseRBrush = CreateBrush("#E3263A");
+    private static readonly Brush PhaseRBrush = CreateBrush("#F02D4A");
     private static readonly Brush PhaseSBrush = CreateBrush("#F5B400");
-    private static readonly Brush PhaseTBrush = CreateBrush("#1E7BD6");
+    private static readonly Brush PhaseTBrush = CreateBrush("#258DF4");
 
-    private static readonly Pen OuterBorderPen = CreatePen("#1D8FFF", 1.55);
-    private static readonly Pen RingPen = CreatePen("#28445E", 1.0, [4.0, 6.0]);
-    private static readonly Pen AxisPen = CreatePen("#45627E", 1.35);
-    private static readonly Pen DiagonalPen = CreatePen("#1D344E", 0.9, [3.0, 5.0]);
+    private static readonly Pen OuterBorderPen = CreatePen(CreateBrush("#1D8FFF"), 1.4);
+    private static readonly Pen RingPen = CreatePen(CreateBrush("#28445E"), 1.0, [3.0, 5.0]);
+    private static readonly Pen AxisPen = CreatePen(CreateBrush("#45627E"), 1.2);
+    private static readonly Pen DiagonalPen = CreatePen(CreateBrush("#1D344E"), 0.85, [2.5, 5.0]);
+    // Tinted, hairline leaders: voltage solid and current dashed, matching
+    // their respective arrow families. Cached/frozen like all plot pens.
+    private static readonly Pen[] VoltageLeaderPens =
+    [
+        CreatePen(CreateBrush("#A86877"), 0.95),
+        CreatePen(CreateBrush("#C0A055"), 0.95),
+        CreatePen(CreateBrush("#729FC8"), 0.95)
+    ];
+    private static readonly Pen[] CurrentLeaderPens =
+    [
+        CreatePen(CreateBrush("#A86877"), 1.05, [2.0, 2.0]),
+        CreatePen(CreateBrush("#C0A055"), 1.05, [2.0, 2.0]),
+        CreatePen(CreateBrush("#729FC8"), 1.05, [2.0, 2.0])
+    ];
+    private static readonly Pen[] VoltagePens =
+    [
+        CreatePen(PhaseRBrush, VoltageLineThickness),
+        CreatePen(PhaseSBrush, VoltageLineThickness),
+        CreatePen(PhaseTBrush, VoltageLineThickness)
+    ];
+    private static readonly Pen[] CurrentPens =
+    [
+        CreatePen(PhaseRBrush, CurrentLineThickness, [3.0, 1.8]),
+        CreatePen(PhaseSBrush, CurrentLineThickness, [3.0, 1.8]),
+        CreatePen(PhaseTBrush, CurrentLineThickness, [3.0, 1.8])
+    ];
+    private static readonly Pen[] CurrentArrowPens =
+    [
+        CreatePen(PhaseRBrush, CurrentLineThickness),
+        CreatePen(PhaseSBrush, CurrentLineThickness),
+        CreatePen(PhaseTBrush, CurrentLineThickness)
+    ];
 
-    private static readonly Typeface TitleTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-    private static readonly Typeface LabelTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-    private static readonly Typeface BodyTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+    private static readonly Typeface LabelTypeface =
+        new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+    private static readonly Typeface BodyTypeface =
+        new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+
+    private readonly record struct RenderedVector(PhasorDisplayItem Item, Point Tip, Brush Brush, FormattedText Label);
 
     public IEnumerable<PhasorDisplayItem>? ItemsSource
     {
@@ -50,271 +98,246 @@ public sealed class PhasorDiagramControl : FrameworkElement
         set => SetValue(ItemsSourceProperty, value);
     }
 
-    public PhasorDiagramControl()
+    /// <summary>
+    /// False means the arrows are a historical HOLD, not evidence of live traffic.
+    /// This flag is bound to the selected SV stream's existing IsActive state.
+    /// </summary>
+    public bool IsStreamLive
     {
-        // Deliberately no vector tweening here. Protection/substation phasors must show
-        // the latest computed state immediately; animation hides real state changes.
+        get => (bool)GetValue(IsStreamLiveProperty);
+        set => SetValue(IsStreamLiveProperty, value);
     }
 
-    private static void OnItemsSourceChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs args)
+    private static void OnItemsSourceChanged(DependencyObject obj, DependencyPropertyChangedEventArgs args)
     {
-        if (dependencyObject is not PhasorDiagramControl control)
+        if (obj is not PhasorDiagramControl control)
             return;
 
-        var next = ((IEnumerable<PhasorDisplayItem>?)args.NewValue)?.ToArray() ?? [];
-        // ARSVIN-style receiver behavior: phasor vectors are not animated/tweened.
-        // The view renders the latest computed RMS/angle snapshot directly, so a publisher
-        // phase/state change is visible on the next UI tick instead of taking seconds to settle.
-        control._visualItems = next;
-        control.InvalidateVisual();
+        // Copy just the small selected-stream presentation list when it changes.
+        // Do not re-enumerate, allocate brushes/pens, or transform packets on repaint.
+        control._visualItems = ((IEnumerable<PhasorDisplayItem>?)args.NewValue)?.ToArray() ?? [];
     }
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        var width = double.IsInfinity(availableSize.Width) ? 360 : availableSize.Width;
-        var height = double.IsInfinity(availableSize.Height) ? 360 : availableSize.Height;
-        // Do not impose 280px into a 210px high WPF row: the previous desired
-        // size overflowed its clip and cut off vectors / phase labels.
-        return new Size(Math.Max(120, width), Math.Max(140, height));
+        // Respect constrained WPF rows; requesting a larger plot causes label clipping.
+        var width = double.IsInfinity(availableSize.Width) ? 290 : Math.Max(0, availableSize.Width);
+        var height = double.IsInfinity(availableSize.Height) ? 245 : Math.Max(0, availableSize.Height);
+        return new Size(width, height);
     }
 
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
 
-        var bounds = new Rect(new Point(0, 0), RenderSize);
-        dc.DrawRectangle(PanelBrush, null, bounds);
+        var width = RenderSize.Width;
+        var height = RenderSize.Height;
+        dc.DrawRectangle(PanelBrush, null, new Rect(0, 0, width, height));
+        if (width < 130 || height < 130)
+            return;
 
-        var items = _visualItems.Count > 0
-            ? _visualItems.ToArray()
-            : ItemsSource?.ToArray() ?? [];
-        var validItems = items.Where(static item => item.HasValue).ToArray();
-
-        var voltageMax = validItems.Where(static item => item.Family == PhasorFamily.Voltage)
-            .Select(static item => item.Magnitude!.Value)
-            .DefaultIfEmpty()
-            .Max();
-
-        var currentMax = validItems.Where(static item => item.Family == PhasorFamily.Current)
-            .Select(static item => item.Magnitude!.Value)
-            .DefaultIfEmpty()
-            .Max();
-
-        var plotRect = new Rect(
-            bounds.Left + 10,
-            bounds.Top + 10,
-            Math.Max(120, bounds.Width - 20),
-            Math.Max(150, bounds.Height - 20));
-
-        var center = new Point(
-            plotRect.Left + plotRect.Width / 2.0,
-            plotRect.Top + plotRect.Height / 2.0);
-
-        var radius = Math.Max(0, Math.Min(plotRect.Width, plotRect.Height) / 2.0 - 24.0);
+        // Reserve side rails for collision-free labels, rather than letting text
+        // overlap the arrows or escape beyond the narrow analyzer workspace.
+        var center = new Point(width / 2.0, height / 2.0 - 2);
+        var radius = Math.Max(0, Math.Min(width / 2.0 - 69, height / 2.0 - 35));
+        if (radius < 12)
+            return;
 
         DrawGrid(dc, center, radius);
 
-        if (validItems.Length == 0)
+        var voltageMax = 0.0;
+        var currentMax = 0.0;
+        foreach (var item in _visualItems)
+        {
+            if (!IsRenderable(item))
+                continue;
+            if (item.Family == PhasorFamily.Voltage)
+                voltageMax = Math.Max(voltageMax, item.Magnitude!.Value);
+            else
+                currentMax = Math.Max(currentMax, item.Magnitude!.Value);
+        }
+
+        if (voltageMax <= 0 && currentMax <= 0)
         {
             DrawCenteredMessage(dc, center, "Phasor data pending");
             return;
         }
 
-        DrawSoftOriginGlow(dc, center);
-
-        foreach (var item in validItems)
-            DrawPhasor(dc, bounds, center, radius, item, voltageMax, currentMax);
-
-    }
-
-    private static void DrawGrid(DrawingContext dc, Point center, double radius)
-    {
-        if (radius <= 10)
-            return;
-
-        // soft outer glow
-        dc.DrawEllipse(null, CreatePen("#0D3357", 5.0), center, radius + 1.0, radius + 1.0);
-
-        foreach (var fraction in RingFractions)
+        var vectors = new List<RenderedVector>(6);
+        dc.PushOpacity(IsStreamLive ? 1.0 : 0.42);
+        foreach (var item in _visualItems)
         {
-            var pen = Math.Abs(fraction - 1.0) < 0.001 ? OuterBorderPen : RingPen;
-            dc.DrawEllipse(null, pen, center, radius * fraction, radius * fraction);
+            if (!IsRenderable(item))
+                continue;
+
+            var maximum = item.Family == PhasorFamily.Voltage ? voltageMax : currentMax;
+            if (maximum <= 0)
+                continue;
+
+            // U and I use independent normalized radii. Never compare V with A
+            // numerically or infer absolute magnitudes from the same circle.
+            var fraction = Math.Clamp(item.Magnitude!.Value / maximum, 0.0, 1.0);
+            var range = item.Family == PhasorFamily.Voltage
+                ? VoltageRadiusFactor : CurrentRadiusFactor;
+            var radians = item.AngleDegrees!.Value * Math.PI / 180.0;
+            var length = radius * range * fraction;
+            var tip = new Point(
+                center.X + length * Math.Cos(radians),
+                center.Y - length * Math.Sin(radians));
+            var phase = PhaseIndex(item.Name);
+            var brush = PhaseBrush(phase);
+            var pen = item.Family == PhasorFamily.Voltage ? VoltagePens[phase] : CurrentPens[phase];
+            var arrowPen = item.Family == PhasorFamily.Voltage ? pen : CurrentArrowPens[phase];
+
+            dc.PushOpacity(ChannelFreshnessDisplay.Opacity(item.Freshness));
+            dc.DrawLine(pen, center, tip);
+            DrawArrow(dc, center, tip, arrowPen, item.Family == PhasorFamily.Voltage ? 9.5 : 8.0);
+            dc.Pop();
+            vectors.Add(new RenderedVector(item, tip, brush,
+                CreateText(ToPhaseLabel(item.Name), 11.0, brush, LabelTypeface)));
         }
 
-        dc.DrawLine(AxisPen, new Point(center.X - radius, center.Y), new Point(center.X + radius, center.Y));
-        dc.DrawLine(AxisPen, new Point(center.X, center.Y - radius), new Point(center.X, center.Y + radius));
+        dc.DrawEllipse(OriginInnerBrush, null, center, 4.2, 4.2);
+        dc.DrawEllipse(OriginBrush, null, center, 2.25, 2.25);
 
-        var diagonalOffset = radius / Math.Sqrt(2.0);
-        dc.DrawLine(DiagonalPen, new Point(center.X - diagonalOffset, center.Y - diagonalOffset), new Point(center.X + diagonalOffset, center.Y + diagonalOffset));
-        dc.DrawLine(DiagonalPen, new Point(center.X + diagonalOffset, center.Y - diagonalOffset), new Point(center.X - diagonalOffset, center.Y + diagonalOffset));
-
-        DrawSmallText(dc, "0°", new Point(center.X + radius + 6, center.Y - 10), TextMutedBrush);
-        DrawSmallText(dc, "+90°", new Point(center.X - 16, center.Y - radius - 20), TextMutedBrush);
-        DrawSmallText(dc, "180°", new Point(center.X - radius - 38, center.Y - 10), TextMutedBrush);
-        DrawSmallText(dc, "-90°", new Point(center.X - 16, center.Y + radius + 4), TextMutedBrush);
-    }
-
-    private static void DrawSoftOriginGlow(DrawingContext dc, Point center)
-    {
-        dc.DrawEllipse(CreateBrush("#123F68"), null, center, 10.0, 10.0);
-        dc.DrawEllipse(CreateBrush("#1D8FFF"), null, center, 6.2, 6.2);
-        dc.DrawEllipse(OriginBrush, null, center, 4.0, 4.0);
-    }
-
-    private static void DrawPhasor(DrawingContext dc, Rect bounds, Point center, double radius, PhasorDisplayItem item, double voltageMax, double currentMax)
-    {
-        var maxMagnitude = item.Family == PhasorFamily.Voltage ? voltageMax : currentMax;
-        if (maxMagnitude <= 0)
-            return;
-
-        var normalized = Math.Clamp(item.Magnitude!.Value / maxMagnitude, 0.0, 1.0);
-
-        var familyRadius = item.Family == PhasorFamily.Voltage
-            ? radius * VoltageRadiusFactor
-            : radius * CurrentRadiusFactor;
-
-        var visualLength = familyRadius * normalized;
-        var radians = item.AngleDegrees!.Value * Math.PI / 180.0;
-
-        var end = new Point(
-            center.X + visualLength * Math.Cos(radians),
-            center.Y - visualLength * Math.Sin(radians));
-
-        var brush = GetBrush(item);
-        var glowPen = new Pen(CloneWithOpacity(brush, 0.20), item.Family == PhasorFamily.Voltage ? 8.0 : 6.5)
+        var anchors = new PhasorLabelAnchor[vectors.Count];
+        for (var i = 0; i < vectors.Count; i++)
         {
-            StartLineCap = PenLineCap.Round,
-            EndLineCap = PenLineCap.Round
-        };
-        glowPen.Freeze();
+            var vector = vectors[i];
+            anchors[i] = new PhasorLabelAnchor(
+                vector.Tip.X, vector.Tip.Y,
+                vector.Label.Width, vector.Label.Height,
+                vector.Tip.X >= center.X,
+                vector.Item.Family == PhasorFamily.Current);
+        }
 
-        var pen = CreateVectorPen(item, brush);
+        // Reserve two footer rows so label packing never obscures scale readouts.
+        var positions = PhasorLabelLayout.Arrange(anchors, width, height,
+            topPadding: IsStreamLive ? 18 : 30,
+            bottomPadding: 42);
 
-        dc.DrawLine(glowPen, center, end);
-        dc.DrawLine(pen, center, end);
+        for (var i = 0; i < vectors.Count; i++)
+        {
+            var vector = vectors[i];
+            var position = positions[i];
+            dc.PushOpacity(ChannelFreshnessDisplay.Opacity(vector.Item.Freshness));
+            var route = PhasorCalloutRouting.Route(
+                new PhasorCalloutPoint(vector.Tip.X, vector.Tip.Y),
+                position, vector.Label.Width, vector.Label.Height, anchors[i].Right);
+            var phase = PhaseIndex(vector.Item.Name);
+            var leaderPen = vector.Item.Family == PhasorFamily.Voltage
+                ? VoltageLeaderPens[phase] : CurrentLeaderPens[phase];
 
-        DrawArrowHead(dc, center, end, brush, item.Family == PhasorFamily.Voltage ? 17.0 : 15.0);
-        DrawVectorLabel(dc, bounds, item, center, end, brush);
+            // Always start at the actual measured vector TIP. Each fasor owns
+            // its route; even collinear Ua/Ia may never share an invented anchor.
+            // The elbow separates labels without drawing across the shaft.
+            dc.DrawLine(leaderPen,
+                new Point(route.Tip.X, route.Tip.Y),
+                new Point(route.Knee.X, route.Knee.Y));
+            dc.DrawLine(leaderPen,
+                new Point(route.Knee.X, route.Knee.Y),
+                new Point(route.LabelEdge.X, route.LabelEdge.Y));
+            dc.DrawText(vector.Label, new Point(position.X, position.Y));
+            dc.Pop();
+        }
+        dc.Pop();
+
+        // Numeric scale evidence comes from the SAME six vectors as arrows.
+        // This footer is a visual reference (per-family maximum), not a
+        // calibration claim or one shared physical voltage/current scale.
+        var voltageUnit = _visualItems.FirstOrDefault(item =>
+            item.Family == PhasorFamily.Voltage && IsRenderable(item))?.Unit ?? "V";
+        var currentUnit = _visualItems.FirstOrDefault(item =>
+            item.Family == PhasorFamily.Current && IsRenderable(item))?.Unit ?? "A";
+        var voltageScaleText = PhasorScaleCaption.Format("U", voltageMax, voltageUnit);
+        var currentScaleText = PhasorScaleCaption.Format("I", currentMax, currentUnit);
+        DrawText(dc, $"{voltageScaleText}   ·   {currentScaleText}",
+            10.0, new Point(6, height - 31), TextSecondaryBrush, BodyTypeface);
+        DrawText(dc, "U solid   ·   I dashed   ·   independent RMS scales",
+            9.5, new Point(6, height - 15), TextMutedBrush, BodyTypeface);
+        if (!IsStreamLive)
+            DrawText(dc, "STALE · last valid samples", 11, new Point(7, 5), StaleBrush, LabelTypeface);
     }
 
-    private static void DrawArrowHead(DrawingContext dc, Point start, Point end, Brush brush, double arrowLength)
+    private static bool IsRenderable(PhasorDisplayItem item) =>
+        item.HasValue &&
+        double.IsFinite(item.Magnitude!.Value) &&
+        double.IsFinite(item.AngleDegrees!.Value) &&
+        item.Magnitude.Value > 0;
+
+    private static int PhaseIndex(string name) => name switch
     {
-        var direction = end - start;
-        if (direction.Length <= 0.001)
+        "Ub" or "Ib" => 1,
+        "Uc" or "Ic" => 2,
+        _ => 0
+    };
+
+    private static Brush PhaseBrush(int index) => index switch
+    {
+        1 => PhaseSBrush,
+        2 => PhaseTBrush,
+        _ => PhaseRBrush
+    };
+
+    private static string ToPhaseLabel(string name) => name switch
+    {
+        "Ua" => "Ua (R)",
+        "Ub" => "Ub (S)",
+        "Uc" => "Uc (T)",
+        "Ia" => "Ia (R)",
+        "Ib" => "Ib (S)",
+        "Ic" => "Ic (T)",
+        _ => name
+    };
+
+    private static void DrawArrow(DrawingContext dc, Point origin, Point tip, Pen pen, double size)
+    {
+        var direction = tip - origin;
+        if (direction.LengthSquared < 1)
             return;
 
         direction.Normalize();
         var normal = new Vector(-direction.Y, direction.X);
-        var arrowWidth = arrowLength * 0.46;
-
-        var p1 = end;
-        var p2 = end - direction * arrowLength + normal * arrowWidth;
-        var p3 = end - direction * arrowLength - normal * arrowWidth;
-
-        var geometry = new StreamGeometry();
-        using var ctx = geometry.Open();
-        ctx.BeginFigure(p1, true, true);
-        ctx.LineTo(p2, true, false);
-        ctx.LineTo(p3, true, false);
-        geometry.Freeze();
-
-        dc.DrawGeometry(brush, null, geometry);
+        dc.DrawLine(pen, tip, tip - direction * size + normal * (size * 0.42));
+        dc.DrawLine(pen, tip, tip - direction * size - normal * (size * 0.42));
     }
 
-    private static void DrawVectorLabel(DrawingContext dc, Rect bounds, PhasorDisplayItem item, Point center, Point end, Brush brush)
+    private void DrawGrid(DrawingContext dc, Point center, double radius)
     {
-        var direction = end - center;
-        if (direction.Length <= 0.001)
-            direction = new Vector(1, 0);
-        else
-            direction.Normalize();
+        foreach (var fraction in new[] { 0.25, 0.5, 0.75, 1.0 })
+            dc.DrawEllipse(null, fraction == 1.0 ? OuterBorderPen : RingPen,
+                center, radius * fraction, radius * fraction);
 
-        var label = ToPhaseLabel(item.Name);
-        var labelPoint = end + direction * 11.0;
+        dc.DrawLine(AxisPen, new Point(center.X - radius, center.Y),
+            new Point(center.X + radius, center.Y));
+        dc.DrawLine(AxisPen, new Point(center.X, center.Y - radius),
+            new Point(center.X, center.Y + radius));
 
-        if (direction.X >= 0)
-            labelPoint.X += 5;
-        else
-            labelPoint.X -= 48;
+        var offset = radius / Math.Sqrt(2);
+        dc.DrawLine(DiagonalPen, new Point(center.X - offset, center.Y - offset),
+            new Point(center.X + offset, center.Y + offset));
+        dc.DrawLine(DiagonalPen, new Point(center.X + offset, center.Y - offset),
+            new Point(center.X - offset, center.Y + offset));
 
-        if (direction.Y >= 0)
-            labelPoint.Y += 2;
-        else
-            labelPoint.Y -= 17;
-
-        var text = CreateText(label, 11.5, brush, LabelTypeface);
-        labelPoint.X = Math.Clamp(labelPoint.X, bounds.Left + 4, Math.Max(bounds.Left + 4, bounds.Right - text.Width - 4));
-        labelPoint.Y = Math.Clamp(labelPoint.Y, bounds.Top + 4, Math.Max(bounds.Top + 4, bounds.Bottom - text.Height - 4));
-        dc.DrawText(text, labelPoint);
+        // Tick labels stay inside the ring so they cannot collide with side labels.
+        DrawText(dc, "0°", 9, new Point(center.X + radius - 19, center.Y + 4), TextMutedBrush, BodyTypeface);
+        DrawText(dc, "180°", 9, new Point(center.X - radius + 4, center.Y + 4), TextMutedBrush, BodyTypeface);
+        DrawText(dc, "+90°", 9, new Point(center.X + 5, center.Y - radius + 3), TextMutedBrush, BodyTypeface);
+        DrawText(dc, "270°", 9, new Point(center.X + 5, center.Y + radius - 14), TextMutedBrush, BodyTypeface);
     }
 
-    private static void DrawCenteredMessage(DrawingContext dc, Point center, string text)
+    private void DrawCenteredMessage(DrawingContext dc, Point center, string message)
     {
-        var formatted = CreateText(text, 17, TextSecondaryBrush, LabelTypeface);
-        dc.DrawText(formatted, new Point(center.X - formatted.Width / 2.0, center.Y - formatted.Height / 2.0));
+        var text = CreateText(message, 12, TextSecondaryBrush, BodyTypeface);
+        dc.DrawText(text, new Point(center.X - text.Width / 2, center.Y - text.Height / 2));
     }
 
-    private static Brush GetBrush(PhasorDisplayItem item)
-    {
-        return item.Name switch
-        {
-            "Ua" => PhaseRBrush,
-            "Ub" => PhaseSBrush,
-            "Uc" => PhaseTBrush,
-            "Ia" => PhaseRBrush,
-            "Ib" => PhaseSBrush,
-            "Ic" => PhaseTBrush,
-            _ => item.Family == PhasorFamily.Voltage ? PhaseRBrush : PhaseRBrush
-        };
-    }
+    private void DrawText(DrawingContext dc, string value, double size, Point point, Brush brush, Typeface typeface) =>
+        dc.DrawText(CreateText(value, size, brush, typeface), point);
 
-    private static string ToPhaseLabel(string name)
-    {
-        return name switch
-        {
-            "Ua" => "Ua (R)",
-            "Ub" => "Ub (S)",
-            "Uc" => "Uc (T)",
-            "Ia" => "Ia (R)",
-            "Ib" => "Ib (S)",
-            "Ic" => "Ic (T)",
-            _ => name
-        };
-    }
-
-    private static Pen CreateVectorPen(PhasorDisplayItem item, Brush brush)
-    {
-        var pen = new Pen(brush, item.Family == PhasorFamily.Voltage ? VoltageLineThickness : CurrentLineThickness)
-        {
-            StartLineCap = PenLineCap.Round,
-            EndLineCap = PenLineCap.Round
-        };
-
-        pen.Freeze();
-        return pen;
-    }
-
-    private static void DrawSmallText(DrawingContext dc, string text, Point point, Brush brush)
-    {
-        DrawText(dc, text, 11, point, brush, BodyTypeface);
-    }
-
-    private static void DrawText(DrawingContext dc, string text, double size, Point point, Brush brush, Typeface typeface)
-    {
-        dc.DrawText(CreateText(text, size, brush, typeface), point);
-    }
-
-    private static FormattedText CreateText(string text, double size, Brush brush, Typeface typeface)
-    {
-        return new FormattedText(
-            text,
-            CultureInfo.InvariantCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            size,
-            brush,
-            VisualTreeHelper.GetDpi(Application.Current.MainWindow).PixelsPerDip);
-    }
+    private FormattedText CreateText(string value, double size, Brush brush, Typeface typeface) =>
+        new(value, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            typeface, size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
     private static Brush CreateBrush(string hex)
     {
@@ -323,23 +346,12 @@ public sealed class PhasorDiagramControl : FrameworkElement
         return brush;
     }
 
-    private static SolidColorBrush CloneWithOpacity(Brush brush, double opacity)
+    private static Pen CreatePen(Brush brush, double thickness, double[]? dash = null)
     {
-        var color = brush is SolidColorBrush solid ? solid.Color : Colors.Black;
-        var clone = new SolidColorBrush(color) { Opacity = opacity };
-        clone.Freeze();
-        return clone;
-    }
-
-    private static Pen CreatePen(string hex, double thickness, double[]? dashArray = null)
-    {
-        var pen = new Pen(CreateBrush(hex), thickness);
-        if (dashArray is not null)
-            pen.DashStyle = new DashStyle(dashArray, 0);
-
+        var pen = new Pen(brush, thickness);
+        if (dash is not null)
+            pen.DashStyle = new DashStyle(dash, 0);
         pen.Freeze();
         return pen;
     }
-
 }
-
