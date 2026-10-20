@@ -5,6 +5,15 @@ public sealed class DiagnosticEventItem
     public DateTime TimestampUtc { get; set; }
     public string Severity { get; set; } = "Info";
     public string Message { get; set; } = string.Empty;
+    // Aggregated presentation projection only; raw AnalyzerShellState.Events
+    // retains every original event and full forensic message.
+    public int OccurrenceCount { get; set; } = 1;
+    public DateTime FirstOccurrenceUtc { get; set; }
+    public string OccurrenceText => OccurrenceCount > 1 ? $" ×{OccurrenceCount}" : string.Empty;
+    public string EvidenceTooltip => OccurrenceCount > 1
+        ? $"{OccurrenceCount} occurrences (oldest {FirstOccurrenceUtc:HH:mm:ss.fff}, latest {TimestampUtc:HH:mm:ss.fff})\n{Message}"
+        : Message;
+
 
     // Separate a concise finding from its unchanged forensic message.
     // This is presentation only: the full evidence remains in Message.
