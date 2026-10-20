@@ -14,10 +14,12 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 if ([string]::IsNullOrWhiteSpace($Version)) { throw "Version cannot be empty." }
 
-# Source identity must be unique even when successive test installers use 1.4.1.
+# Each Inno candidate needs an unambiguous source revision.
 $sourceCommit = (& git rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0 -or $sourceCommit -cnotmatch '^[a-f0-9]{40}
-
+if ($LASTEXITCODE -ne 0 -or $sourceCommit.Length -ne 40 -or
+    $sourceCommit -cnotmatch "^[a-f0-9]{40}") {
+    throw "Packaging requires a Git checkout and valid source commit SHA."
+}
 $requiredReleaseDocs = @(
     "docs/QUICK_START.md", "docs/USER_MANUAL.md", "docs/INSTALLATION_AND_UPDATE.md", "LICENSE", "NOTICE",
     "COMMERCIAL-LICENSE.md", "COPYRIGHT.md", "TRADEMARK.md",
