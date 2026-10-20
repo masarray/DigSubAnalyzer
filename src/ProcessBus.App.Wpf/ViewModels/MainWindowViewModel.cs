@@ -126,6 +126,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly Dictionary<string, GooseMessageItem> _lastGooseState = new();
     private readonly Queue<GooseTrafficRow> _pendingGooseRows = new();
     private readonly Queue<DiagnosticEventItem> _pendingDiagnosticEvents = new();
+    private readonly ObservableCollection<DiagnosticEventItem> _calmDiagnosticEvents = new();
+    private DiagnosticEventItem? _lastAggregatedTopEvent;
+    private DiagnosticEventItem? _lastAggregatedBottomEvent;
+    private int _lastAggregatedEventCount = -1;
     private DateTime? _lastGooseHistoryTimeUtc;
     private DateTime _gooseInteractionUntilUtc = DateTime.MinValue;
     private bool _isGooseInteractionActive;
@@ -773,6 +777,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<NetworkAdapterInfo> Adapters { get; }
     public ObservableCollection<SvStreamItem> Streams { get; }
+    // Raw evidence remains in Events. Only Diagnostics uses this bounded
+    // grouped presentation projection, rebuilt when the forensic window changes.
+    public ObservableCollection<DiagnosticEventItem> CalmDiagnosticEvents => _calmDiagnosticEvents;
     public ObservableCollection<DiagnosticEventItem> Events { get; }
     public SvStreamItem? SelectedStream
     {
@@ -2113,6 +2120,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 BufferDiagnosticEvents(snapshot.Events);
 
             _state.ApplySnapshot(snapshot, mergeEvents: IsDiagnosticsTabActive);
+            if (IsDiagnosticsTabActive)
+                UpdateCalmDiagnosticEvents();
             PruneStaleStreamWorkspaces(now);
             UpdateStreamStaleState();
             if (now - _lastDiagnosticTargetRefreshUtc >= TimeSpan.FromMilliseconds(PassiveUiRefreshMs))
@@ -4509,6 +4518,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         _isGooseInteractionActive = true;
         _gooseInteractionUntilUtc = DateTime.UtcNow.Add(GooseInteractionQuietPeriod);
+    }
+
+    private void UpdateCalmDiagnosticEvents()
+    {
+        var count = Events.Count;
+        var top = count == 0 ? null : Events[0];
+        var bottom = count == 0 ? null : Events[^1];
+        if (count == _lastAggregatedEventCount &&
+            ReferenceEquals(top, _lastAggregatedTopEvent) &&
+            ReferenceEquals(bottom, _lastAggregatedBottomEvent))
+            return;
+
+        _lastAggregatedEventCount = count;
+        _lastAggregatedTopEvent = top;
+        _lastAggregatedBottomEvent = bottom;
+        var projection = DiagnosticEventSummarizer.Summarize(Events);
+        // WPF display is capped at 200 rows and rebuilt only when new evidence
+        // arrives, never on the high-rate capture or phasor rendering thread.
+        _calmDiagnosticEvents.Clear();
+        foreach (var item in projection)
+            _calmDiagnosticEvents.Add(item);
     }
 
     private void BufferDiagnosticEvents(IReadOnlyList<DiagnosticEventItem> events)
