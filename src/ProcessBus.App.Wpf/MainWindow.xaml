@@ -3374,7 +3374,7 @@
                                                                    Foreground="#7D9DB6" FontWeight="SemiBold"
                                                                    TextAlignment="Right" Margin="0,0,8,0"/>
                                                     </Grid>
-                                                    <ItemsControl ItemsSource="{Binding SelectedGooseDatasetValues}">
+                                                    <ItemsControl ItemsSource="{Binding GooseInspectorRows}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
@@ -3415,6 +3415,10 @@
                                                                     <Border Padding="12,8,8,11" Background="#081827"
                                                                             BorderBrush="#17354B" BorderThickness="0,1,0,0">
                                                                         <StackPanel>
+                                                                            <TextBlock Text="SIGNAL / DATASET ENTRY" FontSize="9.5"
+                                                                                       Foreground="#719AB9" FontWeight="SemiBold"/>
+                                                                            <TextBlock Text="{Binding NameText}" Foreground="#E7F3FF"
+                                                                                       FontSize="11" TextWrapping="Wrap" Margin="0,2,0,7"/>
                                                                             <TextBlock Text="MMS TYPE / SOURCE" FontSize="9.5"
                                                                                        Foreground="#719AB9" FontWeight="SemiBold"/>
                                                                             <TextBlock Text="{Binding TypeText}" Foreground="#CEDFEE"
