@@ -22,7 +22,8 @@ public static class DiagnosticEventSummarizer
     {
         if (message.StartsWith(SvArrivalExcursionTitle, StringComparison.Ordinal) &&
             message.Length > SvArrivalExcursionTitle.Length &&
-            message[SvArrivalExcursionTitle.Length] == ':')
+            message[SvArrivalExcursionTitle.Length] == ':' &&
+            message.Contains("svID=", StringComparison.OrdinalIgnoreCase))
             return SvArrivalExcursionTitle;
 
         return message;
