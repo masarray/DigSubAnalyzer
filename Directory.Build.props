@@ -10,7 +10,7 @@
     <NeutralLanguage>en</NeutralLanguage>
 
     <!-- Public release version. Pre-release versions may set VersionSuffix explicitly. -->
-    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.4.1</VersionPrefix>
+    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.4.2</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)' == ''"></VersionSuffix>
     <Version Condition="'$(Version)' == '' and '$(VersionSuffix)' == ''">$(VersionPrefix)</Version>
     <Version Condition="'$(Version)' == '' and '$(VersionSuffix)' != ''">$(VersionPrefix)-$(VersionSuffix)</Version>
