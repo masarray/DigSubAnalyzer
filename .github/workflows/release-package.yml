@@ -95,6 +95,10 @@ jobs:
         shell: pwsh
         run: .\scripts\repository-health.ps1 -ExpectedVersion '${{ steps.version.outputs.value }}'
 
+      - name: Workspace spacing geometry gate
+        shell: pwsh
+        run: .\scripts\verify-workspace-spacing.ps1
+
       - name: Restore
         run: dotnet restore .\ProcessBusSuite.sln
 
