@@ -2517,7 +2517,7 @@
                                             CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
                                             ToolTip="{Binding Diagnostics.JitterStatusText}">
                                         <StackPanel>
-                                            <TextBlock Text="ARRIVAL JITTER" Foreground="#9BC7E4" FontSize="10.5"
+                                            <TextBlock Text="ARRIVAL Δ · HOST" Foreground="#9BC7E4" FontSize="10.5"
                                                        FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Diagnostics.SvJitterHeadlineText}"
                                                        Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
@@ -2550,9 +2550,9 @@
 
                                     <Border Background="#0F2538" BorderBrush="#294864" BorderThickness="1"
                                             CornerRadius="9" Padding="12,10" Margin="0,0,8,0"
-                                            ToolTip="Missing sample count comes from selected SV smpCnt continuity; decoder rejects are capture-wide.">
+                                            ToolTip="Gaps are inferred from selected SV smpCnt transitions, not independently confirmed Ethernet packet losses. Decoder rejects are capture-wide.">
                                         <StackPanel>
-                                            <TextBlock Text="MISSING SAMPLES" Foreground="#9BC7E4" FontSize="10.5"
+                                            <TextBlock Text="INFERRED SV GAPS" Foreground="#9BC7E4" FontSize="10.5"
                                                        FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Diagnostics.SvMissingSamplesText}"
                                                        Foreground="#F3F9FF" FontSize="20" FontWeight="SemiBold"
@@ -2921,7 +2921,7 @@
 
                                         
 
-                                        <ListView ItemsSource="{Binding Events}"
+                                        <ListView ItemsSource="{Binding CalmDiagnosticEvents}"
                                               SelectedItem="{Binding SelectedDiagnosticEvent, Mode=TwoWay}"
                                               VirtualizingPanel.IsVirtualizing="True"
                                               VirtualizingPanel.VirtualizationMode="Recycling"
@@ -2965,13 +2965,16 @@
                                                         <TextBlock Grid.Column="2" Text="{Binding SourceText}"
                                                                    Foreground="#9EBBD4" FontSize="11"
                                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                                   ToolTip="{Binding Message}" Margin="0,0,12,0"/>
-                                                        <TextBlock Grid.Column="3" Text="{Binding FindingText}"
-                                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                                   FontSize="11.5" FontWeight="SemiBold"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   VerticalAlignment="Center"
-                                                                   ToolTip="{Binding Message}"/>
+                                                                   ToolTip="{Binding EvidenceTooltip}" Margin="0,0,12,0"/>
+                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center"
+                                                                    ToolTip="{Binding EvidenceTooltip}">
+                                                            <TextBlock Text="{Binding FindingText}"
+                                                                       Foreground="{StaticResource TextPrimaryBrush}" FontSize="11.5"
+                                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding OccurrenceText}" Foreground="#84B1D0"
+                                                                       FontFamily="Consolas" FontSize="11" Margin="8,0,0,0"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ListView.ItemTemplate>
@@ -3169,12 +3172,12 @@
                                             </Border.Style>
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                                         MaxWidth="390">
-                                                <TextBlock Text="No GOOSE state changes"
+                                                <TextBlock Text="{Binding GooseEmptyTitle}"
                                                            Foreground="#E5F2FF" FontSize="15"
                                                            FontWeight="SemiBold" TextAlignment="Center"/>
                                                 <TextBlock Margin="0,8,0,0" TextAlignment="Center" TextWrapping="Wrap"
                                                            Foreground="#A6C4DB" FontSize="11.5"
-                                                           Text="Check publisher and VLAN visibility, or enable retransmissions."
+                                                           Text="{Binding GooseEmptyGuidance}"
                                                            ToolTip="An empty state-change view does not prove the publisher is offline. Confirm the adapter, SPAN/TAP path, VLAN and goID filters."/>
                                             </StackPanel>
                                         </Border>
@@ -3606,13 +3609,13 @@
                                                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Time" Binding="{Binding TimeText}" Width="110"/>
-                                                <DataGridTextColumn Header="Transport" Binding="{Binding Transport}" Width="110"/>
-                                                <DataGridTextColumn Header="Message" Binding="{Binding MessageType}" Width="120"/>
-                                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="170"/>
-                                                <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="170"/>
-                                                <DataGridTextColumn Header="Domain" Binding="{Binding DomainText}" Width="70"/>
-                                                <DataGridTextColumn Header="Seq" Binding="{Binding SequenceIdText}" Width="70"/>
+                                                <DataGridTextColumn Header="Time" Binding="{Binding TimeText}" Width="103"/>
+                                                <DataGridTextColumn Header="Transport" Binding="{Binding Transport}" Width="154"/>
+                                                <DataGridTextColumn Header="Message" Binding="{Binding MessageType}" Width="100"/>
+                                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="160"/>
+                                                <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="160"/>
+                                                <DataGridTextColumn Header="Domain" Binding="{Binding DomainText}" Width="63"/>
+                                                <DataGridTextColumn Header="Seq" Binding="{Binding SequenceIdText}" Width="61"/>
                                                 <DataGridTextColumn Header="Clock ID" Binding="{Binding ClockIdentity}" Width="*"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
@@ -4295,7 +4298,7 @@
                                                             <DataGridTemplateColumn Header="Signal" Width="2.35*">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate>
-                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}"/>
+                                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SclDetailCellTextStyle}" FontFamily="Consolas" FontSize="11" ToolTip="{Binding DisplayName}"/>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
