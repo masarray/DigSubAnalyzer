@@ -15,7 +15,9 @@ public readonly record struct GoosePublisherKey(string SourceMac, string AppId, 
     public static GoosePublisherKey From(GooseMessageItem message) => new(
         NormalizeMac(message.SourceMac),
         (message.AppId ?? string.Empty).Trim().ToUpperInvariant(),
-        (message.GoCbRef ?? string.Empty).Trim(),
+        string.Equals(message.GoCbRef, "N/A", StringComparison.OrdinalIgnoreCase)
+            ? $"fallback:{message.GoId}|{message.DataSet}"
+            : (message.GoCbRef ?? string.Empty).Trim(),
         (message.VlanId ?? string.Empty).Trim());
 
     private static string NormalizeMac(string? mac) =>
