@@ -1384,10 +1384,33 @@ public sealed class RawProcessBusAnalyzer
             (elementIndex & 1) == 0 &&
             (_untrustedChannelMask & (1 << (elementIndex / 2))) != 0;
 
+        private int ResolveQualitySlot(string channel)
+        {
+            // A verified SCL instMag/q mapping may legally arrange channels in
+            // a different order. Use its declared element index; fixed 4I4V
+            // order is only the no-SCL fallback. This runs at UI snapshot rate,
+            // never in the 4000 fps decoder hot path.
+            if (_lastDecodedMapping?.HasRenderableChannels == true)
+            {
+                foreach (var element in _lastDecodedMapping.Elements)
+                {
+                    if (string.Equals(element.ChannelName, channel, StringComparison.OrdinalIgnoreCase) &&
+                        element.ElementIndex >= 0 && element.ElementIndex <= 14 &&
+                        (element.ElementIndex & 1) == 0)
+                        return element.ElementIndex / 2;
+                }
+                return -1;
+            }
+
+            for (var index = 0; index < OmicronInstMagQualityMap.Length; index++)
+                if (string.Equals(OmicronInstMagQualityMap[index].Channel, channel, StringComparison.OrdinalIgnoreCase))
+                    return index;
+            return -1;
+        }
+
         private ChannelFreshness ResolveChannelFreshness(string channel, IReadOnlyList<ScopeSampleFrame> window)
         {
-            var index = Array.FindIndex(OmicronInstMagQualityMap,
-                item => string.Equals(item.Channel, channel, StringComparison.Ordinal));
+            var index = ResolveQualitySlot(channel);
             if (index >= 0 && (_untrustedChannelMask & (1 << index)) != 0)
                 return _lastAnalogValues is not null ? ChannelFreshness.Held : ChannelFreshness.Missing;
 
