@@ -101,6 +101,27 @@ public sealed class GoosePublisherSelectionTests
     }
 
     [Fact]
+    public void SearchAndGoIdFiltersNeverMutateSelectedPublisher()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var a = Frame(source: "02:00:4C:4E:4E:50");
+        var b = Frame(source: "02:00:4C:4E:4E:51", goCb: "IED/LLN0$GO$other");
+        var key = GoosePublisherKey.From(a);
+        catalog.Reconcile([a, b], null);
+        var selected = catalog.Find(key);
+
+        Assert.True(GoosePublisherCatalog.MatchesFilter(a, "All", "IED"));
+        Assert.False(GoosePublisherCatalog.MatchesFilter(a, "OtherGoId", ""));
+        Assert.False(GoosePublisherCatalog.MatchesFilter(a, "All", "no-match"));
+        Assert.True(GoosePublisherCatalog.MatchesFilter(b, "All", "other"));
+
+        // Filtering is a view concern, not a selection/catalog mutation.
+        catalog.Reconcile([Frame(sq: 11), b], key);
+        Assert.Same(selected, catalog.Find(key));
+        Assert.Equal((uint)11, selected!.Current.SqNum);
+    }
+
+    [Fact]
     public void HighTrafficDoesNotCauseUnboundedRows()
     {
         var catalog = new GoosePublisherCatalog();
