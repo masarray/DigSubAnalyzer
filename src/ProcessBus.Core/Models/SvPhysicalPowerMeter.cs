@@ -21,7 +21,9 @@ public static class SvPhysicalPowerMeter
         var s = 0.0;
         foreach (var (u, i) in phases)
         {
-            if (u.Unit != "V" || i.Unit != "A" ||
+            // Held or missing inputs cannot claim a CURRENT three-phase power estimate.
+            if (u.Freshness != ChannelFreshness.Live || i.Freshness != ChannelFreshness.Live ||
+                u.Unit != "V" || i.Unit != "A" ||
                 u.RmsValue is not { } uRms || i.RmsValue is not { } iRms ||
                 u.AngleDegrees is not { } uAngle || i.AngleDegrees is not { } iAngle ||
                 !double.IsFinite(uRms) || !double.IsFinite(iRms) ||
