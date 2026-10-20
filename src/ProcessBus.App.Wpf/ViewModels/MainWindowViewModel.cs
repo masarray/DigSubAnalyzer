@@ -4546,11 +4546,39 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _lastAggregatedTopEvent = top;
         _lastAggregatedBottomEvent = bottom;
         var projection = DiagnosticEventSummarizer.Summarize(Events);
-        // WPF display is capped at 200 rows and rebuilt only when new evidence
-        // arrives, never on the high-rate capture or phasor rendering thread.
-        _calmDiagnosticEvents.Clear();
-        foreach (var item in projection)
-            _calmDiagnosticEvents.Add(item);
+        // Incrementally reconcile at most 200 display rows. Recreating every
+        // ListView item on each arrival would flicker, reset scroll and defeat
+        // the calm design. Raw forensic Events remain untouched.
+        static bool SameKey(DiagnosticEventItem a, DiagnosticEventItem b) =>
+            a.Severity == b.Severity && a.Message == b.Message &&
+            a.SourceText == b.SourceText;
+
+        for (var i = 0; i < projection.Count; i++)
+        {
+            var next = projection[i];
+            var found = -1;
+            for (var j = i; j < _calmDiagnosticEvents.Count; j++)
+            {
+                if (!SameKey(_calmDiagnosticEvents[j], next))
+                    continue;
+                found = j;
+                break;
+            }
+            if (found < 0)
+                _calmDiagnosticEvents.Insert(i, next);
+            else
+            {
+                if (found != i)
+                    _calmDiagnosticEvents.Move(found, i);
+                var existing = _calmDiagnosticEvents[i];
+                if (existing.OccurrenceCount != next.OccurrenceCount ||
+                    existing.TimestampUtc != next.TimestampUtc ||
+                    existing.FirstOccurrenceUtc != next.FirstOccurrenceUtc)
+                    _calmDiagnosticEvents[i] = next;
+            }
+        }
+        while (_calmDiagnosticEvents.Count > projection.Count)
+            _calmDiagnosticEvents.RemoveAt(_calmDiagnosticEvents.Count - 1);
     }
 
     private void BufferDiagnosticEvents(IReadOnlyList<DiagnosticEventItem> events)
