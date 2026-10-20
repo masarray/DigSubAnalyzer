@@ -50,6 +50,7 @@ try {
             'User Manual.pdf',
             'Quick Start.md',
             'User Manual.md',
+            'BuildInfo.json', 
             'Install and Update.md',
             'LICENSE.txt',
             'README.txt',
@@ -62,7 +63,7 @@ try {
             }
         }
         if (-not [string]::IsNullOrWhiteSpace($StageDir)) {
-            foreach ($relative in @('ProcessBusInsight.exe', 'User Manual.pdf', 'Quick Start.pdf')) {
+            foreach ($relative in @('ProcessBusInsight.exe', 'BuildInfo.json', 'User Manual.pdf', 'Quick Start.pdf')) {
                 $source = Join-Path $StageDir $relative
                 if (-not (Test-Path -LiteralPath $source)) {
                     throw "Smoke test source missing: $source"
@@ -71,6 +72,32 @@ try {
                 $destHash = (Get-FileHash -LiteralPath (Join-Path $installDir $relative) -Algorithm SHA256).Hash
                 if ($sourceHash -ne $destHash) { throw "Installed $relative does not match verified stage." }
             }
+        }
+        $build = Get-Content (Join-Path $installDir 'BuildInfo.json') -Raw | ConvertFrom-Json
+        if ($build.schema -ne 'processbus-build-v1' -or $build.commit -cnotmatch '^[0-9a-f]{40}
+    }
+
+    $uninstallArguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
+        ('/LOG="' + (Join-Path $logDir 'uninstall.log') + '"'))
+    $process = Start-Process -FilePath $uninstallPath -ArgumentList $uninstallArguments -PassThru -Wait
+    if ($process.ExitCode -ne 0) { throw "Silent uninstall failed: exit $($process.ExitCode)." }
+    if (Test-Path -LiteralPath (Join-Path $installDir 'ProcessBusInsight.exe')) {
+        throw 'Uninstaller left the installed main executable behind.'
+    }
+    Write-Host 'Installer verification passed: install, same-version repair, offline PDFs, uninstall.'
+}
+finally {
+    # Only the uniquely generated ephemeral smoke path is removed.
+    if (Test-Path -LiteralPath $root) {
+        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+) {
+            throw 'Installed build provenance invalid.'
+        }
+        $exeHash = (Get-FileHash -LiteralPath (Join-Path $installDir 'ProcessBusInsight.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($exeHash -cne $build.executableSha256) {
+            throw 'Installed executable hash does not match the build provenance.'
         }
         Write-Host "Installed payload and offline manuals verified (run $attempt / 2)."
     }
