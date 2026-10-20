@@ -57,7 +57,8 @@ public static class DiagnosticEventSummarizer
                 Severity = source.Severity,
                 Message = source.Message,
                 OccurrenceCount = 1,
-                IsPeriodicSummary = groupText == SvArrivalExcursionTitle
+                IsPeriodicSummary = groupText == SvArrivalExcursionTitle &&
+                    source.Message.Length > SvArrivalExcursionTitle.Length
             };
             result.Add(item);
             byKey.Add(key, item);
