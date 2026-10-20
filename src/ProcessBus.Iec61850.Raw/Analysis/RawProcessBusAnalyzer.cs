@@ -1018,7 +1018,8 @@ public sealed class RawProcessBusAnalyzer
         {
             var age = DateTime.UtcNow - LastSeenUtc;
             var isStale = age > TimeSpan.FromSeconds(2);
-            var hasWarning = HasIntegrityIssue || RecentJitterOver300MicrosecondsCount > 0;
+            var hasWarning = HasIntegrityIssue || RecentJitterOver300MicrosecondsCount > 0 ||
+                             _untrustedChannelMask != 0 || !_qualityAccepted;
             var severityRank = isStale ? 2 : hasWarning ? 1 : 0;
             var statusText = isStale ? "Stale" : hasWarning ? "Live with warning" : "Live";
             var displayStatus = isStale ? "STALE" : hasWarning ? "LIVE · WARN" : "LIVE";
@@ -1052,6 +1053,9 @@ public sealed class RawProcessBusAnalyzer
         {
             if (isStale)
                 return $"No SV update for {age.TotalSeconds:0.0}s";
+
+            if (_untrustedChannelMask != 0 || !_qualityAccepted)
+                return QualityStatusText;
 
             if (HasIntegrityIssue)
                 return $"Sequence issue: jumps {SequenceErrors}, missing {MissingSamples}";
