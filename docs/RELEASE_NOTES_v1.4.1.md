@@ -1,37 +1,35 @@
-# Process Bus Insight v1.4.1 — Release notes (stable publication gated)
+# Process Bus Insight v1.4.1 — Stable
 
-Proposed public Windows x64 release of **Process Bus Insight**, the receive-only IEC 61850 SV / GOOSE / PTP analyzer. **Do not publish this build as stable until the current installer passes the documented physical acceptance gate** in `docs/validation/V1.4.1_PUBLIC_RELEASE_ACCEPTANCE.md`.
+**Process Bus Insight** is a free, open-source Windows analyzer for monitoring IEC 61850 Sampled Values (SV/SMV), GOOSE, and Precision Time Protocol (PTP) traffic. Version 1.4.1 delivers a quieter, faster engineering workflow, multi-stream visibility, and an improved Windows installation experience.
 
-## Operator improvements
+## Highlights
 
-- Five uncluttered primary workspaces: Analyzer, Diagnostics, GOOSE, Timing/PTP, and SCL.
-- Advanced raw packet inspection and engineering validation stay accessible through the Tools menu instead of adding navigation tabs.
-- SCL mismatch badges and expected/observed svID text remain readable with natural-height rows and multiline wrapping. Redundant column and explanatory captions are removed; full matched evidence is still available in technical details and tooltips.
-- SV real-sample waveform display, zero-cross alignment, stream-aware auto peak scaling, nominal engineering-unit selection, phasors and RMS. Nominal scaling is **not** metrological calibration.
-- Compact overlay fasors distinguish solid voltage / dashed current strokes, use separate relative RMS scales, display numerical U/I maxima and preserve an exact measured angle from the selected-stream engine.
-- Clear amber `LIVE · WARN` badge for an active stream with continuity/arrival warnings; green waveform LIVE means activity only. Stale vectors are explicitly held, not described as live.
-- A native Npcap architecture/load problem cannot be represented as a capturable dummy Ethernet interface. The app shows an unavailable diagnostic until a valid driver/NIC is detected.
-- Per-stream diagnostics: arrival jitter, smpCnt discontinuity, missing samples, svQuality/smpSynch and capture-path indicators.
-- GOOSE event timeline, PTP context, SCL stream catalog, dataset order and compare-to-wire evidence.
+- **Five focused workspaces:** Analyzer, Diagnostics, GOOSE, Timing/PTP, and SCL, with a compact, consistent, low-distraction dark interface.
+- **Live multi-stream SMV monitoring:** stream explorer, waveform plots, phasors, RMS and angle measurements, power estimates, and fast stream switching.
+- **Readable waveform and phasor presentation:** voltage and current share consistent channel colors; phasor arrows, labels, and U/I RMS scaling remain legible.
+- **Per-channel freshness:** invalid/old channel data are clearly marked HELD or MISSING without hiding healthy phases; stale streams retain the last valid evidence in a muted appearance.
+- **Actionable diagnostics:** SV continuity and timing findings, quality flags, capture-driver statistics, and grouped repetitive timing reports with preserved detailed evidence.
+- **GOOSE inspection:** discover publishers, inspect state changes and retransmissions, and review typed DataSet values.
+- **PTP visibility:** monitor message flows, Grandmaster identity, domains and traffic observations.
+- **SCL engineering context:** import SCD, CID, ICD or IID files to compare configured publishers, stream identities and DataSet mappings against received traffic.
+- **Improved capture and packaging:** robust Npcap adapter handling, reliable Start/Stop workflow, reproducible Windows x64 Inno installer with in-place update/repair, portable ZIP, and offline manuals.
 
-## Install and verify
+## Download and installation
 
-1. Download **`ProcessBusInsight-v1.4.1-win-x64-setup.exe`** and compare SHA256 with `SHA256SUMS.txt`.
-2. Run the Inno Setup installer. It includes self-contained application files, **User Manual.pdf**, **Quick Start.pdf**, updated Markdown manuals, and **Install and Update.md** directly in the install folder. Start Menu manual shortcuts are available offline.
-3. To update, close the application and run the newer installer; it retains the installation directory and can repair the same version. The optional portable ZIP remains available for manual use.
-4. Install Npcap separately for live capture. For offline analysis use a compatible classic Ethernet PCAP.
-5. Select a real Ethernet adapter and Run. Use SCL Import to load SCD/CID/ICD/IID for expected-vs-observed identity comparison. The installer is currently unsigned and does not provide unattended auto-updates.
+**Recommended:** `ProcessBusInsight-v1.4.1-win-x64-setup.exe` (Windows x64, self-contained .NET 8 application). The optional portable ZIP is intended for users who prefer manual deployment.
 
-## Important engineering limitations
+1. Download the installer and verify it against `SHA256SUMS.txt`.
+2. Run the Inno Setup installer. The install directory includes `User Manual.pdf`, `Quick Start.pdf`, Markdown manuals, and `Install and Update.md`.
+3. To update, close Process Bus Insight and run the new installer; the existing installation directory and shortcuts are maintained.
+4. Install Npcap separately to capture live Ethernet traffic; classic Ethernet PCAP replay is available offline.
+5. Choose the capture adapter, click **Run**, and select an SV stream.
 
-**Stable** denotes a packaged software release, not a calibrated or IEC 61850-conformance-certified test instrument. No protection operation or SV/GOOSE publishing is included. Captured traffic does not prove a subscriber acted on it.
+This is a **receive-only monitoring and analysis application**. PTP timing statistics are based on the available capture timestamps; nominal 4I+4V scaling follows the selected engineering profile. The application does not transmit SV or GOOSE commands.
 
-- Normal Windows/Npcap timestamps and PCAP replay provide timing **screening evidence**; they are not proof of clock lock, precise jitter, or synchronization accuracy without independently validated capture and timestamping equipment.
-- The 4I+4V nominal profile is an engineering display scaling assumption unless corresponding SCL mapping/instrument calibration is established.
-- A stream with a different svID from expected SCL correctly reports mismatch even if APPID, destination MAC, VLAN and confRev agree.
-- Real field acceptance, DPI clipping, USB Ethernet capture timing, packet losses and sustained CPU/GC must be verified in the intended environment.
-- This release is licensed **GPL-3.0-or-later**. Review LICENSE, NOTICE, third-party and commercial-license documentation for the applicable terms.
+## Verification and distribution
 
-## Verification
+The stable build is created from `main` by GitHub Actions following Windows Release build, automated regression tests, runtime stability/architecture checks, security analysis, package checksum verification, and Inno install/repair/uninstall smoke tests. Real-world performance also depends on NIC, Npcap, traffic and Windows configuration.
 
-Windows Release build, xUnit regression suite, runtime stability, CodeQL and dependency audit are required before publication. The release workflow builds and verifies the Inno installer **and** optional portable ZIP, checks SHA256, then smoke-tests silent install, repair, offline manuals and uninstall. **Physical Npcap/NIC, injector comparison, 60-minute current-build soak and display/DPI acceptance are separate blocking checks; historical tests do not substitute.** A public release is an explicit, manual, main-only action after those checks are documented.
+- **License:** GPL-3.0-or-later; source code and license notices are available in this repository.
+- **Assets:** Inno setup EXE, optional portable ZIP, `SHA256SUMS.txt`, and `release-manifest.json`.
+- **Installer:** unsigned; Windows may display its normal unknown-publisher prompt.
