@@ -22,7 +22,7 @@ public sealed class GooseQualityPresentationTests
     {
         // invalid validity (01), oldData at bit 7, substituted at bit 10,
         // test at bit 11, operator blocked at bit 12.
-        Assert.True(GooseQualityPresentation.TryDecode("03411C", "BitString", out var quality));
+        Assert.True(GooseQualityPresentation.TryDecode("034138", "BitString", out var quality));
         Assert.NotNull(quality);
         Assert.Equal("invalid", quality.Validity);
         Assert.Equal("substituted", quality.Source);
