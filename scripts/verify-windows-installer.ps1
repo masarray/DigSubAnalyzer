@@ -101,28 +101,3 @@ finally {
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-) {
-            throw 'Installed build provenance invalid.'
-        }
-        $exeHash = (Get-FileHash -LiteralPath (Join-Path $installDir 'ProcessBusInsight.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($exeHash -cne $build.executableSha256) {
-            throw 'Installed executable hash does not match the build provenance.'
-        }
-        Write-Host "Installed payload and offline manuals verified (run $attempt / 2)."
-    }
-
-    $uninstallArguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
-        ('/LOG="' + (Join-Path $logDir 'uninstall.log') + '"'))
-    $process = Start-Process -FilePath $uninstallPath -ArgumentList $uninstallArguments -PassThru -Wait
-    if ($process.ExitCode -ne 0) { throw "Silent uninstall failed: exit $($process.ExitCode)." }
-    if (Test-Path -LiteralPath (Join-Path $installDir 'ProcessBusInsight.exe')) {
-        throw 'Uninstaller left the installed main executable behind.'
-    }
-    Write-Host 'Installer verification passed: install, same-version repair, offline PDFs, uninstall.'
-}
-finally {
-    # Only the uniquely generated ephemeral smoke path is removed.
-    if (Test-Path -LiteralPath $root) {
-        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
