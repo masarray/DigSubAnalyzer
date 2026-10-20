@@ -1254,12 +1254,6 @@ public sealed class RawProcessBusAnalyzer
                 }
             }
             _untrustedChannelMask = untrustedMask;
-            if (acceptForDisplay && trustedLayout)
-            {
-                for (var index = 0; index < _qualityGoodRuns.Length; index++)
-                    _qualityGoodRuns[index] = (untrustedMask & (1 << index)) != 0
-                        ? 0 : Math.Min(_qualityGoodRuns[index] + 1, 65536);
-            }
             var allUntrusted = untrustedMask == 0xFF;
             QualityStatusText = quality switch
             {
@@ -1297,6 +1291,16 @@ public sealed class RawProcessBusAnalyzer
                 ApplyMappingSignature(BuildMappingSignature(mappingProfile, elementCount));
                 _lastDecodedMapping = mappingProfile;
                 _lastDecodedElementCount = elementCount;
+            }
+
+            // Reset-on-mapping-change must happen BEFORE counting the first
+            // trustworthy ASDU. Otherwise exactly 2/4/8-cycle replay windows
+            // falsely appear incomplete by one sample (159/319/639).
+            if (acceptForDisplay && trustedLayout)
+            {
+                for (var index = 0; index < _qualityGoodRuns.Length; index++)
+                    _qualityGoodRuns[index] = (untrustedMask & (1 << index)) != 0
+                        ? 0 : Math.Min(_qualityGoodRuns[index] + 1, 65536);
             }
 
             // This stack-local value record replaces a per-frame Dictionary + eight
