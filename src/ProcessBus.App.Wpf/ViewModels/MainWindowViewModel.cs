@@ -4342,7 +4342,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Magnitude = channel.RmsValue,
             // The engine alone owns relative-angle/reference interpretation.
             AngleDegrees = channel.AngleDegrees,
-            Unit = channel.Unit
+            Unit = channel.Unit,
+            Freshness = channel.Freshness
         };
 
     private bool FilterGooseHistory(object item)
