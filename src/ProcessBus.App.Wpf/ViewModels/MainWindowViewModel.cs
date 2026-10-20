@@ -126,6 +126,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ? invalid.Description : "Select a real Npcap capture adapter.";
 
     private readonly ObservableCollection<GooseTrafficRow> _gooseHistory = new();
+    private readonly ObservableCollection<GooseDatasetDisplayRow> _gooseInspectorRows = new();
     private readonly Dictionary<GoosePublisherKey, GooseMessageItem> _lastGooseState = new();
     private readonly Queue<GooseTrafficRow> _pendingGooseRows = new();
     private readonly Queue<DiagnosticEventItem> _pendingDiagnosticEvents = new();
@@ -176,6 +177,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<GooseTrafficRow> GooseHistory => _gooseHistory;
     public ICollectionView GooseHistoryView => _gooseHistoryView;
     public ICollectionView GoosePublisherRowsView => _goosePublisherRowsView;
+    // DataSet row instances survive new st/sq snapshots, preserving expanded
+    // MMS/quality details while live retransmissions continue.
+    public ObservableCollection<GooseDatasetDisplayRow> GooseInspectorRows => _gooseInspectorRows;
     public ObservableCollection<TrafficHealthTargetRow> DiagnosticTargets => _diagnosticTargets;
 
     public TrafficHealthTargetRow? SelectedDiagnosticTarget
@@ -931,8 +935,40 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private void ReconcileGooseInspectorRows()
+    {
+        var latest = BuildGooseDatasetValues(GooseInspectorMessage);
+        for (var index = 0; index < latest.Count; index++)
+        {
+            var item = latest[index];
+            if (index < _gooseInspectorRows.Count && _gooseInspectorRows[index].Index == item.Index)
+            {
+                _gooseInspectorRows[index].Update(item);
+                continue;
+            }
+            var existing = -1;
+            for (var other = index + 1; other < _gooseInspectorRows.Count; other++)
+                if (_gooseInspectorRows[other].Index == item.Index)
+                {
+                    existing = other;
+                    break;
+                }
+            if (existing >= 0)
+            {
+                _gooseInspectorRows.Move(existing, index);
+                _gooseInspectorRows[index].Update(item);
+            }
+            else
+                _gooseInspectorRows.Insert(index, new GooseDatasetDisplayRow(item));
+        }
+
+        while (_gooseInspectorRows.Count > latest.Count)
+            _gooseInspectorRows.RemoveAt(_gooseInspectorRows.Count - 1);
+    }
+
     private void RaiseGooseInspectorProperties()
     {
+        ReconcileGooseInspectorRows();
         OnPropertyChanged(nameof(SelectedGooseMessage));
         OnPropertyChanged(nameof(GooseInspectorMessage));
         OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
@@ -4734,6 +4770,53 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         FlushBufferedGooseRows();
+    }
+}
+
+/// <summary>
+/// Stable, per-index WPF value row. DataSet snapshots never replace the
+/// ItemsControl ItemsSource; only truly changed fields raise UI notifications.
+/// </summary>
+public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
+{
+    private GooseDatasetValueDisplayItem _current;
+
+    public GooseDatasetDisplayRow(GooseDatasetValueDisplayItem item) => _current = item;
+    public int Index => _current.Index;
+    public string IndexText => _current.IndexText;
+    public string NameText => _current.NameText;
+    public string TypeText => _current.TypeText;
+    public string SemanticText => _current.SemanticText;
+    public string ValueText => _current.ValueText;
+    public string DisplayValueText => _current.DisplayValueText;
+    public string RawHexDisplayText => _current.RawHexDisplayText;
+    public string ChangeText => _current.ChangeText;
+    public Visibility ChangeVisibility => _current.ChangeVisibility;
+    public string QualityDetailsText => _current.QualityDetailsText;
+    public Visibility QualityDetailsVisibility => _current.QualityDetailsVisibility;
+    public Brush ValueBrush => _current.ValueBrush;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void Update(GooseDatasetValueDisplayItem next)
+    {
+        var previous = _current;
+        if (previous.Index == next.Index &&
+            previous.NameText == next.NameText &&
+            previous.TypeText == next.TypeText &&
+            previous.SemanticText == next.SemanticText &&
+            previous.ValueText == next.ValueText &&
+            previous.RawHexText == next.RawHexText &&
+            previous.QualitySummaryText == next.QualitySummaryText &&
+            previous.QualityDetailsText == next.QualityDetailsText &&
+            previous.IsChanged == next.IsChanged &&
+            previous.PreviousValueText == next.PreviousValueText)
+            return;
+
+        _current = next;
+        // Empty property name means all bound fields of this one row changed.
+        // WPF preserves the selected/expanded item container object.
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
     }
 }
 
