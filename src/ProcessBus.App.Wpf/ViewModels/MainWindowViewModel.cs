@@ -47,9 +47,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private readonly HashSet<GoosePublisherKey> _selectedGooseSourceKeys = new();
     private long _lastGooseValueChangeRevision;
-    private long _lastGooseValueChangeOverflow;
     private long _gooseValueChangeDroppedSinceLastRead;
     private GooseTrafficRow? _selectedGooseTrafficRow;
+    private bool _gooseFollowLive = true;
+    private long _gooseVisibleAppendRevision;
+    private int _gooseUnseenVisibleEventCount;
     private bool _gooseInspectHistoricalEvent;
     private bool _gooseMessageExpanded = true;
     private bool _gooseNetworkExpanded;
@@ -235,6 +237,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
             UpdateGooseVisibleEventCount();
+            RequestGooseFollowScroll();
         }
     }
 
@@ -260,6 +263,37 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseValueChangeLossText => _gooseValueChangeDroppedSinceLastRead == 0
         ? "" : $"{_gooseValueChangeDroppedSinceLastRead:N0} decoded changes dropped from buffer";
     public bool GooseHasValueChangeLoss => _gooseValueChangeDroppedSinceLastRead > 0;
+    public bool GooseFollowLive => _gooseFollowLive;
+    public long GooseVisibleAppendRevision => _gooseVisibleAppendRevision;
+    public int GooseUnseenVisibleEventCount => _gooseUnseenVisibleEventCount;
+    public string GooseFollowButtonText => _gooseUnseenVisibleEventCount == 0
+        ? "Follow live" : $"Follow live · {_gooseUnseenVisibleEventCount}";
+    public GooseTrafficRow? GooseLatestVisibleTrafficRow =>
+        _gooseHistoryView.Cast<GooseTrafficRow>().LastOrDefault();
+
+    public void SuspendGooseFollow()
+    {
+        if (!_gooseFollowLive) return;
+        _gooseFollowLive = false;
+        OnPropertyChanged(nameof(GooseFollowLive));
+    }
+
+    public void ResumeGooseFollow()
+    {
+        _gooseFollowLive = true;
+        _gooseUnseenVisibleEventCount = 0;
+        OnPropertyChanged(nameof(GooseUnseenVisibleEventCount));
+        OnPropertyChanged(nameof(GooseFollowButtonText));
+        OnPropertyChanged(nameof(GooseFollowLive));
+        RequestGooseFollowScroll();
+    }
+
+    private void RequestGooseFollowScroll()
+    {
+        _gooseVisibleAppendRevision++;
+        OnPropertyChanged(nameof(GooseVisibleAppendRevision));
+    }
+
     public IReadOnlyCollection<GoosePublisherKey> SelectedGooseSourceKeys => _selectedGooseSourceKeys;
     public bool GooseSourceFilterActive => _selectedGooseSourceKeys.Count > 0;
     public string GooseSourceScopeText => _selectedGooseSourceKeys.Count == 0
@@ -280,6 +314,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             _gooseHistoryView.Refresh();
             UpdateGooseVisibleEventCount();
+            RequestGooseFollowScroll();
             OnPropertyChanged(nameof(GooseEmptyGuidance));
         }
         if (liveFocus is not null)
@@ -884,6 +919,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         GooseOpenConfigurationCommand = new RelayCommand(() => CurrentWorkspaceTabIndex = 5);
         GooseClearSearchCommand = new RelayCommand(() => GoosePublisherFilterText = string.Empty);
         GooseClearSourceSelectionCommand = new RelayCommand(ClearGooseSourceSelection);
+        GooseResumeFollowCommand = new RelayCommand(ResumeGooseFollow);
 
         _timer = new DispatcherTimer
         {
@@ -1004,6 +1040,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return;
             _selectedGooseTrafficRow = value;
             _gooseInspectHistoricalEvent = true;
+            SuspendGooseFollow();
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsGooseHistoryPinned));
@@ -1306,6 +1343,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand GooseOpenConfigurationCommand { get; }
     public ICommand GooseClearSearchCommand { get; }
     public ICommand GooseClearSourceSelectionCommand { get; }
+    public ICommand GooseResumeFollowCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
@@ -4574,8 +4612,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _gooseSnapshot = new GooseMonitorSnapshot { StatusText = "Cleared" };
         _gooseMessages = Array.Empty<GooseMessageItem>();
         _gooseCatalog.Clear();
+        _gooseFollowLive = true;
+        _gooseUnseenVisibleEventCount = 0;
+        _gooseVisibleAppendRevision = 0;
+        OnPropertyChanged(nameof(GooseFollowLive));
+        OnPropertyChanged(nameof(GooseUnseenVisibleEventCount));
+        OnPropertyChanged(nameof(GooseFollowButtonText));
         _lastGooseValueChangeRevision = 0;
-        _lastGooseValueChangeOverflow = 0;
         _gooseValueChangeDroppedSinceLastRead = 0;
         OnPropertyChanged(nameof(GooseValueChangeLossText));
         OnPropertyChanged(nameof(GooseHasValueChangeLoss));
@@ -4673,20 +4716,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void ApplyDecodedGooseValueChangeEvents(GooseMonitorSnapshot snapshot, DateTime nowUtc)
     {
-        // The decoder ring is repeatedly sampled. Monotonic revisions prevent
-        // duplicate UI notifications; no raw frames are retained here.
+        // Only revision gaps PROVE that the reader missed an event.
+        // Total ring evictions are NOT necessarily losses: earlier entries may
+        // already have been consumed by previous UI snapshots.
+        if (snapshot.ValueChanges.Count > 0)
+        {
+            var first = snapshot.ValueChanges[0].Revision;
+            if (first > _lastGooseValueChangeRevision + 1)
+            {
+                _gooseValueChangeDroppedSinceLastRead += first - _lastGooseValueChangeRevision - 1;
+                OnPropertyChanged(nameof(GooseValueChangeLossText));
+                OnPropertyChanged(nameof(GooseHasValueChangeLoss));
+            }
+        }
         foreach (var change in snapshot.ValueChanges)
         {
             if (change.Revision <= _lastGooseValueChangeRevision) continue;
             _gooseCatalog.Find(change.PublisherKey)?.MarkDecodedValueChange(change.TimeUtc, change.Revision);
             _lastGooseValueChangeRevision = change.Revision;
-        }
-        if (snapshot.ValueChangeOverflowCount > _lastGooseValueChangeOverflow)
-        {
-            _gooseValueChangeDroppedSinceLastRead += snapshot.ValueChangeOverflowCount - _lastGooseValueChangeOverflow;
-            _lastGooseValueChangeOverflow = snapshot.ValueChangeOverflowCount;
-            OnPropertyChanged(nameof(GooseValueChangeLossText));
-            OnPropertyChanged(nameof(GooseHasValueChangeLoss));
         }
         foreach (var row in _gooseCatalog.Rows)
             if (row.HasRecentValueChange) row.ExpireValueChangeNotice(nowUtc);
@@ -4928,10 +4975,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         var limit = flushAll ? int.MaxValue : GooseBufferedFlushLimit;
         var flushed = 0;
+        var newVisible = 0;
 
         while (_pendingGooseRows.Count > 0 && flushed < limit)
         {
-            _gooseHistory.Add(_pendingGooseRows.Dequeue());
+            var row = _pendingGooseRows.Dequeue();
+            if (FilterGooseHistory(row)) newVisible++;
+            _gooseHistory.Add(row);
             flushed++;
         }
 
@@ -4946,6 +4996,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // The view observes incremental changes. Never Refresh() on each event.
         if (flushed > 0 || removeCount > 0)
             UpdateGooseVisibleEventCount();
+        if (newVisible > 0)
+        {
+            if (!_gooseFollowLive)
+            {
+                _gooseUnseenVisibleEventCount = Math.Min(100000, _gooseUnseenVisibleEventCount + newVisible);
+                OnPropertyChanged(nameof(GooseUnseenVisibleEventCount));
+                OnPropertyChanged(nameof(GooseFollowButtonText));
+            }
+            RequestGooseFollowScroll(); // ONE viewport signal per completed batch
+        }
     }
 
     private void TryFlushBufferedGooseRows()
