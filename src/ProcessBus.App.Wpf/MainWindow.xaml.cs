@@ -297,9 +297,6 @@ public partial class MainWindow : Window
             sender is not ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
             return;
 
-        // This click ACKs exactly this physical publisher's decoded signal changes.
-        // Modifier/range selection never ACKs any other source in the set.
-        vm.AcknowledgeGooseSource(row.Key);
         var next = vm.SelectedGooseSourceKeys.ToHashSet();
         var modifiers = Keyboard.Modifiers;
         var shift = modifiers.HasFlag(ModifierKeys.Shift);
@@ -325,13 +322,21 @@ public partial class MainWindow : Window
         {
             var onlySelected = next.Count == 1 && next.Contains(row.Key);
             next.Clear();
-            if (!onlySelected) next.Add(row.Key);
+            // Re-clicking an unread source navigates to its pending event.
+            // Re-clicking an already-read source clears its scope to All.
+            if (!onlySelected || row.HasUnacknowledgedValueChange) next.Add(row.Key);
         }
         if (!shift) _gooseSourceRangeAnchor = row.Key;
-        vm.SetGooseSourceSelection(next, !shift && !control && next.Contains(row.Key) ? row : null);
+        // Source click means "find the unread change", not "acknowledge it".
+        // Modifier selection only scopes Messages; it never steals Inspector focus.
+        var navigate = !shift && !control && next.Contains(row.Key) && row.HasUnacknowledgedValueChange;
+        vm.SetGooseSourceSelection(next, !shift && !control && !navigate && next.Contains(row.Key) ? row : null);
+        var target = navigate ? vm.InspectNextUnreadGooseSource(row.Key) : null;
         SyncGooseSourceVisualSelection();
         e.Handled = true;
         ((ListViewItem)sender).Focus();
+        if (target is not null)
+            ScrollToOperatorGooseEvent(target);
     }
 
     private void GooseSourceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -353,9 +358,16 @@ public partial class MainWindow : Window
         if (e.Key is not (Key.Space or Key.Enter) || DataContext is not MainWindowViewModel vm ||
             GooseSourceList.SelectedItem is not ProcessBus.Core.Presentation.GoosePublisherRow row)
             return;
-        // Space toggles membership and ACKs; Enter ACKs the focused source only.
-        vm.AcknowledgeGooseSource(row.Key);
-        if (e.Key == Key.Enter) { e.Handled = true; return; }
+        // Enter navigates to the oldest unread event for this source.
+        // Space modifies selection only; no implicit acknowledgement.
+        if (e.Key == Key.Enter)
+        {
+            var target = vm.InspectNextUnreadGooseSource(row.Key);
+            if (target is not null) ScrollToOperatorGooseEvent(target);
+            else vm.SelectedGoosePublisherRow = row;
+            e.Handled = true;
+            return;
+        }
         var next = vm.SelectedGooseSourceKeys.ToHashSet();
         if (!next.Add(row.Key)) next.Remove(row.Key);
         vm.SetGooseSourceSelection(next);
@@ -375,6 +387,17 @@ public partial class MainWindow : Window
                     GooseSourceList.SelectedItems.Add(item);
         }
         finally { _syncingGooseSourceSelection = false; }
+    }
+
+    private void ScrollToOperatorGooseEvent(GooseTrafficRow target)
+    {
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!GooseMessageGrid.IsVisible) return;
+            // Scroll to the exact decoded row; do not ACK it, alter live
+            // stream state or let Follow live drag the viewport away.
+            GooseMessageGrid.ScrollIntoView(target);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void GooseTraffic_Interaction(object sender, MouseEventArgs e)
@@ -397,7 +420,8 @@ public partial class MainWindow : Window
         {
             if (node is DataGridRow { DataContext: GooseTrafficRow history })
             {
-                history.Acknowledge();
+                if (DataContext is MainWindowViewModel vm)
+                    vm.AcknowledgeGooseHistoryEvent(history);
                 return;
             }
         }
@@ -433,7 +457,8 @@ public partial class MainWindow : Window
         if (e.Key is Key.Enter or Key.Space &&
             GooseMessageGrid.SelectedItem is GooseTrafficRow selected)
         {
-            selected.Acknowledge();
+            if (DataContext is MainWindowViewModel vm)
+                vm.AcknowledgeGooseHistoryEvent(selected);
             e.Handled = true;
         }
     }
