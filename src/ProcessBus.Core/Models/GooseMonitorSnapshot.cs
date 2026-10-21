@@ -13,5 +13,6 @@ public sealed class GooseMonitorSnapshot
     public IReadOnlyList<GooseMessageItem> Messages { get; init; } = Array.Empty<GooseMessageItem>();
     public IReadOnlyList<GooseValueChangeEvent> ValueChanges { get; init; } = Array.Empty<GooseValueChangeEvent>();
     public long ValueChangeOverflowCount { get; init; }
+    public Guid ValueChangeSessionId { get; init; }
     public IReadOnlyList<DiagnosticEventItem> Events { get; init; } = Array.Empty<DiagnosticEventItem>();
 }
