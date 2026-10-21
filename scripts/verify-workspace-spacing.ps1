@@ -86,4 +86,20 @@ Assert-True ($legacyCardGapCount -eq 0) 'no legacy 12-DIP gaps between adjacent 
 foreach ($name in @('WorkspacePanelInset', 'WorkspacePanelGapBelow', 'WorkspaceHeroInset')) {
     Assert-True ($source.Contains("{StaticResource $name}")) "workspace must use spacing token $name"
 }
+# GOOSE-specific P0–P3 readout contracts: only GOOSE receives the
+# compact disclosure style; all other workspace layout tokens stay untouched.
+$gooseExpanderStyle = $theme.SelectNodes("//w:Style[@x:Key='GooseDatasetExpanderStyle']", $ns)
+Assert-True ($gooseExpanderStyle.Count -eq 1) 'GOOSE has one scoped engineer disclosure style'
+$gooseExpanderUsage = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseDatasetExpanderStyle}']", $ns)
+Assert-True ($gooseExpanderUsage.Count -eq 1) 'GOOSE typed rows use scoped compact chevrons'
+foreach ($binding in @(
+    'GooseInspectorRows',
+    'GooseTimelineCountersText',
+    'GooseInspectorModeBadgeText',
+    'GooseInspectorMessage.IsTest',
+    'GooseReturnToLiveCommand'
+)) {
+    Assert-True ($source.Contains($binding)) "GOOSE inspector contract: $binding"
+}
+Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'
