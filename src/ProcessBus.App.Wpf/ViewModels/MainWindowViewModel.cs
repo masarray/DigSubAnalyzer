@@ -4686,7 +4686,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (semantic is null)
             return text;
 
-        if (string.Equals(semantic.Cdc, "DPC", StringComparison.OrdinalIgnoreCase))
+        // Only a DataSet attribute explicitly resolved as DPC.stVal may be
+        // interpreted as a two-bit breaker/switch position. Quality/time/raw
+        // binary fields must not be mislabeled OPEN or CLOSE.
+        if (!semantic.IsQuality && !semantic.IsTimestamp &&
+            string.Equals(semantic.Cdc, "DPC", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(semantic.DaName, "stVal", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(value.Type, "BitString", StringComparison.OrdinalIgnoreCase))
         {
             return text switch
             {
@@ -4959,7 +4965,8 @@ public sealed class GooseTrafficRow
     public double? DeltaMs { get; init; }
     public string SemanticChangedSummaryText { get; init; } = string.Empty;
 
-    public string TimeText => Source.LastSeenUtc.ToString("HH:mm:ss.fff");
+    // Timeline and Inspector must use the same operator-local clock.
+    public string TimeText => Source.LastSeenUtc.ToLocalTime().ToString("HH:mm:ss.fff");
     public string DeltaText => DeltaMs.HasValue ? $"{DeltaMs.Value:0.0}" : "-";
 
     public string GoId => Source.GoId;
