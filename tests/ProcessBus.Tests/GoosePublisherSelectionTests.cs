@@ -164,6 +164,35 @@ public sealed class GoosePublisherSelectionTests
     }
 
     [Fact]
+    public void MultipleSelectedPhysicalKeysStayStableThroughAbsenceAndReturn()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var first = Frame();
+        var second = Frame(source: "02:00:4C:4E:4E:51");
+        var outsider = Frame(source: "02:00:4C:4E:4E:52");
+        var pinned = new HashSet<GoosePublisherKey>
+        {
+            GoosePublisherKey.From(first), GoosePublisherKey.From(second)
+        };
+        catalog.Reconcile([first, second, outsider], null, pinned);
+        var firstRow = catalog.Find(GoosePublisherKey.From(first));
+        var secondRow = catalog.Find(GoosePublisherKey.From(second));
+
+        catalog.Reconcile([outsider], null, pinned);
+        Assert.Equal(2, catalog.Rows.Count);
+        Assert.Same(firstRow, catalog.Find(GoosePublisherKey.From(first)));
+        Assert.Same(secondRow, catalog.Find(GoosePublisherKey.From(second)));
+        Assert.True(firstRow!.IsStale);
+        Assert.True(secondRow!.IsStale);
+
+        catalog.Reconcile([Frame(sq: 88), second], null, pinned);
+        Assert.Same(firstRow, catalog.Find(GoosePublisherKey.From(first)));
+        Assert.False(firstRow.IsStale);
+        Assert.Equal((uint)88, firstRow.Current.SqNum);
+        Assert.False(secondRow.IsStale);
+    }
+
+    [Fact]
     public void HighTrafficDoesNotCauseUnboundedRows()
     {
         var catalog = new GoosePublisherCatalog();
