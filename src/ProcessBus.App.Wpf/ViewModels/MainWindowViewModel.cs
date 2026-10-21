@@ -46,6 +46,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly GoosePublisherCatalog _gooseCatalog = new();
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private readonly HashSet<GoosePublisherKey> _selectedGooseSourceKeys = new();
+    private Guid _lastGooseValueChangeSessionId;
     private long _lastGooseValueChangeRevision;
     private long _gooseValueChangeDroppedSinceLastRead;
     private GooseTrafficRow? _selectedGooseTrafficRow;
@@ -4620,6 +4621,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GooseUnseenVisibleEventCount));
         OnPropertyChanged(nameof(GooseFollowButtonText));
         _lastGooseValueChangeRevision = 0;
+        _lastGooseValueChangeSessionId = Guid.Empty;
         _gooseValueChangeDroppedSinceLastRead = 0;
         OnPropertyChanged(nameof(GooseValueChangeLossText));
         OnPropertyChanged(nameof(GooseHasValueChangeLoss));
@@ -4717,6 +4719,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void ApplyDecodedGooseValueChangeEvents(GooseMonitorSnapshot snapshot, DateTime nowUtc)
     {
+        if (snapshot.ValueChangeSessionId != Guid.Empty &&
+            snapshot.ValueChangeSessionId != _lastGooseValueChangeSessionId)
+        {
+            _lastGooseValueChangeSessionId = snapshot.ValueChangeSessionId;
+            _lastGooseValueChangeRevision = 0;
+        }
         // Only revision gaps PROVE that the reader missed an event.
         // Total ring evictions are NOT necessarily losses: earlier entries may
         // already have been consumed by previous UI snapshots.
