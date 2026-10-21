@@ -163,7 +163,9 @@ Assert-True ($gooseLeft.Contains('Command="{Binding GooseClearSearchCommand}"'))
 Assert-True ($gooseLeft.Contains('GooseHasSearchText')) 'Clear control visibility responds to actual input'
 Assert-True ($gooseLeft.Contains('ScrollViewer.VerticalScrollBarVisibility="Auto"')) 'Source list has an independent scrollbar'
 Assert-True ($gooseLeft.Contains('VirtualizingPanel.VirtualizationMode="Recycling"')) 'Source rows remain virtualized'
-Assert-True ($gooseLeft.Contains('<Grid Grid.Row="3" MinHeight="0">')) 'Scrollable source viewport is height constrained'
+# The obsolete Sources repeat toggle was removed. The bounded source list now
+# occupies row 2 rather than row 3; the star-sized viewport is unchanged.
+Assert-True ($gooseLeft.Contains('<Grid Grid.Row="2" MinHeight="0">')) 'Scrollable source viewport is height constrained'
 Assert-True (-not $gooseLeft.Contains('Text="{Binding GooseFilterSummaryText}"')) 'Redundant source footer removed'
 
 $sectionNodes = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseInspectorSectionExpanderStyle}']", $ns)
