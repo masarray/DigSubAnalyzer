@@ -3194,9 +3194,14 @@
                                 <Border Grid.Column="2"
                                         Style="{StaticResource DenseGroupBorderStyle}"
                                         Padding="{StaticResource WorkspacePanelInset}">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                        <StackPanel>
-                                            <Grid Margin="0,0,0,12">
+                                    <!-- Keep operator context and Return to Live visible while
+                                         the evidence below scrolls. No nested scrolling. -->
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0" Margin="0,0,0,12">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
@@ -3248,7 +3253,12 @@
                                                     </Button.Style>
                                                 </Button>
                                             </Grid>
-                                            <TextBlock Text="Select a GOOSE publisher to inspect live identity, network and values."
+                                        <ScrollViewer Grid.Row="1"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      Focusable="False">
+                                            <StackPanel>
+                                                <TextBlock Text="Select a GOOSE publisher to inspect live identity, network and values."
                                                        Foreground="#9FC0DA" FontSize="11.5" TextWrapping="Wrap"
                                                        Margin="0,12,0,0">
                                                 <TextBlock.Style>
@@ -3389,18 +3399,21 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <StackPanel>
-                                                    <DockPanel Margin="0,0,0,10">
-                                                        <TextBlock DockPanel.Dock="Left"
-                                                                   Text="DataSet values"
-                                                                   Foreground="#F4FAFF"
-                                                                   FontSize="13.5"
-                                                                   FontWeight="SemiBold"/>
-                                                        <TextBlock DockPanel.Dock="Right"
+                                                    <!-- Explicit grid prevents DockPanel's LastChildFill
+                                                         from collapsing the title/count separation. -->
+                                                    <Grid Margin="0,0,0,10">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="DataSet values"
+                                                                   Foreground="#F4FAFF" FontSize="13.5"
+                                                                   FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Margin="12,0,0,0"
                                                                    Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} entries}"
-                                                                   Foreground="#FFBE52"
-                                                                   FontSize="11"
-                                                                   FontWeight="SemiBold"/>
-                                                    </DockPanel>
+                                                                   Foreground="#F0C17F" FontSize="11"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
                                                     <TextBlock Text="{Binding SelectedGooseSemanticText}"
                                                                Foreground="#8FAAC3"
                                                                FontSize="11"
@@ -3457,33 +3470,49 @@
                                                                             </StackPanel>
                                                                         </Grid>
                                                                     </Expander.Header>
-                                                                    <Border Padding="12,8,8,11" Background="#081827"
+                                                                    <!-- Compact key/value evidence: full technical
+                                                                         values remain selectable via their text and
+                                                                         a stable expandable DataSet row. -->
+                                                                    <Border Padding="10,7,10,9" Background="#081827"
                                                                             BorderBrush="#17354B" BorderThickness="0,1,0,0">
-                                                                        <StackPanel>
-                                                                            <TextBlock Text="SIGNAL / DATASET ENTRY" FontSize="9.5"
-                                                                                       Foreground="#719AB9" FontWeight="SemiBold"/>
-                                                                            <TextBlock Text="{Binding NameText}" Foreground="#E7F3FF"
-                                                                                       FontSize="11" TextWrapping="Wrap" Margin="0,2,0,7"/>
-                                                                            <TextBlock Text="MMS TYPE / SOURCE" FontSize="9.5"
-                                                                                       Foreground="#719AB9" FontWeight="SemiBold"/>
-                                                                            <TextBlock Text="{Binding TypeText}" Foreground="#CEDFEE"
-                                                                                       FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                                                            <TextBlock Text="{Binding SemanticText}" Foreground="#9BBBD1"
-                                                                                       FontSize="10.5" TextWrapping="Wrap" Margin="0,2,0,7"/>
-                                                                            <TextBlock Text="RAW DECODED VALUE" FontSize="9.5"
-                                                                                       Foreground="#719AB9" FontWeight="SemiBold"/>
-                                                                            <TextBlock Text="{Binding ValueText}" Foreground="#DDECF8"
-                                                                                       FontFamily="Consolas" FontSize="11"
-                                                                                       TextWrapping="Wrap" Margin="0,2,0,7"/>
-                                                                            <TextBlock Text="MMS PAYLOAD HEX" FontSize="9.5"
-                                                                                       Foreground="#719AB9" FontWeight="SemiBold"/>
-                                                                            <TextBlock Text="{Binding RawHexDisplayText}" Foreground="#C3DAEC"
-                                                                                       FontFamily="Consolas" FontSize="11"
-                                                                                       TextWrapping="Wrap" Margin="0,2,0,7"/>
-                                                                            <TextBlock Text="{Binding QualityDetailsText}"
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="85"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <Grid.RowDefinitions>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                            </Grid.RowDefinitions>
+                                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Signal"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NameText}"
+                                                                                       Foreground="#E7F3FF" FontSize="11" TextWrapping="Wrap"
+                                                                                       Margin="0,2,0,2" ToolTip="{Binding NameText}"/>
+                                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Type / source"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TypeSourceText}"
+                                                                                       Foreground="#B9D3E8" FontSize="10.5" TextWrapping="Wrap"
+                                                                                       Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Decoded"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ValueText}"
+                                                                                       Foreground="#E7F3FF" FontSize="11" FontFamily="Consolas"
+                                                                                       TextWrapping="Wrap" Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Payload hex"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RawHexDisplayText}"
+                                                                                       Foreground="#C2D9E9" FontSize="11" FontFamily="Consolas"
+                                                                                       TextWrapping="Wrap" Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="4" Grid.ColumnSpan="2"
+                                                                                       Margin="0,5,0,0" Text="{Binding QualityDetailsText}"
                                                                                        Visibility="{Binding QualityDetailsVisibility}"
-                                                                                       Foreground="#9ED9E9" FontSize="10.5" TextWrapping="Wrap"/>
-                                                                        </StackPanel>
+                                                                                       Foreground="#9ED9E9" FontSize="10.5"
+                                                                                       TextWrapping="Wrap"/>
+                                                                        </Grid>
                                                                     </Border>
                                                                 </Expander>
                                                             </DataTemplate>
@@ -3491,8 +3520,9 @@
                                                     </ItemsControl>
                                                 </StackPanel>
                                             </Border>
-                                        </StackPanel>
-                                    </ScrollViewer>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </Grid>
                                 </Border>
                             </Grid>                        </TabItem>
 
