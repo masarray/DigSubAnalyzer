@@ -282,10 +282,10 @@ public partial class MainWindow : Window
                 System.Windows.Threading.DispatcherPriority.ContextIdle);
 
         if (e.PropertyName == nameof(MainWindowViewModel.GooseVisibleAppendRevision))
-            ScheduleGooseFollowScroll(force: false);
+            ScheduleGooseFollowScroll();
         else if (e.PropertyName == nameof(MainWindowViewModel.GooseFollowLive) &&
                  sender is MainWindowViewModel { GooseFollowLive: true })
-            ScheduleGooseFollowScroll(force: true);
+            ScheduleGooseFollowScroll();
     }
 
     private bool _syncingGooseSourceSelection;
@@ -404,7 +404,6 @@ public partial class MainWindow : Window
     }
 
     private bool _gooseFollowScrollScheduled;
-    private bool _gooseForceFollowScroll;
 
     private void SuspendGooseFollowFromOperator()
     {
@@ -414,7 +413,7 @@ public partial class MainWindow : Window
 
     private void GooseMessageGrid_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.NewValue is true) ScheduleGooseFollowScroll(force: true);
+        if (e.NewValue is true) ScheduleGooseFollowScroll();
     }
 
     private void GooseMessageGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
@@ -439,50 +438,24 @@ public partial class MainWindow : Window
         }
     }
 
-    private static T? FindGooseVisualChild<T>(DependencyObject root) where T : DependencyObject
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child is T result) return result;
-            var descendant = FindGooseVisualChild<T>(child);
-            if (descendant is not null) return descendant;
-        }
-        return null;
-    }
-
-    private bool IsGooseGridAtBottom()
-    {
-        var scroll = FindGooseVisualChild<ScrollViewer>(GooseMessageGrid);
-        return scroll is null || scroll.VerticalOffset >= scroll.ScrollableHeight - 1.5;
-    }
-
-    private void ScheduleGooseFollowScroll(bool force)
+    private void ScheduleGooseFollowScroll()
     {
         if (DataContext is not MainWindowViewModel { GooseFollowLive: true }) return;
-        if (!force && !IsGooseGridAtBottom())
-        {
-            SuspendGooseFollowFromOperator();
-            return;
-        }
-        _gooseForceFollowScroll |= force;
         if (_gooseFollowScrollScheduled) return;
         _gooseFollowScrollScheduled = true;
-        // The view has already received the entire bounded append batch.
-        // No selection/focus mutation, no per-frame or per-packet dispatch.
+
+        // A completed batch has already increased the ScrollViewer extent.
+        // Comparing its *new* bottom against the old offset would falsely
+        // suspend follow on ordinary appends. Only genuine operator wheel,
+        // touch, mouse/scrollbar or navigation input can suspend the explicit
+        // Follow live switch; programmatic follow never changes selection.
         Dispatcher.BeginInvoke(new Action(() =>
         {
             _gooseFollowScrollScheduled = false;
-            var shouldScroll = _gooseForceFollowScroll;
-            _gooseForceFollowScroll = false;
-            if (DataContext is not MainWindowViewModel vm || !vm.GooseFollowLive ||
+            if (DataContext is not MainWindowViewModel { GooseFollowLive: true } vm ||
                 !GooseMessageGrid.IsVisible) return;
-            if (shouldScroll || IsGooseGridAtBottom() ||
-                vm.GooseVisibleAppendRevision > 0)
-            {
-                var last = vm.GooseLatestVisibleTrafficRow;
-                if (last is not null) GooseMessageGrid.ScrollIntoView(last);
-            }
+            var last = vm.GooseLatestVisibleTrafficRow;
+            if (last is not null) GooseMessageGrid.ScrollIntoView(last);
         }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
