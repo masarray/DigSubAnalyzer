@@ -777,7 +777,8 @@ public sealed class RawProcessBusAnalyzer
 
     private static void AnnotateGooseChanges(GooseMessageItem current, GooseMessageItem? previous)
     {
-        if (current.DataValues.Count == 0)
+        var currentValues = current.DataValues;
+        if (currentValues.Count == 0)
         {
             current.ChangedSummaryText = "N/A";
             return;
@@ -785,39 +786,43 @@ public sealed class RawProcessBusAnalyzer
 
         if (previous is null || previous.DataValues.Count == 0)
         {
-            // The first observation has no comparative baseline. Calling every
-            // value "changed" fabricates a state transition not seen on the wire.
             current.ChangedSummaryText = "Initial DataSet baseline";
             return;
         }
 
-        // A structural/confRev change has no trustworthy position-to-signal mapping.
-        // Fail closed: re-baseline rather than fabricate a changed value.
+        // Decoder indexes follow the wire order. A ConfRev, entry count, order
+        // or type change invalidates positional evidence: re-baseline safely.
+        // O(N), no dictionary/LINQ allocations in the frame hot path.
+        var previousValues = previous.DataValues;
         if (current.ConfRev != previous.ConfRev ||
-            current.DataValues.Count != previous.DataValues.Count ||
-            current.DataValues.Select(x => x.Index).Distinct().Count() != current.DataValues.Count ||
-            previous.DataValues.Select(x => x.Index).Distinct().Count() != previous.DataValues.Count)
+            currentValues.Count != previousValues.Count)
         {
             current.ChangedSummaryText = "DataSet layout changed - new baseline";
             return;
         }
-        var previousByIndex = previous.DataValues.ToDictionary(x => x.Index);
-        if (current.DataValues.Any(value => !previousByIndex.TryGetValue(value.Index, out var old) ||
-                                            !string.Equals(value.Type, old.Type, StringComparison.Ordinal)))
+        for (var i = 0; i < currentValues.Count; i++)
         {
-            current.ChangedSummaryText = "DataSet entries changed - new baseline";
-            return;
-        }
-        foreach (var value in current.DataValues)
-        {
-            if (!previousByIndex.TryGetValue(value.Index, out var oldValue))
-                continue;
-
-            value.PreviousValue = oldValue.Value;
-            value.IsChanged = !string.Equals(value.Value, oldValue.Value, StringComparison.Ordinal);
+            if (currentValues[i].Index != previousValues[i].Index ||
+                !string.Equals(currentValues[i].Type, previousValues[i].Type, StringComparison.Ordinal))
+            {
+                current.ChangedSummaryText = "DataSet entries changed - new baseline";
+                return;
+            }
         }
 
-        current.ChangedSummaryText = BuildChangedSummary(current.DataValues);
+        var changed = false;
+        for (var i = 0; i < currentValues.Count; i++)
+        {
+            var value = currentValues[i];
+            var previousValue = previousValues[i];
+            value.PreviousValue = previousValue.Value;
+            value.IsChanged = !string.Equals(value.Value, previousValue.Value, StringComparison.Ordinal);
+            changed |= value.IsChanged;
+        }
+
+        current.ChangedSummaryText = changed
+            ? BuildChangedSummary(currentValues)
+            : "No dataset value change";
     }
 
     private static string BuildChangedSummary(IReadOnlyList<GooseDatasetValueItem> values)
