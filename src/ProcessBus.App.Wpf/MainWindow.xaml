@@ -3527,11 +3527,11 @@
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                                                          Margin="0,0,0,2" ToolTip="{Binding NameText}">
+                                                                          Margin="0,0,0,2" ToolTip="{Binding ChangeTooltipText}">
                                                                     <Expander.Style>
                                                                         <Style TargetType="Expander" BasedOn="{StaticResource GooseDatasetExpanderStyle}">
                                                                             <Style.Triggers>
-                                                                                <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                                                                <DataTrigger Binding="{Binding IsChangeHighlighted}" Value="True">
                                                                                     <Setter Property="Background" Value="#233A48"/>
                                                                                     <Setter Property="BorderBrush" Value="#E4B464"/>
                                                                                     <Setter Property="BorderThickness" Value="3,0,0,1"/>
@@ -3555,28 +3555,11 @@
 
                                                                             </StackPanel>
                                                                             <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                                                <TextBlock Text="CHANGED" Foreground="#F6C681" FontSize="9"
-                                                                                           HorizontalAlignment="Right" Margin="0,0,0,1">
-                                                                                    <TextBlock.Style>
-                                                                                        <Style TargetType="TextBlock">
-                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                                            <Style.Triggers>
-                                                                                                <DataTrigger Binding="{Binding IsChanged}" Value="True">
-                                                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                                                </DataTrigger>
-                                                                                            </Style.Triggers>
-                                                                                        </Style>
-                                                                                    </TextBlock.Style>
-                                                                                </TextBlock>
                                                                                 <TextBlock Text="{Binding DisplayValueText}"
                                                                                            FontFamily="Consolas, Segoe UI"
                                                                                            Foreground="{Binding ValueBrush}" FontSize="11.5"
                                                                                            TextAlignment="Right" TextTrimming="CharacterEllipsis"
-                                                                                           ToolTip="{Binding DisplayValueText}"/>
-                                                                                <TextBlock Text="{Binding ChangeText}"
-                                                                                           Visibility="{Binding ChangeVisibility}"
-                                                                                           FontSize="9.5" Foreground="#F2C477"
-                                                                                           TextTrimming="CharacterEllipsis" TextAlignment="Right"/>
+                                                                                           ToolTip="{Binding ChangeTooltipText}"/>
                                                                             </StackPanel>
                                                                         </Grid>
                                                                     </Expander.Header>
