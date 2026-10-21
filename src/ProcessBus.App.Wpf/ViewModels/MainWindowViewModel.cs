@@ -1080,6 +1080,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
+    public int GooseInspectorChangedCount =>
+        GooseInspectorMessage?.DataValues.Count(value => value.IsChanged) ?? 0;
+    public bool GooseInspectorHasChangedValues => GooseInspectorChangedCount > 0;
+    public string GooseInspectorChangedCountText => $"{GooseInspectorChangedCount} changed";
 
     public string GooseInspectorEntryTimeText => GooseInspectorMessage?.LastSeenUtc.ToLocalTime()
         .ToString("M/d/yyyy h:mm:ss.fff tt", System.Globalization.CultureInfo.InvariantCulture) ?? "-";
@@ -1187,6 +1191,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedGooseMessage));
         OnPropertyChanged(nameof(GooseInspectorMessage));
         OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
+        OnPropertyChanged(nameof(GooseInspectorChangedCountText));
+        OnPropertyChanged(nameof(GooseInspectorHasChangedValues));
         OnPropertyChanged(nameof(GooseInspectorEntryTimeText));
         OnPropertyChanged(nameof(GooseInspectorNeedsCommissioningText));
         OnPropertyChanged(nameof(GooseInspectorSimulationTestText));
@@ -5117,6 +5123,7 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
 
     public GooseDatasetDisplayRow(GooseDatasetValueDisplayItem item) => _current = item;
     public int Index => _current.Index;
+    public bool IsChanged => _current.IsChanged;
     public string IndexText => _current.IndexText;
     public string NameText => _current.NameText;
     public string TypeText => _current.TypeText;
@@ -5186,7 +5193,7 @@ public sealed class GooseDatasetValueDisplayItem
     public string IndexText => Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
     public string RawHexDisplayText => string.IsNullOrWhiteSpace(RawHexText) ? "Not available" : RawHexText;
     public string ChangeText => IsChanged && !string.IsNullOrWhiteSpace(PreviousValueText)
-        ? $"Previously: {PreviousValueText}" : IsChanged ? "Value changed (earlier value unavailable)" : string.Empty;
+        ? $"{PreviousValueText} → {DisplayValueText}" : IsChanged ? "Value changed" : string.Empty;
     public Visibility ChangeVisibility => IsChanged ? Visibility.Visible : Visibility.Collapsed;
     public Visibility QualityDetailsVisibility => string.IsNullOrWhiteSpace(QualityDetailsText)
         ? Visibility.Collapsed : Visibility.Visible;
