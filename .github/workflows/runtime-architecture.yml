@@ -1,6 +1,8 @@
 name: Runtime architecture
 
 on:
+  push:
+    branches: [fix/goose-multisource-filter-20261021]
   pull_request:
     branches: [main]
     paths:
