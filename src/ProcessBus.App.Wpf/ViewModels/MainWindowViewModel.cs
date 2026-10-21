@@ -141,6 +141,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private DiagnosticEventItem? _lastAggregatedBottomEvent;
     private int _lastAggregatedEventCount = -1;
     private DateTime? _lastGooseHistoryTimeUtc;
+    private DateTime? _firstGooseHistoryTimeUtc;
     private DateTime _gooseInteractionUntilUtc = DateTime.MinValue;
     private bool _isGooseInteractionActive;
     private bool _isSelectionOverlayVisible;
@@ -995,6 +996,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
 
+    public string GooseInspectorEntryTimeText => GooseInspectorMessage?.LastSeenUtc.ToLocalTime()
+        .ToString("M/d/yyyy h:mm:ss.fff tt", System.Globalization.CultureInfo.InvariantCulture) ?? "-";
+    public string GooseInspectorNeedsCommissioningText => GooseInspectorMessage?.NeedsCommission == true ? "true" : "false";
+    public string GooseInspectorSimulationTestText => GooseInspectorMessage?.IsTest == true ? "true" : "false";
+
     public string GooseInspectorFlagsText
     {
         get
@@ -1096,6 +1102,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedGooseMessage));
         OnPropertyChanged(nameof(GooseInspectorMessage));
         OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
+        OnPropertyChanged(nameof(GooseInspectorEntryTimeText));
+        OnPropertyChanged(nameof(GooseInspectorNeedsCommissioningText));
+        OnPropertyChanged(nameof(GooseInspectorSimulationTestText));
         OnPropertyChanged(nameof(GooseInspectorFlagsText));
         OnPropertyChanged(nameof(GooseInspectorModeText));
         OnPropertyChanged(nameof(GooseInspectorModeBadgeText));
@@ -4537,6 +4546,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _pendingGooseRows.Clear();
         _pendingDiagnosticEvents.Clear();
         _lastGooseHistoryTimeUtc = null;
+        _firstGooseHistoryTimeUtc = null;
         _selectedGooseTrafficRow = null;
         _selectedStream = null;
         _phasors = Array.Empty<PhasorDisplayItem>();
@@ -4681,7 +4691,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return new GooseDatasetValueDisplayItem
                 {
                     Index = value.Index,
-                    NameText = GooseDatasetEntryPresentation.ResolveName(value.Index, semantic?.SignalReference),
+                    NameText = GooseDatasetEntryPresentation.ResolveName(value.Index, semantic?.SignalReference, value.Type),
                     TypeText = GooseEngineeringLanguage.DataType(value.Type),
                     ProtocolTypeText = value.Type,
                     ConfigurationTypeText = semantic is null ? "" : BuildSemanticGooseTypeText(value, semantic),
@@ -4772,12 +4782,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             deltaMs = (msg.LastSeenUtc - _lastGooseHistoryTimeUtc.Value).TotalMilliseconds;
 
         _lastGooseHistoryTimeUtc = msg.LastSeenUtc;
+        _firstGooseHistoryTimeUtc ??= msg.LastSeenUtc;
+        var relativeMilliseconds = Math.Max(0, (msg.LastSeenUtc - _firstGooseHistoryTimeUtc.Value).TotalMilliseconds);
 
         _pendingGooseRows.Enqueue(new GooseTrafficRow
         {
             Source = msg,
             EventType = eventType,
             DeltaMs = deltaMs,
+            RelativeMs = relativeMilliseconds,
             SemanticChangedSummaryText = BuildSemanticGooseChangedSummary(msg)
         });
 
@@ -5004,10 +5017,14 @@ public sealed class GooseTrafficRow
 
     public string EventType { get; init; } = "STATE";
     public double? DeltaMs { get; init; }
+    // Relative to the first observed GOOSE event of this capture, not to
+    // the preceding event (the latter is DeltaMs).
+    public double RelativeMs { get; init; }
+    public string RelativeTimeText => (RelativeMs / 1000).ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture);
     public string SemanticChangedSummaryText { get; init; } = string.Empty;
 
     // Timeline and Inspector must use the same operator-local clock.
-    public string TimeText => Source.LastSeenUtc.ToLocalTime().ToString("HH:mm:ss.fff");
+    public string TimeText => Source.LastSeenUtc.ToLocalTime().ToString("h:mm:ss.fffffff tt", System.Globalization.CultureInfo.InvariantCulture);
     public string DeltaText => DeltaMs.HasValue ? $"{DeltaMs.Value:0.0}" : "-";
 
     public string GoId => Source.GoId;
