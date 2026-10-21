@@ -23,7 +23,7 @@ public sealed class RawProcessBusAnalyzer
     // Mapping eligibility is stable until the operator reloads SCL/mapping context.
     // Avoid scoring + LINQ allocations for every 4,000/4,800 Hz ASDU.
     private readonly Dictionary<string, SvChannelMappingProfile?> _resolvedSvMappings = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AggregatedEventState> _aggregatedEvents = new(StringComparer.OrdinalIgnoreCase);
     private readonly PtpHealthTracker _ptpTracker = new();
     private readonly Queue<PtpEventItem> _recentPtpEvents = new();
@@ -706,9 +706,15 @@ public sealed class RawProcessBusAnalyzer
         var goCbRef = ValueOrFallback(packet.GoCbRef, "N/A");
         var goId = ValueOrFallback(packet.GoId, "N/A");
         var dataSet = ValueOrFallback(packet.DataSet, "N/A");
-        var messageId = goCbRef != "N/A"
-            ? goCbRef
-            : $"{packet.Frame.AppId:X4}:{goId}:{dataSet}";
+        // A GoCB reference alone is not globally unique: separate IEDs may
+        // publish the same name. Include physical source, APPID and VLAN.
+        // Never include stNum/sqNum, ConfRev or last-seen in publisher identity.
+        var sourceMac = packet.Frame.Ethernet.SourceMac.Trim().Replace('-', ':').ToUpperInvariant();
+        var vlanId = packet.Frame.Ethernet.Vlan.HasValue
+            ? packet.Frame.Ethernet.Vlan.Value.VlanId.ToString()
+            : "N/A";
+        var blockIdentity = goCbRef != "N/A" ? goCbRef : $"fallback:{goId}|{dataSet}";
+        var messageId = $"{sourceMac}|{packet.Frame.AppId:X4}|{vlanId}|{blockIdentity}";
 
         var dataValues = packet.DataValues
             .Select(x => new GooseDatasetValueItem

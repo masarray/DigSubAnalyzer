@@ -1407,13 +1407,15 @@
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,8"/>
 
-                                <ListView ItemsSource="{Binding GooseMessages}"
-                                          SelectedItem="{Binding SelectedGooseMessage, Mode=TwoWay}"
+                                <ListView ItemsSource="{Binding GoosePublisherRowsView}"
+                                          SelectedItem="{Binding SelectedGoosePublisherRow, Mode=TwoWay}"
                                           Background="Transparent"
                                           BorderThickness="0"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
+                                            <!-- Re-clicking the already selected publisher must exit pinned-event mode. -->
+                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="GoosePublisherRow_PreviewMouseLeftButtonDown"/>
                                             <Setter Property="Padding" Value="0"/>
                                             <Setter Property="Margin" Value="0,0,0,8"/>
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -3176,18 +3178,18 @@
                                                        Foreground="#F4FAFF"
                                                        FontSize="16"
                                                        FontWeight="SemiBold"/>
-                                            <TextBlock Text="Selected publisher and typed DataSet values"
+                                            <TextBlock Text="{Binding GooseInspectorModeText}"
                                                        Foreground="#7FA8CC"
                                                        FontSize="11"
                                                        Margin="0,3,0,14"/>
-                                            <TextBlock Text="Select a GOOSE event to inspect publisher identity, network and values."
+                                            <TextBlock Text="Select a GOOSE publisher to inspect live identity, network and values."
                                                        Foreground="#9FC0DA" FontSize="11.5" TextWrapping="Wrap"
                                                        Margin="0,12,0,0">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                            <DataTrigger Binding="{Binding GooseInspectorMessage}" Value="{x:Null}">
                                                                 <Setter Property="Visibility" Value="Visible"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -3204,7 +3206,7 @@
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                            <DataTrigger Binding="{Binding GooseInspectorMessage}" Value="{x:Null}">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -3222,17 +3224,17 @@
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="GOOSE ID" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedGooseTrafficRow.GoId}" Foreground="#F4FAFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,3,0,3"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoId}" Foreground="#F4FAFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,3,0,3"/>
                                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Publisher" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedGooseTrafficRow.GoCbRef}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoCbRef}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
                                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="APPID" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedGooseTrafficRow.AppId}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.AppId}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                     <TextBlock Grid.Row="3" Grid.Column="0" Text="stNum / sqNum" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
                                                     <TextBlock Grid.Row="3" Grid.Column="1" Foreground="#DDEEFF" FontWeight="SemiBold" Margin="0,3,0,3">
                                                         <TextBlock.Text>
                                                             <MultiBinding StringFormat="{}{0} / {1}">
-                                                                <Binding Path="SelectedGooseTrafficRow.StNum"/>
-                                                                <Binding Path="SelectedGooseTrafficRow.SqNum"/>
+                                                                <Binding Path="GooseInspectorMessage.StNum"/>
+                                                                <Binding Path="GooseInspectorMessage.SqNum"/>
                                                             </MultiBinding>
                                                         </TextBlock.Text>
                                                     </TextBlock>
@@ -3248,7 +3250,7 @@
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                            <DataTrigger Binding="{Binding GooseInspectorMessage}" Value="{x:Null}">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -3275,30 +3277,30 @@
                                                             <RowDefinition Height="Auto"/>
                                                         </Grid.RowDefinitions>
                                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Src MAC" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedGooseTrafficRow.SourceMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.SourceMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Dst MAC" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedGooseTrafficRow.DestinationMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.DestinationMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="2" Grid.Column="0" Text="VLAN" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
                                                         <TextBlock Grid.Row="2" Grid.Column="1" Foreground="#DDEEFF" Margin="0,3,0,3">
                                                             <TextBlock.Text>
                                                                 <MultiBinding StringFormat="{}ID {0} · Priority {1}">
-                                                                    <Binding Path="SelectedGooseTrafficRow.VlanId"/>
-                                                                    <Binding Path="SelectedGooseTrafficRow.VlanPriority"/>
+                                                                    <Binding Path="GooseInspectorMessage.VlanId"/>
+                                                                    <Binding Path="GooseInspectorMessage.VlanPriority"/>
                                                                 </MultiBinding>
                                                             </TextBlock.Text>
                                                         </TextBlock>
                                                         <TextBlock Grid.Row="3" Grid.Column="0" Text="DataSet" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedGooseTrafficRow.DataSet}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.DataSet}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="4" Grid.Column="0" Text="ConfRev" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedGooseMessage.ConfRev}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.ConfRev}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="5" Grid.Column="0" Text="TTL" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedGooseMessage.TimeAllowedToLiveMilliseconds, StringFormat={}{0} ms}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorMessage.TimeAllowedToLiveMilliseconds, StringFormat={}{0} ms}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="6" Grid.Column="0" Text="Flags" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
                                                         <TextBlock Grid.Row="6" Grid.Column="1" Foreground="#DDEEFF" Margin="0,3,0,3">
                                                             <TextBlock.Text>
                                                                 <MultiBinding StringFormat="{}Test {0} · NdsCom {1}">
-                                                                    <Binding Path="SelectedGooseTrafficRow.TestText"/>
-                                                                    <Binding Path="SelectedGooseTrafficRow.NeedsCommissionText"/>
+                                                                    <Binding Path="GooseInspectorMessage.IsTest"/>
+                                                                    <Binding Path="GooseInspectorMessage.NeedsCommission"/>
                                                                 </MultiBinding>
                                                             </TextBlock.Text>
                                                         </TextBlock>
@@ -3314,7 +3316,7 @@
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding SelectedGooseTrafficRow}" Value="{x:Null}">
+                                                            <DataTrigger Binding="{Binding GooseInspectorMessage}" Value="{x:Null}">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -3328,7 +3330,7 @@
                                                                    FontSize="13.5"
                                                                    FontWeight="SemiBold"/>
                                                         <TextBlock DockPanel.Dock="Right"
-                                                                   Text="{Binding SelectedGooseTrafficRow.DatasetEntryCountText, StringFormat=({0})}"
+                                                                   Text="{Binding GooseInspectorDatasetCountText, StringFormat=({0})}"
                                                                    Foreground="#FFBE52"
                                                                    FontSize="11"
                                                                    FontWeight="SemiBold"/>

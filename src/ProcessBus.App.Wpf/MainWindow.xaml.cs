@@ -259,6 +259,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private void GoosePublisherRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // WPF SelectionChanged does not fire when the operator clicks an item
+        // that is already selected. The explicit click still means "inspect live"
+        // after a historical timeline event had been pinned.
+        if (DataContext is MainWindowViewModel viewModel &&
+            sender is ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
+            viewModel.SelectedGoosePublisherRow = row;
+    }
+
     private void GooseTraffic_Interaction(object sender, MouseEventArgs e)
     {
         DeferGooseTrafficFlush();

@@ -15,6 +15,26 @@ public sealed class M4GooseRetentionTests
             GoldenFrames.ProcessBusPayload(0x0001, apdu));
     }
 
+
+    [Fact]
+    public void SameGoCbRefOnTwoSourceMacsRemainsTwoIndependentPublishers()
+    {
+        var analyzer = new RawProcessBusAnalyzer();
+        var first = Goose(1);
+        var second = (byte[])first.Clone();
+        // Ethernet II source MAC occupies bytes 6..11.
+        second[11] ^= 0x01;
+
+        analyzer.ObserveFrame(first, DateTime.UtcNow);
+        analyzer.ObserveFrame(second, DateTime.UtcNow.AddMilliseconds(1));
+
+        var publishers = analyzer.GetGooseSnapshot().Messages;
+        Assert.Equal(2, publishers.Count);
+        Assert.Equal(2, publishers.Select(x => x.MessageId).Distinct().Count());
+        Assert.Equal(2, publishers.Select(x => x.SourceMac).Distinct().Count());
+        Assert.All(publishers, x => Assert.Equal("LABLD0/LLN0$GO$CB001", x.GoCbRef));
+    }
+
     [Fact]
     public void ChurningPublisherIdentitiesCannotAllocateUnboundedGooseStates()
     {
