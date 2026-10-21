@@ -34,11 +34,11 @@ content = SITE.read_text(encoding="utf-8")
 parser = Links()
 parser.feed(content)
 installer = [a for a in parser.anchors if a.get("data-release-download") == "installer"]
-assert len(installer) >= 3, "Header, hero, and download-card must link to EXE"
+assert len(installer) >= 4, "Header, hero, download primary CTA, and download-card must directly link to EXE"
 assert all(a.get("href") == fallback for a in installer), "Every primary CTA must directly download the stable EXE"
 assert not any("portable" in a.get("href", "").lower() for a in installer), "Installer CTA must never link to portable ZIP"
 assert not any(a.get("href", "").endswith("/releases") for a in installer), "Installer CTA must not open a releases list"
-assert "Download installer (.exe)" in content and "Download portable ZIP" not in content
+assert "Download installer (.exe)" in content and "Download latest stable .exe" in content and "Download portable ZIP" not in content
 assert all(a.get("href", "").startswith(INSTALLER_ROOT + tag + "/") for a in parser.anchors
            if a.get("data-release-download") in {"portable", "checksum"}), "Secondary downloads must match version"
 
@@ -57,4 +57,4 @@ css = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")
 assert ".download-alternatives" in css and ".download-installer-card" in css
 readme = (ROOT / "README.md").read_text(encoding="utf-8")
 assert fallback in readme, "README stable installer link is stale"
-print(f"Landing installer download contract: PASS ({tag}, 3+ direct EXE CTAs, API fallback)")
+print(f"Landing installer download contract: PASS ({tag}, 4+ direct EXE CTAs, API fallback)")
