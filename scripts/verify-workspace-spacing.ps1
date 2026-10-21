@@ -191,7 +191,7 @@ Assert-True ($source.Contains('IsChecked="{Binding GooseFollowLive, Mode=TwoWay}
 Assert-True (-not $source.Contains('Command="{Binding GooseResumeFollowCommand}"')) 'Old transient Follow live button is removed'
 Assert-True ($source.Contains('IsUnacknowledgedEvent') -and $source.Contains('HasUnacknowledgedValueChange')) 'Message and source alert visuals bind to acknowledged state'
 Assert-True ($vmSource.Contains('public void Acknowledge()') -and
-             $vmSource.Contains('public void AcknowledgeGooseSource(')) 'Operator-owned acknowledgement is available for history and sources'
+             $vmSource.Contains('public void AcknowledgeGooseHistoryEvent(')) 'ACK belongs to the history event, not an independent source flag'
 Assert-True (-not $vmSource.Contains('ExpireEmphasis(') -and
              -not $vmSource.Contains('ExpireValueChangeNotice(')) 'Streaming UI does not auto-expire unread engineering evidence'
 $messageStart = $source.IndexOf('<!-- Main event timeline: lean, readable, no debug ornaments. -->')
