@@ -32,7 +32,7 @@ public sealed class GooseQualityPresentationTests
     }
 
     [Theory]
-    [InlineData("034000", "reserved")]
+    [InlineData("034000", "invalid")]
     [InlineData("03C000", "questionable")]
     [InlineData("038000", "reserved")]
     public void QualityValidityVariantsRemainLiteral(string hex, string expected)
