@@ -131,6 +131,29 @@ Assert-True ($vmSource.Contains('GooseEngineeringLanguage.TryDescribeDoublePoint
 Assert-True ($vmSource.Contains('GooseEngineeringLanguage.DataType')) 'Data type labels use human-friendly terminology'
 Assert-True ($source.Contains('Text="Published Values"')) 'Signal table uses plain wording'
 Assert-True ($source.Contains('Text="RECEIVED VALUE"')) 'Values remain clearly distinguished from interpretation'
+# Every GOOSE Inspector card is independently collapsible. Section controls
+# live in the fixed WPF view, not in a per-packet ItemsSource or decode path.
+$inspectorSectionStyles = $theme.SelectNodes("//w:Style[@x:Key='GooseInspectorSectionExpanderStyle']", $ns)
+Assert-True ($inspectorSectionStyles.Count -eq 1) 'GOOSE has one scoped Inspector section expander style'
+$sections = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseInspectorSectionExpanderStyle}']", $ns)
+Assert-True ($sections.Count -eq 3) 'exactly three independent Inspector section expanders'
+$expected = @(
+    @{ Name = 'GooseMessageIdentitySection'; Expanded = 'True' },
+    @{ Name = 'GooseNetworkInformationSection'; Expanded = 'False' },
+    @{ Name = 'GoosePublishedValuesSection'; Expanded = 'True' }
+)
+foreach ($item in $expected) {
+    $section = $window.SelectSingleNode("//w:Expander[@x:Name='$($item.Name)']", $ns)
+    Assert-True ($null -ne $section) "Inspector section exists: $($item.Name)"
+    Assert-True ($section.GetAttribute('IsExpanded') -eq $item.Expanded) "default expansion for $($item.Name)"
+    Assert-True ($section.GetAttribute('Style') -eq '{StaticResource GooseInspectorSectionExpanderStyle}') "scoped expander style for $($item.Name)"
+}
+Assert-True ($inspector.Contains('GooseInspectorMessage.GoId')) 'closed Message & State card retains identifying message name'
+Assert-True ($inspector.Contains('GooseInspectorMessage.SourceMac, StringFormat={}From {0}')) 'closed Network card retains sending address'
+Assert-True ($inspector.Contains('GooseInspectorDatasetCountText')) 'closed Values card retains item count'
+Assert-True ($source.Contains('GooseInspectorRows')) 'collapsible values preserve stable item rows'
+Write-Host 'GOOSE Inspector disclosure contract: PASS (three independent sections, keyboard template, smart defaults)'
+
 Write-Host 'GOOSE operator language contract: PASS (plain labels + original wire evidence)'
 Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
 Write-Host 'GOOSE Inspector screenshot regression gate: PASS (fixed header, count alignment, compact MMS details)'
