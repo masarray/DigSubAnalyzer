@@ -1296,7 +1296,6 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
@@ -1399,60 +1398,8 @@
                                 </Grid>
                             </Border>
 
-                            <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}" Visibility="Collapsed">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Text="Show repeats"
-                                               Foreground="#D9ECFF"
-                                               FontSize="12"
-                                               FontWeight="Medium"/>
-
-                                </StackPanel>
-
-                                <ToggleButton Grid.Row="0" Grid.Column="1"
-                                              Width="48"
-                                              Height="24"
-                                              VerticalAlignment="Center"
-                                              IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
-                                              FocusVisualStyle="{x:Null}">
-                                    <ToggleButton.Template>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border x:Name="Track"
-                                                    CornerRadius="12"
-                                                    Background="#102236"
-                                                    BorderBrush="#244B6D"
-                                                    BorderThickness="1">
-                                                <Grid>
-                                                    <Ellipse x:Name="Knob"
-                                                             Width="18"
-                                                             Height="18"
-                                                             HorizontalAlignment="Left"
-                                                             Margin="3,0,0,0"
-                                                             Fill="#7FA8CC"/>
-                                                </Grid>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="Track" Property="Background" Value="#0A5FB8"/>
-                                                    <Setter TargetName="Track" Property="BorderBrush" Value="#1B8CFF"/>
-                                                    <Setter TargetName="Knob" Property="Fill" Value="#F4FAFF"/>
-                                                    <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
-                                                    <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </ToggleButton.Template>
-                                </ToggleButton>
-
-
-                            </Grid>
-
                             <!-- Only this bounded viewport scrolls; search and toggle stay fixed. -->
-                            <Grid Grid.Row="3" MinHeight="0">
+                            <Grid Grid.Row="2" MinHeight="0">
                                 <ListView x:Name="GooseSourceList" ItemsSource="{Binding GoosePublisherRowsView}"
                                           SelectionMode="Extended"
                                           SelectionChanged="GooseSourceList_SelectionChanged"
@@ -3073,44 +3020,51 @@
                                         </Grid.RowDefinitions>
 
                                         <Grid Grid.Row="0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Messages"
-                                                           Foreground="#F4FAFF"
-                                                           FontSize="16"
-                                                           FontWeight="SemiBold"
-                                                           VerticalAlignment="Center"/>
-                                                <Border Margin="10,0,0,0"
-                                                        Padding="8,3"
-                                                        Background="#0B2A45"
-                                                        BorderBrush="#1B5C8A"
-                                                        BorderThickness="1"
-                                                        CornerRadius="10">
-                                                    <TextBlock Text="{Binding GooseTimelineCountersText}"
-                                                               Foreground="#7BD8FF"
-                                                               FontSize="11"
-                                                               FontWeight="SemiBold"/>
-                                                </Border>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding GooseSourceScopeText}" Foreground="#8FB5D1"
-                                                           VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0"/>
-                                                <Button Content="Clear filter" Command="{Binding GooseClearSourceSelectionCommand}"
-                                                        Margin="0,0,10,0" Padding="6,3" FontSize="11">
-                                                    <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding GooseSourceFilterActive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
-                                                </Button>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Messages"
+                                                       Foreground="#F4FAFF" FontSize="16" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <TextBlock Text="Show repeats" Foreground="#D9ECFF" FontSize="11"
-                                                           VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                                           Margin="0,0,7,0" VerticalAlignment="Center"/>
                                                 <CheckBox IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
                                                           VerticalAlignment="Center" ToolTip="Show repeated messages"/>
                                             </StackPanel>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,5,6,0"
+                                                       Text="{Binding GooseTimelineCountersText}" TextTrimming="CharacterEllipsis"
+                                                       Foreground="#7BD8FF" FontSize="11" VerticalAlignment="Center"
+                                                       ToolTip="{Binding GooseValueChangeLossText}"/>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"
+                                                        Margin="0,4,0,0" VerticalAlignment="Center">
+                                                <Button Content="Clear filter" Command="{Binding GooseClearSourceSelectionCommand}"
+                                                        Margin="0,0,6,0" Padding="6,2" FontSize="10.5"
+                                                        ToolTip="{Binding GooseSourceScopeText}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers><DataTrigger Binding="{Binding GooseSourceFilterActive}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger></Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button Content="{Binding GooseFollowButtonText}"
+                                                        Command="{Binding GooseResumeFollowCommand}" Padding="6,2"
+                                                        FontSize="10.5" ToolTip="Resume following newest visible GOOSE messages">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers><DataTrigger Binding="{Binding GooseFollowLive}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger></Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
                                         </Grid>
 
-                                        <DataGrid Grid.Row="2"
+                                        <DataGrid x:Name="GooseMessageGrid" Grid.Row="2"
                                                   Style="{StaticResource DarkDataGridStyle}"
                                                   ItemsSource="{Binding GooseHistoryView}"
                                                   SelectedItem="{Binding SelectedGooseTrafficRow, Mode=TwoWay}"
@@ -3132,9 +3086,10 @@
                                                   ScrollViewer.CanContentScroll="True"
                                                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                                  MouseEnter="GooseTraffic_Interaction"
-                                                  MouseMove="GooseTraffic_Interaction"
-                                                  PreviewMouseDown="GooseTraffic_ClickInteraction">
+                                                  PreviewMouseDown="GooseTraffic_ClickInteraction"
+                                                  PreviewMouseWheel="GooseMessageGrid_PreviewMouseWheel"
+                                                  PreviewKeyDown="GooseMessageGrid_PreviewKeyDown"
+                                                  PreviewTouchDown="GooseMessageGrid_PreviewTouchDown">
                                             <DataGrid.Columns>
                                                 <DataGridTemplateColumn Width="30" Header="">
                                                     <DataGridTemplateColumn.CellTemplate>
