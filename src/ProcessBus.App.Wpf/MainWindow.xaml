@@ -1499,8 +1499,7 @@
                                                            FontSize="10.5"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}App {0} · State {1} · Seq {2}">
-                                                            <Binding Path="AppId"/>
+                                                        <MultiBinding StringFormat="{}State {0} · Sequence {1}">
                                                             <Binding Path="StNum"/>
                                                             <Binding Path="SqNum"/>
                                                         </MultiBinding>
