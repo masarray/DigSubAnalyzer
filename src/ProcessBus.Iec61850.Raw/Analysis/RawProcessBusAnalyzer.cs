@@ -517,7 +517,7 @@ public sealed class RawProcessBusAnalyzer
         if (item.DataValues.Any(value => value.IsChanged))
         {
             _gooseValueChanges.Enqueue(new GooseValueChangeEvent(
-                GoosePublisherKey.From(item), ++_gooseValueChangeRevision, item.LastSeenUtc));
+                GoosePublisherKey.From(item), ++_gooseValueChangeRevision, item.LastSeenUtc, item));
             if (_gooseValueChanges.Count > MaxBufferedGooseValueChanges)
             {
                 _gooseValueChanges.Dequeue();
