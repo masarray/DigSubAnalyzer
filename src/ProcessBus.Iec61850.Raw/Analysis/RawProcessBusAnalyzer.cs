@@ -501,6 +501,9 @@ public sealed class RawProcessBusAnalyzer
 
         var previous = state.Item;
         AnnotateGooseChanges(item, previous);
+        var valueChanged = item.DataValues.Any(value => value.IsChanged);
+        item.ValueChangeRevision = previous.ValueChangeRevision + (valueChanged ? 1 : 0);
+        item.LastValueChangeUtc = valueChanged ? item.LastSeenUtc : previous.LastValueChangeUtc;
 
         if (previous.StNum != item.StNum || previous.SqNum != item.SqNum)
         {
@@ -760,7 +763,12 @@ public sealed class RawProcessBusAnalyzer
             return;
         }
 
-        if (previous is null || previous.DataValues.Count == 0)
+        if (previous is null || previous.DataValues.Count == 0 ||
+            current.ConfRev != previous.ConfRev ||
+            !string.Equals(current.DataSet, previous.DataSet, StringComparison.Ordinal) ||
+            current.DataValues.Count != previous.DataValues.Count ||
+            current.DataValues.Any(value => !previous.DataValues.Any(old =>
+                old.Index == value.Index && string.Equals(old.Type, value.Type, StringComparison.Ordinal))))
         {
             // The first observation has no comparative baseline. Calling every
             // value "changed" fabricates a state transition not seen on the wire.
@@ -2891,6 +2899,8 @@ public sealed class RawProcessBusAnalyzer
                 LastSeenUtc = Item.LastSeenUtc,
                 ValuesText = Item.ValuesText,
                 ChangedSummaryText = Item.ChangedSummaryText,
+                ValueChangeRevision = Item.ValueChangeRevision,
+                LastValueChangeUtc = Item.LastValueChangeUtc,
                 StatusText = Item.StatusText,
                 DataValues = Item.DataValues
                     .Select(x => new GooseDatasetValueItem
