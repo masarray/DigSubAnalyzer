@@ -41,7 +41,10 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     public bool IsStale { get; private set; }
     public DateTime? LastValueChangeUtc { get; private set; }
     public long ChangeRevision { get; private set; }
-    public bool HasRecentValueChange { get; private set; }
+    // Latched notification: decoder evidence is acknowledged only by an
+    // explicit operator action on THIS stable physical publisher key.
+    // Selection/filter/search, snapshot refresh and time never acknowledge it.
+    public bool HasUnacknowledgedValueChange { get; private set; }
     public string LastValueChangeText => LastValueChangeUtc?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-";
 
     private Guid _lastChangeSessionId;
@@ -51,23 +54,24 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
         if (sessionId != Guid.Empty && sessionId != _lastChangeSessionId)
         {
             _lastChangeSessionId = sessionId;
-            ChangeRevision = 0; // Decoder restart; preserve row identity, reset revision scope.
+            ChangeRevision = 0; // Decoder restart; retain the stable row and ACK state.
         }
         if (revision <= ChangeRevision) return;
         ChangeRevision = revision;
         LastValueChangeUtc = timeUtc;
-        var wasRecent = HasRecentValueChange;
-        HasRecentValueChange = true;
+        if (!HasUnacknowledgedValueChange)
+        {
+            HasUnacknowledgedValueChange = true;
+            OnPropertyChanged(nameof(HasUnacknowledgedValueChange));
+        }
         OnPropertyChanged(nameof(LastValueChangeText));
-        if (!wasRecent) OnPropertyChanged(nameof(HasRecentValueChange));
     }
 
-    public void ExpireValueChangeNotice(DateTime nowUtc)
+    public void AcknowledgeValueChange()
     {
-        if (!HasRecentValueChange || !LastValueChangeUtc.HasValue ||
-            (nowUtc - LastValueChangeUtc.Value).TotalMilliseconds < 2500) return;
-        HasRecentValueChange = false;
-        OnPropertyChanged(nameof(HasRecentValueChange));
+        if (!HasUnacknowledgedValueChange) return;
+        HasUnacknowledgedValueChange = false;
+        OnPropertyChanged(nameof(HasUnacknowledgedValueChange));
     }
     public string GoId => Current.GoId;
     public string GoCbRef => Current.GoCbRef;
