@@ -26,7 +26,9 @@ public static class GooseQualityPresentation
 
         // IEC 61850 q has exactly 13 bits. The MMS BER bitstring value starts
         // with the unused-bit count, then the MSB-first quality payload.
-        if (bytes[0] != 3)
+        // A 13-bit quality word leaves three unused bits that must be zero.
+        // Reject malformed BER padding rather than reporting plausible quality.
+        if (bytes[0] != 3 || (bytes[2] & 0x07) != 0)
             return false;
 
         var qualityBits = (uint)((bytes[1] << 8) | bytes[2]);
