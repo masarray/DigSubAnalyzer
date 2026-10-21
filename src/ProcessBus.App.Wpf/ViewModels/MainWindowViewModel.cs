@@ -240,6 +240,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _goosePublisherFilterText = value ?? string.Empty;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(GooseHasSearchText));
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
@@ -249,6 +250,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool GooseHasSearchText => !string.IsNullOrWhiteSpace(GoosePublisherFilterText);
+
+    // Legacy protocol-level GOID filter stays available for API compatibility.
+    // The compact explorer uses a single search box instead of a duplicate dropdown.
     // Replace ComboBox options only if identities change, not with each UI tick.
     public IReadOnlyList<string> GooseIdFilterOptions => _gooseIdFilterOptions;
 
@@ -328,9 +333,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         get
         {
-            var filter = string.Equals(SelectedGooseIdFilter, "All", StringComparison.OrdinalIgnoreCase) ? "All message names" : SelectedGooseIdFilter;
-            var retrans = IncludeGooseRetransmission ? "including repeated messages" : "first messages and state changes";
-            return $"{filter}  ·  {retrans}";
+            return IncludeGooseRetransmission ? "All received messages" : "Changes only";
         }
     }
 
@@ -347,11 +350,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             var match = ResolveSclGooseStream(inspected);
             if (match is null)
-                return HasSclProject
-                    ? "Signal names unavailable: the imported configuration does not match this message."
-                    : "Signal names unavailable. Open the Configuration tab and import the device configuration (SCL) to identify these values.";
+                return HasSclProject ? "Signal names not matched" : "Signal names not loaded";
 
-            return "Signal names taken from the matching device configuration (SCL).";
+            return string.Empty;
         }
     }
 
@@ -807,6 +808,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         GooseInteractionCommand = new RelayCommand(() => DeferGooseUiFlush());
         GooseReturnToLiveCommand = new RelayCommand(ReturnGooseToLive);
         GooseOpenConfigurationCommand = new RelayCommand(() => CurrentWorkspaceTabIndex = 5);
+        GooseClearSearchCommand = new RelayCommand(() => GoosePublisherFilterText = string.Empty);
 
         _timer = new DispatcherTimer
         {
@@ -1219,6 +1221,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand GooseInteractionCommand { get; }
     public ICommand GooseReturnToLiveCommand { get; }
     public ICommand GooseOpenConfigurationCommand { get; }
+    public ICommand GooseClearSearchCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
