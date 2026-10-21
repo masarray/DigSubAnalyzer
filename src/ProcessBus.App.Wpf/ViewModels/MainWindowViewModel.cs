@@ -264,7 +264,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseValueChangeLossText => _gooseValueChangeDroppedSinceLastRead == 0
         ? "" : $"{_gooseValueChangeDroppedSinceLastRead:N0} decoded changes dropped from buffer";
     public bool GooseHasValueChangeLoss => _gooseValueChangeDroppedSinceLastRead > 0;
-    public bool GooseFollowLive => _gooseFollowLive;
+    // Two-way switch binding. Switching ON explicitly resumes at newest visible
+    // row; switching OFF freezes the viewport without altering Inspector/selection.
+    public bool GooseFollowLive
+    {
+        get => _gooseFollowLive;
+        set
+        {
+            if (value == _gooseFollowLive) return;
+            if (value) ResumeGooseFollow();
+            else SuspendGooseFollow();
+        }
+    }
     public long GooseVisibleAppendRevision => _gooseVisibleAppendRevision;
     public int GooseUnseenVisibleEventCount => _gooseUnseenVisibleEventCount;
     public string GooseFollowButtonText => _gooseUnseenVisibleEventCount == 0
@@ -325,6 +336,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public void ClearGooseSourceSelection() =>
         SetGooseSourceSelection(Array.Empty<GoosePublisherKey>());
+
+    public void AcknowledgeGooseSource(GoosePublisherKey publisherKey) =>
+        _gooseCatalog.Find(publisherKey)?.AcknowledgeValueChange();
 
 
     // Operator accordion state is SSOT in the session ViewModel, independent
@@ -921,7 +935,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         GooseOpenConfigurationCommand = new RelayCommand(() => CurrentWorkspaceTabIndex = 5);
         GooseClearSearchCommand = new RelayCommand(() => GoosePublisherFilterText = string.Empty);
         GooseClearSourceSelectionCommand = new RelayCommand(ClearGooseSourceSelection);
-        GooseResumeFollowCommand = new RelayCommand(ResumeGooseFollow);
 
         _timer = new DispatcherTimer
         {
@@ -1345,7 +1358,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand GooseOpenConfigurationCommand { get; }
     public ICommand GooseClearSearchCommand { get; }
     public ICommand GooseClearSourceSelectionCommand { get; }
-    public ICommand GooseResumeFollowCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
@@ -4751,10 +4763,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         foreach (var change in latestByPublisher.Values)
             _gooseCatalog.Find(change.PublisherKey)?.MarkDecodedValueChange(
                 change.TimeUtc, change.Revision, snapshot.ValueChangeSessionId);
-        foreach (var row in _gooseCatalog.Rows)
-            if (row.HasRecentValueChange) row.ExpireValueChangeNotice(nowUtc);
-        foreach (var row in _gooseHistory)
-            if (row.IsRecentMeaningfulEvent) row.ExpireEmphasis(nowUtc);
     }
 
     private bool FilterGoosePublisher(object item) =>
@@ -5001,7 +5009,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (FilterGooseHistory(row))
             {
                 newVisible++;
-                row.MarkNewVisibleEvent(DateTime.UtcNow);
+                row.MarkNewVisibleEvent();
             }
             _gooseHistory.Add(row);
             flushed++;
@@ -5139,25 +5147,24 @@ public sealed class GooseDatasetValueDisplayItem
 
 public sealed class GooseTrafficRow : INotifyPropertyChanged
 {
-    private DateTime? _emphasisStartUtc;
-    private bool _isRecentMeaningfulEvent;
-    public bool IsRecentMeaningfulEvent => _isRecentMeaningfulEvent;
+    private bool _isUnacknowledgedEvent;
+    public bool IsUnacknowledgedEvent => _isUnacknowledgedEvent;
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public void MarkNewVisibleEvent(DateTime nowUtc)
+    // A historical event's ACK belongs to this immutable row, not to the
+    // publisher or current selection. Ordinary repeats do not create alerts.
+    public void MarkNewVisibleEvent()
     {
-        if (EventType == "Retrans") return;
-        _emphasisStartUtc = nowUtc;
-        _isRecentMeaningfulEvent = true;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRecentMeaningfulEvent)));
+        if (EventType == "Retrans" || _isUnacknowledgedEvent) return;
+        _isUnacknowledgedEvent = true;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUnacknowledgedEvent)));
     }
 
-    public void ExpireEmphasis(DateTime nowUtc)
+    public void Acknowledge()
     {
-        if (!_isRecentMeaningfulEvent || !_emphasisStartUtc.HasValue ||
-            (nowUtc - _emphasisStartUtc.Value).TotalMilliseconds < 1500) return;
-        _isRecentMeaningfulEvent = false;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRecentMeaningfulEvent)));
+        if (!_isUnacknowledgedEvent) return;
+        _isUnacknowledgedEvent = false;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUnacknowledgedEvent)));
     }
 
     public required GooseMessageItem Source { get; init; }
