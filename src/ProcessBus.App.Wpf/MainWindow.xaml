@@ -1399,7 +1399,7 @@
                                 </Grid>
                             </Border>
 
-                            <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}">
+                            <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}" Visibility="Collapsed">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -1453,8 +1453,10 @@
 
                             <!-- Only this bounded viewport scrolls; search and toggle stay fixed. -->
                             <Grid Grid.Row="3" MinHeight="0">
-                                <ListView ItemsSource="{Binding GoosePublisherRowsView}"
-                                          SelectedItem="{Binding SelectedGoosePublisherRow, Mode=TwoWay}"
+                                <ListView x:Name="GooseSourceList" ItemsSource="{Binding GoosePublisherRowsView}"
+                                          SelectionMode="Extended"
+                                          SelectionChanged="GooseSourceList_SelectionChanged"
+                                          PreviewKeyDown="GooseSourceList_PreviewKeyDown"
                                           Background="Transparent"
                                           BorderThickness="0"
                                           MinHeight="0"
@@ -3079,8 +3081,17 @@
                                                                FontWeight="SemiBold"/>
                                                 </Border>
                                             </StackPanel>
-
-                                            
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding GooseSourceScopeText}" Foreground="#8FB5D1"
+                                                           VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0"/>
+                                                <Button Content="Clear filter" Command="{Binding GooseClearSourceSelectionCommand}"
+                                                        Visibility="{Binding GooseSourceFilterActive, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                        Margin="0,0,10,0" Padding="6,3" FontSize="11"/>
+                                                <TextBlock Text="Show repeats" Foreground="#D9ECFF" FontSize="11"
+                                                           VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                                <CheckBox IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
+                                                          VerticalAlignment="Center" ToolTip="Show repeated messages"/>
+                                            </StackPanel>
                                         </Grid>
 
                                         <DataGrid Grid.Row="2"
