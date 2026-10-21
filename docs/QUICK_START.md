@@ -20,8 +20,8 @@ Avoid these adapters for serious timing interpretation:
 
 ## 2. Download and install
 
-1. Open [official GitHub Releases](https://github.com/masarray/DigSubAnalyzer/releases).
-2. Download `ProcessBusInsight-vX.Y.Z-win-x64-setup.exe` and verify its SHA256 against `SHA256SUMS.txt`.
+1. Download [latest stable Windows installer (.exe)](https://github.com/masarray/DigSubAnalyzer/releases/download/v1.4.2/ProcessBusInsight-v1.4.2-win-x64-setup.exe) directly, or use the [landing page](https://masarray.github.io/DigSubAnalyzer/) which discovers newer stable releases automatically.
+2. Verify the installer against the official [SHA256SUMS.txt](https://github.com/masarray/DigSubAnalyzer/releases/download/v1.4.2/SHA256SUMS.txt).
 3. Close any prior running instance and run the Inno Setup installer. It installs into `C:\Program Files\Process Bus Insight` by default, creating a Start Menu shortcut and optional desktop shortcut.
 4. For an upgrade, run the newer installer without uninstalling first; the stable application identity retains the previous install directory. Re-running the same installer can repair files.
 5. The optional portable ZIP can still be extracted manually to `C:\Tools\ProcessBusInsight` when appropriate.
