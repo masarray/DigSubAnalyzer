@@ -1087,8 +1087,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
-    public int GooseInspectorChangedCount =>
-        GooseInspectorMessage?.DataValues.Count(value => value.IsChanged) ?? 0;
+    // Acknowledgement controls only the visual alert, never the saved decoder evidence.
+    // "Changed" belongs to the selected exact history event while unread, not
+    // to a latest-only live snapshot or previously acknowledged history.
+    private bool GooseInspectorAlertActive =>
+        _gooseInspectHistoricalEvent && _selectedGooseTrafficRow?.IsUnacknowledgedEvent == true;
+
+    public int GooseInspectorChangedCount => GooseInspectorAlertActive
+        ? GooseInspectorMessage?.DataValues.Count(value => value.IsChanged) ?? 0
+        : 0;
     public bool GooseInspectorHasChangedValues => GooseInspectorChangedCount > 0;
     public string GooseInspectorChangedCountText => $"{GooseInspectorChangedCount} changed";
 
@@ -1164,12 +1171,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseInspectorRows.Clear();
         }
         var latest = BuildGooseDatasetValues(GooseInspectorMessage);
+        var highlightUnread = GooseInspectorAlertActive;
         for (var index = 0; index < latest.Count; index++)
         {
             var item = latest[index];
             if (index < _gooseInspectorRows.Count && _gooseInspectorRows[index].Index == item.Index)
             {
-                _gooseInspectorRows[index].Update(item);
+                _gooseInspectorRows[index].Update(item, highlightUnread);
                 continue;
             }
             var existing = -1;
@@ -1182,10 +1190,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (existing >= 0)
             {
                 _gooseInspectorRows.Move(existing, index);
-                _gooseInspectorRows[index].Update(item);
+                _gooseInspectorRows[index].Update(item, highlightUnread);
             }
             else
-                _gooseInspectorRows.Insert(index, new GooseDatasetDisplayRow(item));
+                _gooseInspectorRows.Insert(index, new GooseDatasetDisplayRow(item, highlightUnread));
         }
 
         while (_gooseInspectorRows.Count > latest.Count)
@@ -4811,6 +4819,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!entry.IsUnacknowledgedEvent) return;
         entry.Acknowledge();
         ProjectGooseUnreadIndicators();
+        // The Inspector uses the very same journal-row ACK. Refresh only the
+        // currently pinned context, without modifying its historical DataSet.
+        if (_gooseInspectHistoricalEvent && ReferenceEquals(_selectedGooseTrafficRow, entry))
+            RaiseGooseInspectorProperties();
+    }
+
+    public bool AcknowledgeInspectedGooseEvent()
+    {
+        if (!_gooseInspectHistoricalEvent || _selectedGooseTrafficRow is not { IsUnacknowledgedEvent: true } entry)
+            return false;
+        AcknowledgeGooseHistoryEvent(entry);
+        return true;
     }
 
     public GooseTrafficRow? InspectNextUnreadGooseSource(GoosePublisherKey key)
@@ -5149,10 +5169,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
 {
     private GooseDatasetValueDisplayItem _current;
+    private bool _highlightUnread;
 
-    public GooseDatasetDisplayRow(GooseDatasetValueDisplayItem item) => _current = item;
+    public GooseDatasetDisplayRow(GooseDatasetValueDisplayItem item, bool highlightUnread = false)
+    {
+        _current = item;
+        _highlightUnread = highlightUnread;
+    }
     public int Index => _current.Index;
     public bool IsChanged => _current.IsChanged;
+    public bool IsChangeHighlighted => _current.IsChanged && _highlightUnread;
+    // Raw before/after evidence remains inspectable after ACK, with no extra
+    // visual line. For normal entries this is simply the name of the signal.
+    public string ChangeTooltipText => _current.IsChanged
+        ? $"Changed: {_current.ChangeText}"
+        : _current.NameText;
     public string IndexText => _current.IndexText;
     public string NameText => _current.NameText;
     public string TypeText => _current.TypeText;
@@ -5169,14 +5200,17 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
     public Visibility ChangeVisibility => _current.ChangeVisibility;
     public string QualityDetailsText => _current.QualityDetailsText;
     public Visibility QualityDetailsVisibility => _current.QualityDetailsVisibility;
-    public Brush ValueBrush => _current.ValueBrush;
+    public Brush ValueBrush => IsChangeHighlighted
+        ? _current.ValueBrush
+        : GooseDatasetValueDisplayItem.NormalValueBrush;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public void Update(GooseDatasetValueDisplayItem next)
+    public void Update(GooseDatasetValueDisplayItem next, bool highlightUnread = false)
     {
         var previous = _current;
-        if (previous.Index == next.Index &&
+        if (_highlightUnread == highlightUnread &&
+            previous.Index == next.Index &&
             previous.NameText == next.NameText &&
             previous.TypeText == next.TypeText &&
             previous.ProtocolTypeText == next.ProtocolTypeText &&
@@ -5191,6 +5225,7 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
             return;
 
         _current = next;
+        _highlightUnread = highlightUnread;
         // Empty property name means all bound fields of this one row changed.
         // WPF preserves the selected/expanded item container object.
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
@@ -5199,7 +5234,7 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
 
 public sealed class GooseDatasetValueDisplayItem
 {
-    private static readonly Brush NormalValueBrush = FrozenBrush(228, 241, 253);
+    internal static readonly Brush NormalValueBrush = FrozenBrush(228, 241, 253);
     private static readonly Brush ChangedValueBrush = FrozenBrush(255, 190, 82);
 
     public int Index { get; init; }
