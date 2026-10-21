@@ -205,7 +205,17 @@ Assert-True ($vmSource.Contains('InspectNextUnreadGooseSource(') -and
              $vmSource.Contains('AcknowledgeGooseHistoryEvent(') -and
              $vmSource.Contains('ProjectGooseUnreadIndicators(')) 'Sources and Messages share one unread-event journal'
 Assert-True ($inspector.Contains('GooseInspectorChangedCountText') -and
-             $inspector.Contains('Binding IsChanged')) 'Inspector highlights exact decoded changed entries'
+             $inspector.Contains('Binding IsChangeHighlighted') -and
+             $inspector.Contains('ChangeTooltipText')) 'Inspector shows only unread decoded changes and keeps before/after in tooltips'
+Assert-True (-not $inspector.Contains('Text="CHANGED"') -and
+             -not $inspector.Contains('Text="{Binding ChangeText}"')) 'GOOSE Data values remain one line, no stacked change labels'
+Assert-True ($vmSource.Contains('public bool AcknowledgeInspectedGooseEvent()') -and
+             $vmSource.Contains('private bool GooseInspectorAlertActive =>') -and
+             $vmSource.Contains('ReferenceEquals(_selectedGooseTrafficRow, entry)')) 'One ACK invalidates selected Inspector visual state immediately'
+$windowCode = Get-Content -LiteralPath (Join-Path $Root 'src/ProcessBus.App.Wpf/MainWindow.xaml.cs') -Raw
+Assert-True ($windowCode.Contains('PreviewMouseDown += GooseWindow_PreviewMouseDown') -and
+             $windowCode.Contains('PreviewKeyDown += GooseWindow_PreviewKeyDown')) 'Workspace click/Enter acknowledge current inspected event without suppressing controls'
+Assert-True ($windowCode.Contains('ReferenceEquals(vm.SelectedGooseTrafficRow, history)')) 'Clicking a different history row never pre-ACKs unread evidence'
 Write-Host 'GOOSE tri-pane event contract: PASS (one-line header, decoder evidence, source navigation, single ACK, inspector deltas)'
 Write-Host 'GOOSE acknowledgement UX contract: PASS (paired switches, per-source/event ACK, no timer expiry)'
 Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
