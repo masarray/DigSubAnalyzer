@@ -27,6 +27,53 @@
     <Window.Resources>
         <conv:GooseEventBgConverter x:Key="EventBgConverter"/>
         <conv:GooseEventFgConverter x:Key="EventFgConverter"/>
+        <!-- Shared compact GOOSE header switch: fixed dimensions, vector-only.
+             Checked state is explicit; no controls, timers or popup overlays. -->
+        <Style x:Key="GooseHeaderSwitchStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Track"
+                                CornerRadius="11"
+                                Background="#13283C"
+                                BorderBrush="#36536B"
+                                BorderThickness="1"
+                                SnapsToDevicePixels="True">
+                            <Grid>
+                                <Ellipse x:Name="Knob" Width="14" Height="14"
+                                         Fill="#AFC8D9"
+                                         Margin="3,0,0,0"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="#0B65A6"/>
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#299AF0"/>
+                                <Setter TargetName="Knob" Property="Fill" Value="#F5FAFF"/>
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#70B7E7"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#9BD5FF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Track" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="EngineeringDataGridRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -1456,7 +1503,7 @@
                                                                             <Style TargetType="TextBlock">
                                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                                                 <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding HasRecentValueChange}" Value="True">
+                                                                                    <DataTrigger Binding="{Binding HasUnacknowledgedValueChange}" Value="True">
                                                                                         <Setter Property="Visibility" Value="Visible"/>
                                                                                     </DataTrigger>
                                                                                 </Style.Triggers>
@@ -1473,6 +1520,14 @@
                                                             </Grid>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
+                                                            <!-- Unacknowledged signal change never replaces selected-source styling. -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding HasUnacknowledgedValueChange}" Value="True"/>
+                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsSelected}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="Card" Property="BorderBrush" Value="#A47D49"/>
+                                                            </MultiDataTrigger>
                                                             <Trigger Property="IsSelected" Value="True">
                                                                 <Setter TargetName="Card" Property="Background" Value="#0B3C68"/>
                                                                 <Setter TargetName="Card" Property="BorderBrush" Value="#1387DF"/>
@@ -3038,10 +3093,18 @@
                                                        Foreground="#F4FAFF" FontSize="16" FontWeight="SemiBold"
                                                        VerticalAlignment="Center"/>
                                             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Show repeats" Foreground="#D9ECFF" FontSize="11"
+                                                <TextBlock Text="Show repeats" Foreground="#C6DDED" FontSize="11"
                                                            Margin="0,0,7,0" VerticalAlignment="Center"/>
-                                                <CheckBox IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
-                                                          VerticalAlignment="Center" ToolTip="Show repeated messages"/>
+                                                <ToggleButton Style="{StaticResource GooseHeaderSwitchStyle}"
+                                                              IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
+                                                              ToolTip="Show repeated GOOSE messages without changing capture"
+                                                              AutomationProperties.Name="Show repeats"/>
+                                                <TextBlock Text="Follow live" Foreground="#C6DDED" FontSize="11"
+                                                           Margin="13,0,7,0" VerticalAlignment="Center"/>
+                                                <ToggleButton Style="{StaticResource GooseHeaderSwitchStyle}"
+                                                              IsChecked="{Binding GooseFollowLive, Mode=TwoWay}"
+                                                              ToolTip="{Binding GooseFollowButtonText}"
+                                                              AutomationProperties.Name="Follow live"/>
                                             </StackPanel>
                                             <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,5,6,0"
                                                        Text="{Binding GooseTimelineCountersText}" TextTrimming="CharacterEllipsis"
@@ -3061,18 +3124,7 @@
                                                         </Style>
                                                     </Button.Style>
                                                 </Button>
-                                                <Button Content="{Binding GooseFollowButtonText}"
-                                                        Command="{Binding GooseResumeFollowCommand}" Padding="6,2"
-                                                        FontSize="10.5" ToolTip="Resume following newest visible GOOSE messages">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                            <Style.Triggers><DataTrigger Binding="{Binding GooseFollowLive}" Value="True">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger></Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
+
                                             </StackPanel>
                                         </Grid>
 
@@ -3103,6 +3155,15 @@
                                                   PreviewMouseWheel="GooseMessageGrid_PreviewMouseWheel"
                                                   PreviewKeyDown="GooseMessageGrid_PreviewKeyDown"
                                                   PreviewTouchDown="GooseMessageGrid_PreviewTouchDown">
+                                            <DataGrid.RowStyle>
+                                                <Style TargetType="DataGridRow" BasedOn="{StaticResource EngineeringDataGridRowStyle}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsUnacknowledgedEvent}" Value="True">
+                                                            <Setter Property="Background" Value="#173049"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGrid.RowStyle>
                                             <DataGrid.Columns>
                                                 <DataGridTemplateColumn Width="30" Header="">
                                                     <DataGridTemplateColumn.CellTemplate>
@@ -3114,7 +3175,7 @@
                                                                     <Style TargetType="TextBlock">
                                                                         <Setter Property="Foreground" Value="#75C2F5"/>
                                                                         <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsRecentMeaningfulEvent}" Value="True">
+                                                                            <DataTrigger Binding="{Binding IsUnacknowledgedEvent}" Value="True">
                                                                                 <Setter Property="Foreground" Value="#F6C982"/>
                                                                             </DataTrigger>
                                                                         </Style.Triggers>
