@@ -27,6 +27,13 @@ public sealed class GooseDecodedValueChangesTests
         Observe(analyzer, 5, 1, false); // actual DataSet value transition
         var first = Assert.Single(analyzer.GetGooseSnapshot().ValueChanges);
         Assert.Equal(1, first.Revision);
+        Assert.Equal((uint)5, first.Frame.StNum);
+        Assert.Equal((uint)1, first.Frame.SqNum);
+        Assert.Equal(first.TimeUtc, first.Frame.LastSeenUtc);
+        var exactDelta = Assert.Single(first.Frame.DataValues);
+        Assert.True(exactDelta.IsChanged);
+        Assert.Equal("True", exactDelta.PreviousValue, ignoreCase: true);
+        Assert.Equal("False", exactDelta.Value, ignoreCase: true);
         var packet = Assert.Single(analyzer.GetGooseSnapshot().Messages);
         Assert.Equal(GoosePublisherKey.From(packet), first.PublisherKey);
 
@@ -36,6 +43,12 @@ public sealed class GooseDecodedValueChangesTests
         var changes = analyzer.GetGooseSnapshot().ValueChanges;
         Assert.Equal(2, changes.Count);
         Assert.Equal(2, changes[1].Revision);
+        Assert.Equal((uint)5, changes[0].Frame.StNum);
+        Assert.Equal((uint)6, changes[1].Frame.StNum);
+        Assert.Equal(changes[0].Frame.DataValues[0].Value, changes[1].Frame.DataValues[0].PreviousValue,
+            ignoreCase: true);
+        // The old event's exact typed evidence must survive later frames.
+        Assert.Equal("False", changes[0].Frame.DataValues[0].Value, ignoreCase: true);
     }
 
     [Fact]
