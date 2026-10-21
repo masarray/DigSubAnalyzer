@@ -3318,7 +3318,7 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
-                                                          IsExpanded="True"
+                                                          IsExpanded="{Binding GooseMessageExpanded, Mode=TwoWay}"
                                                           HorizontalAlignment="Stretch">
                                                     <Expander.Header>
                                                         <TextBlock Text="Message" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
@@ -3371,7 +3371,7 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
-                                                          IsExpanded="False"
+                                                          IsExpanded="{Binding GooseNetworkExpanded, Mode=TwoWay}"
                                                           HorizontalAlignment="Stretch">
                                                     <Expander.Header>
                                                         <TextBlock Text="Network" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
@@ -3433,7 +3433,7 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
-                                                          IsExpanded="True"
+                                                          IsExpanded="{Binding GooseValuesExpanded, Mode=TwoWay}"
                                                           HorizontalAlignment="Stretch">
                                                     <Expander.Header>
                                                         <Grid>
