@@ -2027,7 +2027,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ? "SV  •  Select a stream from the explorer"
             : $"SV  •  {SelectedStream.SvId}  •  {SelectedStream.AppId}  •  {SelectedStream.DisplayStatusText}",
         1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
-        2 => $"GOOSE  ·  {_gooseMessages.Count} sending device(s)  ·  {_gooseHistory.Count} recorded change(s)",
+        2 => $"GOOSE  ·  {_gooseMessages.Count} sending device(s)  ·  {_gooseVisibleEventCount} visible event(s)",
         3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
         4 => $"Validation  -  {ValidationOverallStatusText}  -  expected-vs-observed evidence",
         5 => $"SCL  -  {_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)",
@@ -4983,6 +4983,12 @@ public sealed class GooseTrafficRow
     {
         get
         {
+            // A first observation has no earlier state to compare: show its
+            // payload count instead of a misleading "changed values" message.
+            if (string.Equals(EventType, "New", StringComparison.Ordinal))
+                return Source.DataValues.Count == 0
+                    ? "No decoded values" : $"{Source.DataValues.Count} initial values";
+
             if (!string.IsNullOrWhiteSpace(SemanticChangedSummaryText) &&
                 !string.Equals(SemanticChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(SemanticChangedSummaryText, "No dataset value change", StringComparison.OrdinalIgnoreCase))
