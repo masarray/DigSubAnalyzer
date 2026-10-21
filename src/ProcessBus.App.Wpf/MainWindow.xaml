@@ -3085,8 +3085,9 @@
                                                 <TextBlock Text="{Binding GooseSourceScopeText}" Foreground="#8FB5D1"
                                                            VerticalAlignment="Center" FontSize="11" Margin="0,0,8,0"/>
                                                 <Button Content="Clear filter" Command="{Binding GooseClearSourceSelectionCommand}"
-                                                        Visibility="{Binding GooseSourceFilterActive, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                        Margin="0,0,10,0" Padding="6,3" FontSize="11"/>
+                                                        Margin="0,0,10,0" Padding="6,3" FontSize="11">
+                                                    <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding GooseSourceFilterActive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                                                </Button>
                                                 <TextBlock Text="Show repeats" Foreground="#D9ECFF" FontSize="11"
                                                            VerticalAlignment="Center" Margin="0,0,7,0"/>
                                                 <CheckBox IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
