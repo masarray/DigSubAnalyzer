@@ -22,7 +22,15 @@ public partial class MainWindow : Window
         InitializeComponent();
         if (DataContext is MainWindowViewModel viewModel) { }
 
-        Loaded += (_, _) => { UpdateHeaderDensity(); UpdateWorkspaceActivePill(animate: false); };
+        Loaded += (_, _) =>
+        {
+            UpdateHeaderDensity(); UpdateWorkspaceActivePill(animate: false);
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.PropertyChanged += GooseViewModel_PropertyChanged;
+                SyncGooseSourceVisualSelection();
+            }
+        };
         SizeChanged += (_, _) => UpdateHeaderDensity();
         Closing += MainWindow_Closing;
         Closed += (_, _) => Application.Current?.Shutdown();
@@ -264,6 +272,14 @@ public partial class MainWindow : Window
         // The command clears exactly one filter property. Restore keyboard focus
         // without blocking the capture thread or queuing another UI refresh.
         GooseSourceSearchBox.Focus();
+    }
+
+    private void GooseViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(MainWindowViewModel.GoosePublisherFilterText) or
+            nameof(MainWindowViewModel.GooseSourceScopeText))) return;
+        Dispatcher.BeginInvoke(new Action(SyncGooseSourceVisualSelection),
+            System.Windows.Threading.DispatcherPriority.ContextIdle);
     }
 
     private bool _syncingGooseSourceSelection;
