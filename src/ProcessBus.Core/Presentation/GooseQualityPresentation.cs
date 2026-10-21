@@ -69,7 +69,9 @@ public sealed record GooseQualityInfo(
         (Test ? " · test" : string.Empty) +
         (OperatorBlocked ? " · blocked" : string.Empty);
     public string DetailText =>
-        $"Validity: {Validity}  |  Source: {Source}  |  Test: {Test.ToString().ToLowerInvariant()}  |  " +
-        $"Operator blocked: {OperatorBlocked.ToString().ToLowerInvariant()}  |  " +
-        $"Detail quality flags: {(DetailFlags.Count == 0 ? "none asserted" : string.Join(", ", DetailFlags))}";
+        $"Signal quality: {GooseEngineeringLanguage.QualitySummary(Validity)}  ·  " +
+        $"Value source: {(Source == "substituted" ? "Substituted value" : "Process value")}  ·  " +
+        $"Test data: {(Test ? "Yes" : "No")}  ·  " +
+        $"Operator blocked: {(OperatorBlocked ? "Yes" : "No")}  ·  " +
+        $"Additional quality flags: {(DetailFlags.Count == 0 ? "None" : string.Join(", ", DetailFlags))}";
 }
