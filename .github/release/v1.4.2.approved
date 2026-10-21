@@ -1,0 +1,12 @@
+Release: Process Bus Insight v1.4.2
+Channel: public stable (not prerelease; not draft)
+Approval: repository owner explicitly requested public stable release on 2026-10-21
+Version: 1.4.2; GPL-3.0-or-later community software
+Source: main after ordered PR merges #48 (09aa54f992b21db4c1dea2ce3801f6821baf20c5), #49 (d4fb8251eefd0dc16ea35ecf3dfc5e06d5b50cc3), #51 (4548aad843c65525b9f1562e1fb85365d0c49f5e)
+Engineering head validated: 27715a97323829827c2d3f5f6356e08a66d47475
+Engineering evidence: Windows CI 241/241 tests; Runtime Stability; Runtime Architecture; CodeQL; Dependency Security; verified Windows Inno candidate install/repair (all six PASS at exact engineering head)
+Public release workflow: .github/workflows/release-package.yml (rebuild and test on main after approval)
+Dispatch: version=1.4.2; publish_release=true; prerelease=false; draft=false; release_notes_file=docs/RELEASE_NOTES_v1.4.2.md
+Assets: Windows x64 Inno setup EXE, portable ZIP, SHA256SUMS.txt, release-manifest.json
+Distribution: unsigned receive-only IEC 61850 SV/GOOSE/PTP analyzer; no IEC 61850 conformance or all-hardware field-validation claim
+Preserve: published v1.4.1 release and assets must remain unchanged
