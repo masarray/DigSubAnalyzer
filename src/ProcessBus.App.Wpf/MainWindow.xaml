@@ -1406,14 +1406,11 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Text="Show repeated messages"
+                                    <TextBlock Text="Show repeats"
                                                Foreground="#D9ECFF"
                                                FontSize="12"
                                                FontWeight="Medium"/>
-                                    <TextBlock Text="{Binding GooseRetransmissionModeText}"
-                                               Foreground="#7FA8CC"
-                                               FontSize="10.5"
-                                               Margin="0,2,0,0"/>
+
                                 </StackPanel>
 
                                 <ToggleButton Grid.Row="0" Grid.Column="1"
