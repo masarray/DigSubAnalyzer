@@ -300,7 +300,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             : "No new state changes are shown. Turn on repeated messages to see ongoing traffic.";
     public string GooseRetransmissionModeText => IncludeGooseRetransmission
         ? "Repeated messages visible" : "Showing changes only";
-    public string GoosePublisherCountText => $"{_gooseMessages.Count} publisher{(_gooseMessages.Count == 1 ? string.Empty : "s")}";
+    public string GoosePublisherCountText => $"{_gooseMessages.Count} device{(_gooseMessages.Count == 1 ? "" : "s")}";
     public string GooseTimelineCountersText =>
         $"{_gooseSnapshot.TotalMessages:N0} messages received  ·  {_gooseVisibleEventCount:N0} shown";
     public string GooseWorkspaceCaptureSummaryText
@@ -806,6 +806,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         });
         GooseInteractionCommand = new RelayCommand(() => DeferGooseUiFlush());
         GooseReturnToLiveCommand = new RelayCommand(ReturnGooseToLive);
+        GooseOpenConfigurationCommand = new RelayCommand(() => CurrentWorkspaceTabIndex = 5);
 
         _timer = new DispatcherTimer
         {
@@ -954,6 +955,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
 
+    public bool GooseSignalNamesUnavailable
+    {
+        get
+        {
+            var item = GooseInspectorMessage;
+            return item is not null && ResolveSclGooseStream(item) is null;
+        }
+    }
+
     public string GooseInspectorModeBadgeText => IsGooseHistoryPinned
         ? "SAVED MESSAGE" : GooseInspectorMessage is null ? "NOT SELECTED" :
         IsGooseSelectedPublisherStale ? "NOT RECEIVING" : "LIVE";
@@ -1038,6 +1048,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GooseInspectorModeBadgeText));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
+        OnPropertyChanged(nameof(GooseSignalNamesUnavailable));
     }
 
     public GooseMonitorSnapshot GooseSnapshot => _gooseSnapshot;
@@ -1194,6 +1205,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand SwitchToRawCommand { get; }
     public ICommand GooseInteractionCommand { get; }
     public ICommand GooseReturnToLiveCommand { get; }
+    public ICommand GooseOpenConfigurationCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
@@ -2002,7 +2014,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ? "SV  •  Select a stream from the explorer"
             : $"SV  •  {SelectedStream.SvId}  •  {SelectedStream.AppId}  •  {SelectedStream.DisplayStatusText}",
         1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
-        2 => $"GOOSE  -  {_gooseMessages.Count} publisher(s)  -  {_gooseHistory.Count} event(s)",
+        2 => $"GOOSE  ·  {_gooseMessages.Count} sending device(s)  ·  {_gooseHistory.Count} recorded change(s)",
         3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
         4 => $"Validation  -  {ValidationOverallStatusText}  -  expected-vs-observed evidence",
         5 => $"SCL  -  {_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)",
@@ -4230,6 +4242,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclWorkspaceStatusText));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
+        OnPropertyChanged(nameof(GooseSignalNamesUnavailable));
         RaiseSclSelectionProperties();
         OnPropertyChanged(nameof(WorkspaceFooterLeftText));
         OnPropertyChanged(nameof(WorkspaceFooterRightText));
@@ -4659,8 +4672,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return string.Join(", ", changed) + suffix;
         }
 
-        return string.IsNullOrWhiteSpace(goose.ChangedSummaryText) || string.Equals(goose.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase)
-            ? "No dataset value change"
+        if (string.Equals(goose.ChangedSummaryText, "Initial DataSet baseline", StringComparison.Ordinal))
+            return "First message received — initial values";
+        return string.IsNullOrWhiteSpace(goose.ChangedSummaryText) ||
+               string.Equals(goose.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase)
+            ? "No value changes observed"
             : goose.ChangedSummaryText;
     }
 
