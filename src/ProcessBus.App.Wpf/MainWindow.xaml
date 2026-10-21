@@ -1490,7 +1490,22 @@
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <ContentPresenter Grid.Column="0"/>
-                                                                <TextBlock Grid.Column="1"
+                                                                <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
+                                                                    <TextBlock Text="Changed" FontSize="10" Foreground="#EBC18B"
+                                                                               ToolTip="{Binding LastValueChangeText}">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding HasRecentValueChange}" Value="True">
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="1" Visibility="Collapsed"
                                                                            Text="›"
                                                                            Foreground="#57B8FF"
                                                                            FontSize="18"
