@@ -1298,7 +1298,6 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <Grid Grid.Row="0" Margin="0,0,0,12">
@@ -1320,23 +1319,74 @@
                                            VerticalAlignment="Center"/>
                             </Grid>
 
-                            <StackPanel Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}">
-                                <TextBlock Text="Search name or address"
-                                           Foreground="#7FA8CC"
-                                           FontSize="10.5"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,5"/>
-                                <TextBox Style="{StaticResource CompactSearchBoxStyle}"
-                                         Text="{Binding GoosePublisherFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Search by device, message name, network address, application code or published data"/>
-                            </StackPanel>
+                            <!-- One keyboard-friendly search field. The vector icons are
+                                 Material geometry resources, not font glyphs. -->
+                            <Border Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}"
+                                    Height="35" Background="#0A1F32" CornerRadius="8"
+                                    BorderBrush="#24425E" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="34"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="32"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Path Grid.Column="0"
+                                          Data="{StaticResource GooseMaterialSearch}"
+                                          Width="17" Height="17" Fill="#8FB5D1"
+                                          Stretch="Uniform" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                    <TextBox x:Name="GooseSourceSearchBox" Grid.Column="1"
+                                             Text="{Binding GoosePublisherFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Background="Transparent" BorderThickness="0"
+                                             Foreground="#E8F5FF" FontSize="12"
+                                             CaretBrush="#80C9FF"
+                                             VerticalContentAlignment="Center"
+                                             Padding="0" Margin="0"
+                                             ToolTip="Find a source by name, message, application code or network address"/>
+                                    <Button Grid.Column="2" Width="25" Height="25"
+                                            Command="{Binding GooseClearSearchCommand}"
+                                            Click="GooseClearSearch_Click"
+                                            ToolTip="Clear search" Cursor="Hand"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="ClearHit" Background="{TemplateBinding Background}"
+                                                                    CornerRadius="12">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="ClearHit" Property="Background" Value="#214766"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                                                    <Setter TargetName="ClearHit" Property="Background" Value="#254C70"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding GooseHasSearchText}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <Path Data="{StaticResource GooseMaterialClose}"
+                                              Fill="#B0CCDF" Width="14" Height="14"
+                                              Stretch="Uniform"/>
+                                    </Button>
+                                </Grid>
+                            </Border>
 
                             <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="10"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -1388,29 +1438,21 @@
                                     </ToggleButton.Template>
                                 </ToggleButton>
 
-                                <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
-                                    <TextBlock Text="Message name"
-                                               Foreground="#7FA8CC"
-                                               FontSize="10.5"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,5"/>
-                                    <ComboBox Style="{StaticResource CompactComboBoxStyle}"
-                                              ItemsSource="{Binding GooseIdFilterOptions}"
-                                              SelectedItem="{Binding SelectedGooseIdFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                </StackPanel>
+
                             </Grid>
 
-                            <StackPanel Grid.Row="3">
-                                <TextBlock Text="Sending devices"
-                                           Foreground="#7FA8CC"
-                                           FontSize="10.5"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,8"/>
-
+                            <!-- Only this bounded viewport scrolls; search and toggle stay fixed. -->
+                            <Grid Grid.Row="3" MinHeight="0">
                                 <ListView ItemsSource="{Binding GoosePublisherRowsView}"
                                           SelectedItem="{Binding SelectedGoosePublisherRow, Mode=TwoWay}"
                                           Background="Transparent"
                                           BorderThickness="0"
+                                          MinHeight="0"
+                                          EnableRowVirtualization="True"
+                                          VirtualizingPanel.IsVirtualizing="True"
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          ScrollViewer.CanContentScroll="True"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
@@ -1509,20 +1551,9 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
+                            </Grid>
 
-                            <Border Grid.Row="4"
-                                    Padding="10,8"
-                                    Background="#061522"
-                                    BorderBrush="#132D46"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Margin="0,10,0,0">
-                                <TextBlock Text="{Binding GooseFilterSummaryText}"
-                                           Foreground="#8FAAC3"
-                                           FontSize="10.5"
-                                           TextWrapping="Wrap"/>
-                            </Border>
+
                         </Grid>
 
                         <!-- =========================================================
