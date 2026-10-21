@@ -45,6 +45,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private SvStreamItem? _selectedStream;
     private readonly GoosePublisherCatalog _gooseCatalog = new();
     private GoosePublisherKey? _selectedGoosePublisherKey;
+    private readonly HashSet<GoosePublisherKey> _selectedGooseSourceKeys = new();
     private GooseTrafficRow? _selectedGooseTrafficRow;
     private bool _gooseInspectHistoricalEvent;
     private bool _gooseMessageExpanded = true;
@@ -247,14 +248,41 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseHasSearchText));
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
-            _gooseHistoryView.Refresh();
-            UpdateGooseVisibleEventCount();
             _goosePublisherRowsView.Refresh();
             OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
     }
 
     public bool GooseHasSearchText => !string.IsNullOrWhiteSpace(GoosePublisherFilterText);
+    public IReadOnlyCollection<GoosePublisherKey> SelectedGooseSourceKeys => _selectedGooseSourceKeys;
+    public bool GooseSourceFilterActive => _selectedGooseSourceKeys.Count > 0;
+    public string GooseSourceScopeText => _selectedGooseSourceKeys.Count == 0
+        ? "All sources" : _selectedGooseSourceKeys.Count == 1 ? "1 source" : $"{_selectedGooseSourceKeys.Count} sources";
+
+    // Source scope is intentionally separate from the live Inspector focus and
+    // the pinned historical event. Only an explicit plain click changes focus.
+    public void SetGooseSourceSelection(IEnumerable<GoosePublisherKey> keys, GoosePublisherRow? liveFocus = null)
+    {
+        var next = keys.ToHashSet();
+        if (!_selectedGooseSourceKeys.SetEquals(next))
+        {
+            _selectedGooseSourceKeys.Clear();
+            _selectedGooseSourceKeys.UnionWith(next);
+            OnPropertyChanged(nameof(GooseSourceFilterActive));
+            OnPropertyChanged(nameof(GooseSourceScopeText));
+            OnPropertyChanged(nameof(GoosePublisherCountText));
+            OnPropertyChanged(nameof(GooseFilterSummaryText));
+            _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
+            OnPropertyChanged(nameof(GooseEmptyGuidance));
+        }
+        if (liveFocus is not null)
+            SelectedGoosePublisherRow = liveFocus;
+    }
+
+    public void ClearGooseSourceSelection() =>
+        SetGooseSourceSelection(Array.Empty<GoosePublisherKey>());
+
 
     // Operator accordion state is SSOT in the session ViewModel, independent
     // of capture snapshots and TabControl visual tree recreation.
@@ -344,7 +372,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             : "No new state changes are shown. Turn on repeated messages to see ongoing traffic.";
     public string GooseRetransmissionModeText => IncludeGooseRetransmission
         ? "Repeated messages visible" : "Showing changes only";
-    public string GoosePublisherCountText => $"{_gooseMessages.Count} device{(_gooseMessages.Count == 1 ? "" : "s")}";
+    public string GoosePublisherCountText => $"{_gooseMessages.Count} device{(_gooseMessages.Count == 1 ? "" : "s")}" +
+        (_selectedGooseSourceKeys.Count == 0 ? "" : $" · {_selectedGooseSourceKeys.Count} selected");
     public string GooseTimelineCountersText =>
         $"{_gooseSnapshot.TotalMessages:N0} messages received  ·  {_gooseVisibleEventCount:N0} shown";
     public string GooseWorkspaceCaptureSummaryText
@@ -848,6 +877,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         GooseReturnToLiveCommand = new RelayCommand(ReturnGooseToLive);
         GooseOpenConfigurationCommand = new RelayCommand(() => CurrentWorkspaceTabIndex = 5);
         GooseClearSearchCommand = new RelayCommand(() => GoosePublisherFilterText = string.Empty);
+        GooseClearSourceSelectionCommand = new RelayCommand(ClearGooseSourceSelection);
 
         _timer = new DispatcherTimer
         {
@@ -1269,6 +1299,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand GooseReturnToLiveCommand { get; }
     public ICommand GooseOpenConfigurationCommand { get; }
     public ICommand GooseClearSearchCommand { get; }
+    public ICommand GooseClearSourceSelectionCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
@@ -2343,7 +2374,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _gooseSnapshot = gooseSnapshot;
             _gooseMessages = _gooseSnapshot.Messages;
-            _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey);
+            _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey, _selectedGooseSourceKeys);
             UpdateGooseIdFilterOptions();
 
             foreach (var msg in _gooseSnapshot.Messages)
@@ -4536,6 +4567,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _gooseSnapshot = new GooseMonitorSnapshot { StatusText = "Cleared" };
         _gooseMessages = Array.Empty<GooseMessageItem>();
         _gooseCatalog.Clear();
+        ClearGooseSourceSelection();
         _selectedGoosePublisherKey = null;
         _gooseInspectHistoricalEvent = false;
         OnPropertyChanged(nameof(IsGooseHistoryPinned));
@@ -4639,32 +4671,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!IncludeGooseRetransmission && string.Equals(row.EventType, "Retrans", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        if (!string.Equals(SelectedGooseIdFilter, "All", StringComparison.OrdinalIgnoreCase))
-        {
-            var matchesSelected = string.Equals(row.GoId, SelectedGooseIdFilter, StringComparison.OrdinalIgnoreCase) ||
-                                  string.Equals(row.GoCbRef, SelectedGooseIdFilter, StringComparison.OrdinalIgnoreCase);
-            if (!matchesSelected)
-                return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(GoosePublisherFilterText))
-        {
-            var filter = GoosePublisherFilterText.Trim();
-            var matchesText = Contains(row.GoId, filter) ||
-                              Contains(row.GoCbRef, filter) ||
-                              Contains(row.AppId, filter) ||
-                              Contains(row.DataSet, filter) ||
-                              Contains(row.SourceMac, filter) ||
-                              Contains(row.DestinationMac, filter);
-            if (!matchesText)
-                return false;
-        }
+        if (_selectedGooseSourceKeys.Count > 0 &&
+            !_selectedGooseSourceKeys.Contains(GoosePublisherKey.From(row.Source)))
+            return false;
 
         return true;
-
-        static bool Contains(string? text, string filter) =>
-            !string.IsNullOrWhiteSpace(text) &&
-            text.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
     private IReadOnlyList<GooseDatasetValueDisplayItem> BuildGooseDatasetValues(GooseMessageItem? goose)
