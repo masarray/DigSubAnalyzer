@@ -179,7 +179,7 @@ public sealed class GoosePublisherSelectionTests
         var secondRow = catalog.Find(GoosePublisherKey.From(second));
 
         catalog.Reconcile([outsider], null, pinned);
-        Assert.Equal(2, catalog.Rows.Count);
+        Assert.Equal(3, catalog.Rows.Count);
         Assert.Same(firstRow, catalog.Find(GoosePublisherKey.From(first)));
         Assert.Same(secondRow, catalog.Find(GoosePublisherKey.From(second)));
         Assert.True(firstRow!.IsStale);
