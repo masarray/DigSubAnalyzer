@@ -59,6 +59,88 @@
         <Setter Property="Padding" Value="10" />
     </Style>
 
+    <!-- GOOSE-only precision disclosure. Eliminates the default high-contrast
+         circular expander glyph without changing other workspace controls. -->
+    <Style x:Key="GooseDatasetExpanderStyle" TargetType="{x:Type Expander}">
+        <Setter Property="Foreground" Value="#E7F3FF"/>
+        <Setter Property="Background" Value="#091A29"/>
+        <Setter Property="BorderBrush" Value="#1C384F"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Expander}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <DockPanel LastChildFill="True">
+                            <ToggleButton DockPanel.Dock="Top"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalContentAlignment="Stretch"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Cursor="Hand"
+                                          AutomationProperties.Name="Expand DataSet entry details">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="RowBackground" Background="Transparent" Padding="6,1,7,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Chevron"
+                                                      Grid.Column="0" Width="11" Height="11"
+                                                      Stroke="#8CAAC1" StrokeThickness="1.7"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      Data="M2,4 L6,8 L10,4"
+                                                      Stretch="Uniform" VerticalAlignment="Center"
+                                                      HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                    <Path.RenderTransform>
+                                                        <RotateTransform Angle="-90"/>
+                                                    </Path.RenderTransform>
+                                                </Path>
+                                                <ContentPresenter Grid.Column="1"
+                                                                  ContentSource="Content"
+                                                                  VerticalAlignment="Center"
+                                                                  HorizontalAlignment="Stretch"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Chevron" Property="RenderTransform">
+                                                    <Setter.Value><RotateTransform Angle="0"/></Setter.Value>
+                                                </Setter>
+                                                <Setter TargetName="Chevron" Property="Stroke" Value="#62BEF5"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="RowBackground" Property="Background" Value="#112B40"/>
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="RowBackground" Property="Background" Value="#17354D"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ExpandedContent" ContentSource="Content"
+                                              Visibility="Collapsed"
+                                              HorizontalAlignment="Stretch"/>
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandedContent" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="PanelTitleTextStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="13.5" />
         <Setter Property="FontWeight" Value="SemiBold" />
