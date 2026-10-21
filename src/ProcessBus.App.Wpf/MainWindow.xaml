@@ -1298,7 +1298,6 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <Grid Grid.Row="0" Margin="0,0,0,12">
@@ -1307,7 +1306,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0"
-                                           Text="GOOSE Publishers"
+                                           Text="GOOSE Sources"
                                            Foreground="#F4FAFF"
                                            FontSize="15"
                                            FontWeight="SemiBold"
@@ -1320,37 +1319,98 @@
                                            VerticalAlignment="Center"/>
                             </Grid>
 
-                            <StackPanel Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}">
-                                <TextBlock Text="Search"
-                                           Foreground="#7FA8CC"
-                                           FontSize="10.5"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,5"/>
-                                <TextBox Style="{StaticResource CompactSearchBoxStyle}"
-                                         Text="{Binding GoosePublisherFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Filter publisher, GOOSE ID, APPID, MAC, or DataSet"/>
-                            </StackPanel>
+                            <!-- One keyboard-friendly search field. The vector icons are
+                                 Material geometry resources, not font glyphs. -->
+                            <Border Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}"
+                                    Height="35" Background="#0A1F32" CornerRadius="8"
+                                    BorderBrush="#24425E" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="34"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="32"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Path Grid.Column="0"
+                                          Data="{StaticResource GooseMaterialSearch}"
+                                          Width="17" Height="17" Fill="#8FB5D1"
+                                          Stretch="Uniform" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                    <TextBox x:Name="GooseSourceSearchBox" Grid.Column="1"
+                                             Text="{Binding GoosePublisherFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Background="Transparent" BorderThickness="0"
+                                             Foreground="#E8F5FF" FontSize="12"
+                                             CaretBrush="#80C9FF"
+                                             VerticalContentAlignment="Center"
+                                             Padding="0" Margin="0"
+                                             ToolTip="Find a source by name, message, application code or network address"/>
+                                    <TextBlock Grid.Column="1" Text="Search sources…"
+                                               Foreground="#789CB8" FontSize="11.5"
+                                               VerticalAlignment="Center" IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding GooseHasSearchText}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Button Grid.Column="2" Width="25" Height="25"
+                                            Command="{Binding GooseClearSearchCommand}"
+                                            Click="GooseClearSearch_Click"
+                                            ToolTip="Clear search" Cursor="Hand"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="ClearHit" Background="{TemplateBinding Background}"
+                                                                    CornerRadius="12">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="ClearHit" Property="Background" Value="#214766"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                                                    <Setter TargetName="ClearHit" Property="Background" Value="#254C70"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding GooseHasSearchText}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <Path Data="{StaticResource GooseMaterialClose}"
+                                              Fill="#B0CCDF" Width="14" Height="14"
+                                              Stretch="Uniform"/>
+                                    </Button>
+                                </Grid>
+                            </Border>
 
                             <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="10"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Text="Retransmission"
+                                    <TextBlock Text="Show repeats"
                                                Foreground="#D9ECFF"
                                                FontSize="12"
                                                FontWeight="Medium"/>
-                                    <TextBlock Text="{Binding GooseRetransmissionModeText}"
-                                               Foreground="#7FA8CC"
-                                               FontSize="10.5"
-                                               Margin="0,2,0,0"/>
+
                                 </StackPanel>
 
                                 <ToggleButton Grid.Row="0" Grid.Column="1"
@@ -1388,36 +1448,27 @@
                                     </ToggleButton.Template>
                                 </ToggleButton>
 
-                                <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
-                                    <TextBlock Text="GOOSE ID"
-                                               Foreground="#7FA8CC"
-                                               FontSize="10.5"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,5"/>
-                                    <ComboBox Style="{StaticResource CompactComboBoxStyle}"
-                                              ItemsSource="{Binding GooseIdFilterOptions}"
-                                              SelectedItem="{Binding SelectedGooseIdFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                </StackPanel>
+
                             </Grid>
 
-                            <StackPanel Grid.Row="3">
-                                <TextBlock Text="Detected publishers"
-                                           Foreground="#7FA8CC"
-                                           FontSize="10.5"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,8"/>
-
+                            <!-- Only this bounded viewport scrolls; search and toggle stay fixed. -->
+                            <Grid Grid.Row="3" MinHeight="0">
                                 <ListView ItemsSource="{Binding GoosePublisherRowsView}"
                                           SelectedItem="{Binding SelectedGoosePublisherRow, Mode=TwoWay}"
                                           Background="Transparent"
                                           BorderThickness="0"
+                                          MinHeight="0"
+                                          VirtualizingPanel.IsVirtualizing="True"
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          ScrollViewer.CanContentScroll="True"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
                                             <!-- Re-clicking the already selected publisher must exit pinned-event mode. -->
                                             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="GoosePublisherRow_PreviewMouseLeftButtonDown"/>
                                             <Setter Property="Padding" Value="0"/>
-                                            <Setter Property="Margin" Value="0,0,0,8"/>
+                                            <Setter Property="Margin" Value="0,0,0,6"/>
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             <Setter Property="Background" Value="Transparent"/>
                                             <Setter Property="BorderThickness" Value="0"/>
@@ -1426,7 +1477,7 @@
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="ListViewItem">
                                                         <Border x:Name="Card"
-                                                                Padding="10,9"
+                                                                Padding="9,7"
                                                                 Background="#071827"
                                                                 BorderBrush="#16324E"
                                                                 BorderThickness="1"
@@ -1462,11 +1513,33 @@
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
-                                                <TextBlock Text="{Binding GoId}"
-                                                           Foreground="#F4FAFF"
-                                                           FontSize="12.5"
-                                                           FontWeight="SemiBold"
-                                                           TextTrimming="CharacterEllipsis"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding GoId}"
+                                                               Foreground="#F4FAFF" FontSize="12.5"
+                                                               FontWeight="Medium" TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding GoId}"/>
+                                                    <Border Grid.Column="1" Padding="5,1"
+                                                            CornerRadius="4" Margin="5,0,0,0"
+                                                            Background="#3B2C18" BorderBrush="#70552C"
+                                                            BorderThickness="1">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTest}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="TEST" FontSize="9"
+                                                                   Foreground="#F0C681" FontWeight="SemiBold"/>
+                                                    </Border>
+                                                </Grid>
                                                 <TextBlock Text="{Binding GoCbRef}"
                                                            Foreground="#8FAAC3"
                                                            FontSize="10.5"
@@ -1477,8 +1550,7 @@
                                                            FontSize="10.5"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}{0} · st/sq {1}/{2}">
-                                                            <Binding Path="AppId"/>
+                                                        <MultiBinding StringFormat="{}State {0} · Sequence {1}">
                                                             <Binding Path="StNum"/>
                                                             <Binding Path="SqNum"/>
                                                         </MultiBinding>
@@ -1488,20 +1560,9 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
+                            </Grid>
 
-                            <Border Grid.Row="4"
-                                    Padding="10,8"
-                                    Background="#061522"
-                                    BorderBrush="#132D46"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Margin="0,10,0,0">
-                                <TextBlock Text="{Binding GooseFilterSummaryText}"
-                                           Foreground="#8FAAC3"
-                                           FontSize="10.5"
-                                           TextWrapping="Wrap"/>
-                            </Border>
+
                         </Grid>
 
                         <!-- =========================================================
@@ -2980,7 +3041,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="400"/>
+                                    <ColumnDefinition Width="460"/>
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Main event timeline: lean, readable, no debug ornaments. -->
@@ -3001,7 +3062,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="GOOSE Event Timeline"
+                                                <TextBlock Text="Messages"
                                                            Foreground="#F4FAFF"
                                                            FontSize="16"
                                                            FontWeight="SemiBold"
@@ -3012,25 +3073,14 @@
                                                         BorderBrush="#1B5C8A"
                                                         BorderThickness="1"
                                                         CornerRadius="10">
-                                                    <TextBlock Text="{Binding GooseTotalMessagesText}"
+                                                    <TextBlock Text="{Binding GooseTimelineCountersText}"
                                                                Foreground="#7BD8FF"
                                                                FontSize="11"
                                                                FontWeight="SemiBold"/>
                                                 </Border>
                                             </StackPanel>
 
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Border Padding="8,3"
-                                                        Background="#0A1928"
-                                                        BorderBrush="#1D3C59"
-                                                        BorderThickness="1"
-                                                        CornerRadius="9"
-                                                        Margin="0,0,8,0">
-                                                    <TextBlock Text="{Binding GooseFilterSummaryText}"
-                                                               Foreground="#AFC4DA"
-                                                               FontSize="10.5"/>
-                                                </Border>
-                                            </StackPanel>
+                                            
                                         </Grid>
 
                                         <DataGrid Grid.Row="2"
@@ -3053,88 +3103,36 @@
                                                   VirtualizingPanel.IsVirtualizing="True"
                                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                                   ScrollViewer.CanContentScroll="True"
-                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                   MouseEnter="GooseTraffic_Interaction"
                                                   MouseMove="GooseTraffic_Interaction"
                                                   PreviewMouseDown="GooseTraffic_ClickInteraction">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Time" Binding="{Binding TimeText}" Width="112">
-                                                    <DataGridTextColumn.ElementStyle>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                                            <Setter Property="Foreground" Value="#DDEEFF"/>
-                                                            <Setter Property="FontSize" Value="12"/>
-                                                        </Style>
-                                                    </DataGridTextColumn.ElementStyle>
-                                                </DataGridTextColumn>
-
-                                                <DataGridTextColumn Header="Δt" Binding="{Binding DeltaText}" Width="78">
-                                                    <DataGridTextColumn.ElementStyle>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                                            <Setter Property="Foreground" Value="#91AAC2"/>
-                                                        </Style>
-                                                    </DataGridTextColumn.ElementStyle>
-                                                </DataGridTextColumn>
-
-                                                <DataGridTemplateColumn Header="Event" Width="118">
+                                                <DataGridTemplateColumn Width="30" Header="">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
-                                                            <Border Padding="8,3"
-                                                                    Background="#13202D"
-                                                                    BorderBrush="#273A4E"
-                                                                    BorderThickness="1"
-                                                                    CornerRadius="8"
-                                                                    HorizontalAlignment="Left"
-                                                                    VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding EventType}"
-                                                                           Foreground="{Binding EventBrush}"
-                                                                           FontWeight="SemiBold"
-                                                                           FontSize="11"/>
-                                                            </Border>
+                                                            <TextBlock Text="G" FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="#75C2F5" ToolTip="{Binding EventDescriptionText}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
-
-                                                <DataGridTemplateColumn Header="Publisher / GOOSE ID" Width="285">
+                                                <DataGridTextColumn Header="Time" Binding="{Binding TimeText}"
+                                                                    Width="150" MinWidth="135"/>
+                                                <DataGridTextColumn Header="Relative time" Binding="{Binding RelativeTimeText}"
+                                                                    Width="95" MinWidth="90"/>
+                                                <DataGridTextColumn Header="Source" Binding="{Binding SourceMac}"
+                                                                    Width="137" MinWidth="125"/>
+                                                <DataGridTextColumn Header="Destination" Binding="{Binding DestinationMac}"
+                                                                    Width="137" MinWidth="125"/>
+                                                <DataGridTemplateColumn Header="Description" Width="*" MinWidth="175">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
-                                                            <TextBlock Text="{Binding GoId}"
+                                                            <TextBlock Text="{Binding GoCbRef}"
                                                                        VerticalAlignment="Center"
-                                                                       Foreground="#F4FAFF"
-                                                                       FontWeight="SemiBold"
-                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Foreground="#DFEFFC" TextTrimming="CharacterEllipsis"
                                                                        ToolTip="{Binding GoCbRef}"/>
-                                                        </DataTemplate>
-                                                    </DataGridTemplateColumn.CellTemplate>
-                                                </DataGridTemplateColumn>
-
-                                                <DataGridTemplateColumn Header="stNum / sqNum" Width="106">
-                                                    <DataGridTemplateColumn.CellTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock HorizontalAlignment="Center"
-                                                                       VerticalAlignment="Center"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="#DDEEFF">
-                                                                <TextBlock.Text>
-                                                                    <MultiBinding StringFormat="{}{0} / {1}">
-                                                                        <Binding Path="StNum"/>
-                                                                        <Binding Path="SqNum"/>
-                                                                    </MultiBinding>
-                                                                </TextBlock.Text>
-                                                            </TextBlock>
-                                                        </DataTemplate>
-                                                    </DataGridTemplateColumn.CellTemplate>
-                                                </DataGridTemplateColumn>
-
-                                                <DataGridTemplateColumn Header="Changed values" Width="*">
-                                                    <DataGridTemplateColumn.CellTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock Text="{Binding DisplayValuesText}"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="#D9ECFF"
-                                                                       TextTrimming="CharacterEllipsis"/>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
@@ -3172,17 +3170,71 @@
                                 <Border Grid.Column="2"
                                         Style="{StaticResource DenseGroupBorderStyle}"
                                         Padding="{StaticResource WorkspacePanelInset}">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                        <StackPanel>
-                                            <TextBlock Text="GOOSE Inspector"
-                                                       Foreground="#F4FAFF"
-                                                       FontSize="16"
-                                                       FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding GooseInspectorModeText}"
-                                                       Foreground="#7FA8CC"
-                                                       FontSize="11"
-                                                       Margin="0,3,0,14"/>
-                                            <TextBlock Text="Select a GOOSE publisher to inspect live identity, network and values."
+                                    <!-- Keep operator context and Return to Live visible while
+                                         the evidence below scrolls. No nested scrolling. -->
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Details" Foreground="#F4FAFF"
+                                                                   FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                        <Border Padding="7,2" Margin="8,0,0,0" CornerRadius="4"
+                                                                Background="#143149" BorderBrush="#2B5973"
+                                                                BorderThickness="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding GooseInspectorModeBadgeText}"
+                                                                       Foreground="#9EDBFF" FontSize="9.5" FontWeight="SemiBold"/>
+                                                        </Border>
+                                                        <Border Padding="7,2" Margin="6,0,0,0" CornerRadius="4"
+                                                                Background="#392C17" BorderBrush="#6F562B"
+                                                                BorderThickness="1" VerticalAlignment="Center">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding GooseInspectorMessage.IsTest}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="TEST" FontSize="9.5" FontWeight="SemiBold"
+                                                                       Foreground="#F1CA85"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding GooseInspectorModeText}" Foreground="#91B6D2"
+                                                               FontSize="11" Margin="0,5,8,0" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="Show Latest"
+                                                        Command="{Binding GooseReturnToLiveCommand}" VerticalAlignment="Top"
+                                                        Padding="9,5" FontSize="10.5" FontWeight="Medium"
+                                                        Foreground="#B9E3FF" Background="#102E49"
+                                                        BorderBrush="#24587D" BorderThickness="1" Cursor="Hand">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsGooseHistoryPinned}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </Grid>
+                                        <ScrollViewer Grid.Row="1"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      Focusable="False">
+                                            <StackPanel>
+                                                <TextBlock Text="Choose a sending device or recorded message to inspect its values."
                                                        Foreground="#9FC0DA" FontSize="11.5" TextWrapping="Wrap"
                                                        Margin="0,12,0,0">
                                                 <TextBlock.Style>
@@ -3212,33 +3264,51 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="112"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="GOOSE ID" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoId}" Foreground="#F4FAFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Publisher" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoCbRef}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="APPID" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.AppId}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="stNum / sqNum" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="3" Grid.Column="1" Foreground="#DDEEFF" FontWeight="SemiBold" Margin="0,3,0,3">
-                                                        <TextBlock.Text>
-                                                            <MultiBinding StringFormat="{}{0} / {1}">
-                                                                <Binding Path="GooseInspectorMessage.StNum"/>
-                                                                <Binding Path="GooseInspectorMessage.SqNum"/>
-                                                            </MultiBinding>
-                                                        </TextBlock.Text>
-                                                    </TextBlock>
-                                                </Grid>
+                                                <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
+                                                          IsExpanded="{Binding GooseMessageExpanded, Mode=TwoWay}"
+                                                          HorizontalAlignment="Stretch">
+                                                    <Expander.Header>
+                                                        <TextBlock Text="Details" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+                                                    </Expander.Header>
+                                                                                                        <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="160"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Control Block reference"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoCbRef}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Application ID"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.AppId}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="GOOSE ID"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoId}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Status number"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.StNum}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Sequence number"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.SqNum}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Entry time"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorEntryTimeText}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                    </Grid>
+                                                </Expander>
                                             </Border>
 
                                             <Border Padding="12"
@@ -3256,15 +3326,16 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <StackPanel>
-                                                    <TextBlock Text="Communication / Network"
-                                                               Foreground="#F4FAFF"
-                                                               FontSize="13.5"
-                                                               FontWeight="SemiBold"
-                                                               Margin="0,0,0,9"/>
-                                                    <Grid>
+                                                <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
+                                                          IsExpanded="{Binding GooseNetworkExpanded, Mode=TwoWay}"
+                                                          HorizontalAlignment="Stretch">
+                                                    <Expander.Header>
+                                                        <TextBlock Text="Network" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+                                                    </Expander.Header>
+                                                    <StackPanel>
+                                                                                                        <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="112"/>
+                                                            <ColumnDefinition Width="160"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <Grid.RowDefinitions>
@@ -3275,37 +3346,48 @@
                                                             <RowDefinition Height="Auto"/>
                                                             <RowDefinition Height="Auto"/>
                                                             <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
                                                         </Grid.RowDefinitions>
-                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Src MAC" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.SourceMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Dst MAC" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.DestinationMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="VLAN" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="2" Grid.Column="1" Foreground="#DDEEFF" Margin="0,3,0,3">
-                                                            <TextBlock.Text>
-                                                                <MultiBinding StringFormat="{}ID {0} · Priority {1}">
-                                                                    <Binding Path="GooseInspectorMessage.VlanId"/>
-                                                                    <Binding Path="GooseInspectorMessage.VlanPriority"/>
-                                                                </MultiBinding>
-                                                            </TextBlock.Text>
-                                                        </TextBlock>
-                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="DataSet" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.DataSet}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="ConfRev" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.ConfRev}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="TTL" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorMessage.TimeAllowedToLiveMilliseconds, StringFormat={}{0} ms}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Flags" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="6" Grid.Column="1" Foreground="#DDEEFF" Margin="0,3,0,3">
-                                                            <TextBlock.Text>
-                                                                <MultiBinding StringFormat="{}Test {0} · NdsCom {1}">
-                                                                    <Binding Path="GooseInspectorMessage.IsTest"/>
-                                                                    <Binding Path="GooseInspectorMessage.NeedsCommission"/>
-                                                                </MultiBinding>
-                                                            </TextBlock.Text>
-                                                        </TextBlock>
+                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Destination MAC address"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.DestinationMac}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Source MAC address"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.SourceMac}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="DataSet reference"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.DataSet}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="VLAN ID"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.VlanId}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="VLAN priority"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.VlanPriority}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Needs commissioning"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorNeedsCommissioningText}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Configuration revision"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding GooseInspectorMessage.ConfRev}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Simulation/Test"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GooseInspectorSimulationTestText}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Time allowed to live (ms)"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding GooseInspectorMessage.TimeAllowedToLiveMilliseconds}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
                                                     </Grid>
                                                 </StackPanel>
+                                                </Expander>
                                             </Border>
 
                                             <Border Padding="12"
@@ -3322,105 +3404,156 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <StackPanel>
-                                                    <DockPanel Margin="0,0,0,10">
-                                                        <TextBlock DockPanel.Dock="Left"
-                                                                   Text="DataSet Values"
-                                                                   Foreground="#F4FAFF"
-                                                                   FontSize="13.5"
-                                                                   FontWeight="SemiBold"/>
-                                                        <TextBlock DockPanel.Dock="Right"
-                                                                   Text="{Binding GooseInspectorDatasetCountText, StringFormat=({0})}"
-                                                                   Foreground="#FFBE52"
-                                                                   FontSize="11"
-                                                                   FontWeight="SemiBold"/>
-                                                    </DockPanel>
-                                                    <TextBlock Text="{Binding SelectedGooseSemanticText}"
-                                                               Foreground="#8FAAC3"
-                                                               FontSize="11"
-                                                               TextWrapping="Wrap"
-                                                               Margin="0,0,0,10"/>
+                                                <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
+                                                          IsExpanded="{Binding GooseValuesExpanded, Mode=TwoWay}"
+                                                          HorizontalAlignment="Stretch">
+                                                    <Expander.Header>
+                                                        <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <TextBlock Text="Data" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+    <TextBlock Grid.Column="1" Margin="10,0,3,0"
+               Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} items}"
+               Foreground="#9ABCD5" FontSize="10.5" VerticalAlignment="Center"/>
+</Grid>
+                                                    </Expander.Header>
+                                                    <StackPanel>
+                                                    <Button Content="Identify signals" ToolTip="Import matching device configuration (SCL) to label these values"
+                                                            Command="{Binding GooseOpenConfigurationCommand}"
+                                                            Foreground="#81C9F7"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            HorizontalAlignment="Left"
+                                                            HorizontalContentAlignment="Left"
+                                                            Padding="0,1"
+                                                            FontSize="10.5"
+                                                            Cursor="Hand"
+                                                            Margin="0,0,0,9">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding GooseSignalNamesUnavailable}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
 
-                                                    <DataGrid Style="{StaticResource DarkDataGridStyle}"
-                                                              ItemsSource="{Binding SelectedGooseDatasetValues}"
-                                                              AutoGenerateColumns="False"
-                                                              IsReadOnly="True"
-                                                              HeadersVisibility="Column"
-                                                              CanUserAddRows="False"
-                                                              CanUserDeleteRows="False"
-                                                              SelectionMode="Single"
-                                                              SelectionUnit="FullRow"
-                                                              FocusVisualStyle="{x:Null}"
-                                                              FontFamily="Segoe UI Variable Text, Segoe UI"
-                                                              FontSize="11.5"
-                                                              RowHeight="54"
-                                                              MinHeight="180"
-                                                              MaxHeight="360"
-                                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                        ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                                        <DataGrid.Columns>
-                                                            <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="38">
-                                                                <DataGridTextColumn.ElementStyle>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                                        <Setter Property="Foreground" Value="#8FAAC3"/>
-                                                                    </Style>
-                                                                </DataGridTextColumn.ElementStyle>
-                                                            </DataGridTextColumn>
-                                                            <DataGridTextColumn Header="Name" Binding="{Binding NameText}" Width="*">
-                                                                <DataGridTextColumn.ElementStyle>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                                                        <Setter Property="Foreground" Value="#E6F4FF"/>
-                                                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                    </Style>
-                                                                </DataGridTextColumn.ElementStyle>
-                                                            </DataGridTextColumn>
-                                                            <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="132">
-                                                                <DataGridTextColumn.ElementStyle>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                                        <Setter Property="Foreground" Value="#8FAAC3"/>
-                                                                        <Setter Property="TextWrapping" Value="Wrap"/>
-                                                                        <Setter Property="ToolTip" Value="{Binding SemanticText}"/>
-                                                                    </Style>
-                                                                </DataGridTextColumn.ElementStyle>
-                                                            </DataGridTextColumn>
-                                                            <DataGridTextColumn Header="Source" Binding="{Binding SemanticText}" Width="108">
-                                                                <DataGridTextColumn.ElementStyle>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                                        <Setter Property="Foreground" Value="#8FAAC3"/>
-                                                                        <Setter Property="TextWrapping" Value="Wrap"/>
-                                                                    </Style>
-                                                                </DataGridTextColumn.ElementStyle>
-                                                            </DataGridTextColumn>
-                                                            <DataGridTemplateColumn Header="Value" Width="150">
-                                                                <DataGridTemplateColumn.CellTemplate>
-                                                                    <DataTemplate>
-                                                                        <StackPanel VerticalAlignment="Center">
-                                                                            <TextBlock Text="{Binding DisplayValueText}"
-                                                                                       FontWeight="SemiBold"
-                                                                                       Foreground="{Binding ValueBrush}"
-                                                                                       TextTrimming="CharacterEllipsis"/>
-                                                                            <TextBlock Margin="0,3,0,0"
-                                                                                       Text="{Binding ChangeText}"
-                                                                                       Visibility="{Binding ChangeVisibility}"
-                                                                                       Foreground="#FFBE52"
-                                                                                       FontSize="10.5"
-                                                                                       TextTrimming="CharacterEllipsis"/>
-                                                                        </StackPanel>
-                                                                    </DataTemplate>
-                                                                </DataGridTemplateColumn.CellTemplate>
-                                                            </DataGridTemplateColumn>
-                                                        </DataGrid.Columns>
-                                                    </DataGrid>
+                                                    <!-- Name/value pairs keep raw typed data readable even without SCL.
+                                                         Expanded rows reveal protocol evidence and verified quality. -->
+                                                    <Grid Margin="0,0,0,6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="160"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="Name" FontSize="10"
+                                                                   Foreground="#7D9DB6" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Value" FontSize="10"
+                                                                   Foreground="#7D9DB6" FontWeight="SemiBold"
+                                                                   TextAlignment="Right" Margin="0,0,8,0"/>
+                                                    </Grid>
+                                                    <ItemsControl ItemsSource="{Binding GooseInspectorRows}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Expander Style="{StaticResource GooseDatasetExpanderStyle}"
+                                                                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                                                          Margin="0,0,0,2" ToolTip="{Binding NameText}">
+                                                                    <Expander.Header>
+                                                                        <Grid MinHeight="38" HorizontalAlignment="Stretch">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="25"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="154"/>
+                                                                            </Grid.ColumnDefinitions>
+
+                                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                                                                        Margin="0,0,7,0">
+                                                                                <TextBlock Text="{Binding NameText}" FontSize="11.5"
+                                                                                           Foreground="#EAF6FF" FontWeight="Medium"
+                                                                                           TextTrimming="CharacterEllipsis"/>
+
+                                                                            </StackPanel>
+                                                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                                                <TextBlock Text="{Binding DisplayValueText}"
+                                                                                           FontFamily="Consolas, Segoe UI"
+                                                                                           Foreground="{Binding ValueBrush}" FontSize="11.5"
+                                                                                           TextAlignment="Right" TextTrimming="CharacterEllipsis"
+                                                                                           ToolTip="{Binding DisplayValueText}"/>
+                                                                                <TextBlock Text="{Binding ChangeText}"
+                                                                                           Visibility="{Binding ChangeVisibility}"
+                                                                                           FontSize="9.5" Foreground="#F2C477"
+                                                                                           TextTrimming="CharacterEllipsis" TextAlignment="Right"/>
+                                                                            </StackPanel>
+                                                                        </Grid>
+                                                                    </Expander.Header>
+                                                                    <!-- Compact key/value evidence: full technical
+                                                                         values remain selectable via their text and
+                                                                         a stable expandable DataSet row. -->
+                                                                    <Border Padding="10,7,10,9" Background="#081827"
+                                                                            BorderBrush="#17354B" BorderThickness="0,1,0,0">
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="85"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <Grid.RowDefinitions>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                                <RowDefinition Height="Auto"/>
+                                                                            </Grid.RowDefinitions>
+                                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Name"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NameText}"
+                                                                                       Foreground="#E7F3FF" FontSize="11" TextWrapping="Wrap"
+                                                                                       Margin="0,2,0,2" ToolTip="{Binding NameText}"/>
+                                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Type"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TypeText}"
+                                                                                       Foreground="#B9D3E8" FontSize="10.5" TextWrapping="Wrap"
+                                                                                       Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Value"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ValueText}"
+                                                                                       Foreground="#E7F3FF" FontSize="11" FontFamily="Consolas"
+                                                                                       TextWrapping="Wrap" Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Raw data" ToolTip="Hexadecimal representation of the captured MMS data"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RawHexDisplayText}"
+                                                                                       Foreground="#C2D9E9" FontSize="11" FontFamily="Consolas"
+                                                                                       TextWrapping="Wrap" Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Wire format"
+                                                                                       ToolTip="Original MMS data type before interpretation"
+                                                                                       Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
+                                                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ProtocolTypeText}"
+                                                                                       Foreground="#9ABBD3" FontSize="10.5" Margin="0,2,0,2"/>
+                                                                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2"
+                                                                                       Margin="0,3,0,0" Text="{Binding ConfigurationTypeText}"
+                                                                                       Visibility="{Binding ConfigurationTypeVisibility}"
+                                                                                       ToolTip="Exact function, data class and wire type from the imported device configuration"
+                                                                                       Foreground="#93B7D1" FontSize="10.5"
+                                                                                       TextWrapping="Wrap"/>
+                                                                            <TextBlock Grid.Row="6" Grid.ColumnSpan="2"
+                                                                                       Margin="0,5,0,0" Text="{Binding QualityDetailsText}"
+                                                                                       Visibility="{Binding QualityDetailsVisibility}"
+                                                                                       Foreground="#9ED9E9" FontSize="10.5"
+                                                                                       TextWrapping="Wrap"/>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </Expander>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
                                                 </StackPanel>
+                                                </Expander>
                                             </Border>
-                                        </StackPanel>
-                                    </ScrollViewer>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </Grid>
                                 </Border>
                             </Grid>                        </TabItem>
 

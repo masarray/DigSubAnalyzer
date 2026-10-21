@@ -36,6 +36,17 @@ public sealed class M4GooseRetentionTests
     }
 
     [Fact]
+    public void FirstGooseObservationIsAnInitialBaselineNotAChangedSignal()
+    {
+        var analyzer = new RawProcessBusAnalyzer();
+        analyzer.ObserveFrame(Goose(1), DateTime.UtcNow);
+        var message = Assert.Single(analyzer.GetGooseSnapshot().Messages);
+        Assert.NotEmpty(message.DataValues);
+        Assert.All(message.DataValues, item => Assert.False(item.IsChanged));
+        Assert.Equal("Initial DataSet baseline", message.ChangedSummaryText);
+    }
+
+    [Fact]
     public void ChurningPublisherIdentitiesCannotAllocateUnboundedGooseStates()
     {
         var analyzer = new RawProcessBusAnalyzer();

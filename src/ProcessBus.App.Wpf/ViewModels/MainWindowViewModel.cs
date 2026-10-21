@@ -47,6 +47,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private GooseTrafficRow? _selectedGooseTrafficRow;
     private bool _gooseInspectHistoricalEvent;
+    private bool _gooseMessageExpanded = true;
+    private bool _gooseNetworkExpanded;
+    private bool _gooseValuesExpanded = true;
+    private GoosePublisherKey? _lastDisplayedGoosePublisherKey;
+    private GooseTrafficRow? _lastDisplayedGooseHistoryEvent;
+    private int _gooseVisibleEventCount;
     private IReadOnlyList<string> _gooseIdFilterOptions = ["All"];
     private IReadOnlyList<GooseMessageItem> _gooseMessages = Array.Empty<GooseMessageItem>();
     private GooseMonitorSnapshot _gooseSnapshot = new();
@@ -126,6 +132,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ? invalid.Description : "Select a real Npcap capture adapter.";
 
     private readonly ObservableCollection<GooseTrafficRow> _gooseHistory = new();
+    private readonly ObservableCollection<GooseDatasetDisplayRow> _gooseInspectorRows = new();
     private readonly Dictionary<GoosePublisherKey, GooseMessageItem> _lastGooseState = new();
     private readonly Queue<GooseTrafficRow> _pendingGooseRows = new();
     private readonly Queue<DiagnosticEventItem> _pendingDiagnosticEvents = new();
@@ -134,6 +141,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private DiagnosticEventItem? _lastAggregatedBottomEvent;
     private int _lastAggregatedEventCount = -1;
     private DateTime? _lastGooseHistoryTimeUtc;
+    private DateTime? _firstGooseHistoryTimeUtc;
     private DateTime _gooseInteractionUntilUtc = DateTime.MinValue;
     private bool _isGooseInteractionActive;
     private bool _isSelectionOverlayVisible;
@@ -176,6 +184,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ObservableCollection<GooseTrafficRow> GooseHistory => _gooseHistory;
     public ICollectionView GooseHistoryView => _gooseHistoryView;
     public ICollectionView GoosePublisherRowsView => _goosePublisherRowsView;
+    // DataSet row instances survive new st/sq snapshots, preserving expanded
+    // MMS/quality details while live retransmissions continue.
+    public ObservableCollection<GooseDatasetDisplayRow> GooseInspectorRows => _gooseInspectorRows;
     public ObservableCollection<TrafficHealthTargetRow> DiagnosticTargets => _diagnosticTargets;
 
     public TrafficHealthTargetRow? SelectedDiagnosticTarget
@@ -219,6 +230,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
         }
     }
 
@@ -232,14 +244,55 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _goosePublisherFilterText = value ?? string.Empty;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(GooseHasSearchText));
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
             _goosePublisherRowsView.Refresh();
             OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
     }
 
+    public bool GooseHasSearchText => !string.IsNullOrWhiteSpace(GoosePublisherFilterText);
+
+    // Operator accordion state is SSOT in the session ViewModel, independent
+    // of capture snapshots and TabControl visual tree recreation.
+    public bool GooseMessageExpanded
+    {
+        get => _gooseMessageExpanded;
+        set
+        {
+            if (_gooseMessageExpanded == value) return;
+            _gooseMessageExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool GooseNetworkExpanded
+    {
+        get => _gooseNetworkExpanded;
+        set
+        {
+            if (_gooseNetworkExpanded == value) return;
+            _gooseNetworkExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool GooseValuesExpanded
+    {
+        get => _gooseValuesExpanded;
+        set
+        {
+            if (_gooseValuesExpanded == value) return;
+            _gooseValuesExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    // Legacy protocol-level GOID filter stays available for API compatibility.
+    // The compact explorer uses a single search box instead of a duplicate dropdown.
     // Replace ComboBox options only if identities change, not with each UI tick.
     public IReadOnlyList<string> GooseIdFilterOptions => _gooseIdFilterOptions;
 
@@ -276,27 +329,50 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
             _goosePublisherRowsView.Refresh();
             OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
     }
 
     public string GooseEmptyTitle => _gooseMessages.Count == 0
-        ? "No GOOSE publisher observed" : "No matching GOOSE events";
+        ? "No sending device found" : "No messages match your filters";
     public string GooseEmptyGuidance => _gooseMessages.Count == 0
-        ? "Check physical adapter, VLAN visibility and publisher traffic."
+        ? "Check the selected network adapter, incoming traffic, and network group settings."
         : IncludeGooseRetransmission
-            ? "Review the selected GOOSE ID filter and capture path."
-            : "No matching state changes. Include retransmissions to inspect traffic activity.";
-    public string GooseRetransmissionModeText => IncludeGooseRetransmission ? "Retrans ON" : "Retrans OFF";
-    public string GoosePublisherCountText => $"{_gooseMessages.Count} publisher{(_gooseMessages.Count == 1 ? string.Empty : "s")}";
+            ? "Check the message-name filter and search text."
+            : "No new state changes are shown. Turn on repeated messages to see ongoing traffic.";
+    public string GooseRetransmissionModeText => IncludeGooseRetransmission
+        ? "Repeated messages visible" : "Showing changes only";
+    public string GoosePublisherCountText => $"{_gooseMessages.Count} device{(_gooseMessages.Count == 1 ? "" : "s")}";
+    public string GooseTimelineCountersText =>
+        $"{_gooseSnapshot.TotalMessages:N0} messages received  ·  {_gooseVisibleEventCount:N0} shown";
+    public string GooseWorkspaceCaptureSummaryText
+    {
+        get
+        {
+            if (!IsRunning)
+                return "GOOSE capture stopped  •  Last received values kept for inspection";
+            var testCount = _gooseMessages.Count(x => x.IsTest);
+            return "GOOSE capture active" +
+                (testCount > 0 ? $"  •  {testCount} TEST source(s)" : string.Empty);
+        }
+    }
+
+    private void UpdateGooseVisibleEventCount()
+    {
+        // Count the bounded view only on history/filter changes, never per RX frame.
+        var visible = _gooseHistoryView.Cast<object>().Count();
+        if (visible == _gooseVisibleEventCount)
+            return;
+        _gooseVisibleEventCount = visible;
+        OnPropertyChanged(nameof(GooseTimelineCountersText));
+    }
     public string GooseFilterSummaryText
     {
         get
         {
-            var filter = string.Equals(SelectedGooseIdFilter, "All", StringComparison.OrdinalIgnoreCase) ? "All GOOSE IDs" : SelectedGooseIdFilter;
-            var retrans = IncludeGooseRetransmission ? "with retransmission" : "state changes only";
-            return $"{filter}  -  {retrans}";
+            return IncludeGooseRetransmission ? "All received messages" : "Changes only";
         }
     }
 
@@ -309,15 +385,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var inspected = GooseInspectorMessage;
             if (inspected is null)
-                return "Select a GOOSE publisher or timeline event to inspect typed DataSet values.";
+                return "Select a sending device or a recorded message to see its values.";
 
             var match = ResolveSclGooseStream(inspected);
             if (match is null)
-                return HasSclProject
-                    ? "Semantic source: generic typed decode; no matching SCL GOOSE DataSet found."
-                    : "Semantic source: generic typed decode; load SCL to resolve signal names.";
+                return HasSclProject ? "Signal names not matched" : "Signal names not loaded";
 
-            return $"Semantic source: SCL DataSet order  -  {match.ControlBlockReference}  -  {match.DataSetReference}";
+            return string.Empty;
         }
     }
 
@@ -771,6 +845,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             RaiseModeStateChanged();
         });
         GooseInteractionCommand = new RelayCommand(() => DeferGooseUiFlush());
+        GooseReturnToLiveCommand = new RelayCommand(ReturnGooseToLive);
+        GooseOpenConfigurationCommand = new RelayCommand(() => CurrentWorkspaceTabIndex = 5);
+        GooseClearSearchCommand = new RelayCommand(() => GoosePublisherFilterText = string.Empty);
 
         _timer = new DispatcherTimer
         {
@@ -853,8 +930,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _selectedGoosePublisherKey = value.Key;
             _gooseInspectHistoricalEvent = false;
+            if (_selectedGooseTrafficRow is not null)
+            {
+                _selectedGooseTrafficRow = null;
+                OnPropertyChanged(nameof(SelectedGooseTrafficRow));
+            }
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsGooseHistoryPinned));
             RaiseGooseInspectorProperties();
             RaiseDiagnosticScopeProperties();
             RaiseAdvancedProperties();
@@ -887,9 +970,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseInspectHistoricalEvent = true;
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsGooseHistoryPinned));
             RaiseGooseInspectorProperties();
             RaiseAdvancedProperties();
         }
+    }
+
+    public bool IsGooseHistoryPinned => _gooseInspectHistoricalEvent && _selectedGooseTrafficRow is not null;
+
+    private void ReturnGooseToLive()
+    {
+        if (!_gooseInspectHistoricalEvent)
+            return;
+        _gooseInspectHistoricalEvent = false;
+        _selectedGooseTrafficRow = null;
+        OnPropertyChanged(nameof(SelectedGooseTrafficRow));
+        OnPropertyChanged(nameof(IsGooseHistoryPinned));
+        RaiseGooseInspectorProperties();
+        RaiseAdvancedProperties();
     }
 
     public GooseMessageItem? GooseInspectorMessage =>
@@ -898,32 +996,121 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
 
+    public string GooseInspectorEntryTimeText => GooseInspectorMessage?.LastSeenUtc.ToLocalTime()
+        .ToString("M/d/yyyy h:mm:ss.fff tt", System.Globalization.CultureInfo.InvariantCulture) ?? "-";
+    public string GooseInspectorNeedsCommissioningText => GooseInspectorMessage?.NeedsCommission == true ? "true" : "false";
+    public string GooseInspectorSimulationTestText => GooseInspectorMessage?.IsTest == true ? "true" : "false";
+
+    public string GooseInspectorFlagsText
+    {
+        get
+        {
+            var message = GooseInspectorMessage;
+            if (message is null)
+                return "No message selected";
+            return $"Test message: {(message.IsTest ? "Yes" : "No")} · " +
+                   $"Needs commissioning: {(message.NeedsCommission ? "Yes" : "No")}";
+        }
+    }
+
+    public bool GooseSignalNamesUnavailable
+    {
+        get
+        {
+            var item = GooseInspectorMessage;
+            return item is not null && ResolveSclGooseStream(item) is null;
+        }
+    }
+
+    public string GooseInspectorModeBadgeText => IsGooseHistoryPinned
+        ? "SAVED MESSAGE" : GooseInspectorMessage is null ? "NOT SELECTED" :
+        IsGooseSelectedPublisherStale ? "NOT RECEIVING" : "LIVE";
+
+    private bool IsGooseSelectedPublisherStale
+    {
+        get
+        {
+            var item = SelectedGooseMessage;
+            if (item is null)
+                return true;
+            var ttl = Math.Max(1000.0, item.TimeAllowedToLiveMilliseconds);
+            return SelectedGoosePublisherRow?.IsStale == true ||
+                   DateTime.UtcNow - item.LastSeenUtc > TimeSpan.FromMilliseconds(ttl);
+        }
+    }
+
     public string GooseInspectorModeText
     {
         get
         {
             var item = GooseInspectorMessage;
             if (item is null)
-                return "Select a publisher for live values or an event for historical evidence.";
+                return "Select a source or message";
             if (_gooseInspectHistoricalEvent)
-                return $"Pinned event · {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · historical values";
-            var ttl = Math.Max(1000.0, item.TimeAllowedToLiveMilliseconds);
-            var stale = SelectedGoosePublisherRow?.IsStale == true ||
-                        DateTime.UtcNow - item.LastSeenUtc > TimeSpan.FromMilliseconds(ttl);
-            return stale
-                ? $"STALE · last received {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · last valid values retained"
-                : "Live publisher · latest received typed DataSet values";
+                return $"Captured {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff}";
+            return IsGooseSelectedPublisherStale
+                ? $"Last seen {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff}"
+                : string.Empty;
         }
+    }
+
+    private void ReconcileGooseInspectorRows()
+    {
+        var liveContext = _gooseInspectHistoricalEvent ? null : _selectedGoosePublisherKey;
+        var eventContext = _gooseInspectHistoricalEvent ? _selectedGooseTrafficRow : null;
+        if (_lastDisplayedGoosePublisherKey != liveContext ||
+            !ReferenceEquals(_lastDisplayedGooseHistoryEvent, eventContext))
+        {
+            // Switching publishers or pinning a different event resets expansion
+            // only for that deliberate context change, not for retransmissions.
+            _lastDisplayedGoosePublisherKey = liveContext;
+            _lastDisplayedGooseHistoryEvent = eventContext;
+            _gooseInspectorRows.Clear();
+        }
+        var latest = BuildGooseDatasetValues(GooseInspectorMessage);
+        for (var index = 0; index < latest.Count; index++)
+        {
+            var item = latest[index];
+            if (index < _gooseInspectorRows.Count && _gooseInspectorRows[index].Index == item.Index)
+            {
+                _gooseInspectorRows[index].Update(item);
+                continue;
+            }
+            var existing = -1;
+            for (var other = index + 1; other < _gooseInspectorRows.Count; other++)
+                if (_gooseInspectorRows[other].Index == item.Index)
+                {
+                    existing = other;
+                    break;
+                }
+            if (existing >= 0)
+            {
+                _gooseInspectorRows.Move(existing, index);
+                _gooseInspectorRows[index].Update(item);
+            }
+            else
+                _gooseInspectorRows.Insert(index, new GooseDatasetDisplayRow(item));
+        }
+
+        while (_gooseInspectorRows.Count > latest.Count)
+            _gooseInspectorRows.RemoveAt(_gooseInspectorRows.Count - 1);
     }
 
     private void RaiseGooseInspectorProperties()
     {
+        ReconcileGooseInspectorRows();
         OnPropertyChanged(nameof(SelectedGooseMessage));
         OnPropertyChanged(nameof(GooseInspectorMessage));
         OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
+        OnPropertyChanged(nameof(GooseInspectorEntryTimeText));
+        OnPropertyChanged(nameof(GooseInspectorNeedsCommissioningText));
+        OnPropertyChanged(nameof(GooseInspectorSimulationTestText));
+        OnPropertyChanged(nameof(GooseInspectorFlagsText));
         OnPropertyChanged(nameof(GooseInspectorModeText));
+        OnPropertyChanged(nameof(GooseInspectorModeBadgeText));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
+        OnPropertyChanged(nameof(GooseSignalNamesUnavailable));
     }
 
     public GooseMonitorSnapshot GooseSnapshot => _gooseSnapshot;
@@ -1079,6 +1266,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ClearCommand { get; }
     public ICommand SwitchToRawCommand { get; }
     public ICommand GooseInteractionCommand { get; }
+    public ICommand GooseReturnToLiveCommand { get; }
+    public ICommand GooseOpenConfigurationCommand { get; }
+    public ICommand GooseClearSearchCommand { get; }
     public ICommand CopyEvidenceCommand { get; }
     public ICommand LoadSclCommand { get; }
     public ICommand InspectPcapCommand { get; }
@@ -1887,7 +2077,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ? "SV  •  Select a stream from the explorer"
             : $"SV  •  {SelectedStream.SvId}  •  {SelectedStream.AppId}  •  {SelectedStream.DisplayStatusText}",
         1 => $"Diagnostics  -  {HealthText}  -  {NetworkHealthText}",
-        2 => $"GOOSE  -  {_gooseMessages.Count} publisher(s)  -  {_gooseHistory.Count} event(s)",
+        2 => $"GOOSE  ·  {_gooseMessages.Count} sending device(s)  ·  {_gooseHistory.Count} recorded change(s)",
         3 => $"Timing/PTP  -  {PtpStatusCompactText}  -  {PtpDomainText}",
         4 => $"Validation  -  {ValidationOverallStatusText}  -  expected-vs-observed evidence",
         5 => $"SCL  -  {_sclDocuments.Count} document(s)  -  {_sclIedCards.Count} IED(s)",
@@ -2641,6 +2831,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         get
         {
+            if (IsGooseTabActive)
+                return GooseWorkspaceCaptureSummaryText;
             if (!IsRunning)
                 return "Capture stopped  •  Select an Ethernet adapter and press Start";
 
@@ -2816,6 +3008,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GooseSnapshot));
         OnPropertyChanged(nameof(GooseStatusText));
         OnPropertyChanged(nameof(GooseTotalMessagesText));
+        OnPropertyChanged(nameof(GooseTimelineCountersText));
         OnPropertyChanged(nameof(GooseDetectedCountText));
         OnPropertyChanged(nameof(GoosePublisherCountText));
         OnPropertyChanged(nameof(GooseFilterSummaryText));
@@ -4112,6 +4305,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SclWorkspaceStatusText));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
+        OnPropertyChanged(nameof(GooseSignalNamesUnavailable));
         RaiseSclSelectionProperties();
         OnPropertyChanged(nameof(WorkspaceFooterLeftText));
         OnPropertyChanged(nameof(WorkspaceFooterRightText));
@@ -4344,12 +4538,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _gooseCatalog.Clear();
         _selectedGoosePublisherKey = null;
         _gooseInspectHistoricalEvent = false;
+        OnPropertyChanged(nameof(IsGooseHistoryPinned));
         UpdateGooseIdFilterOptions();
         _gooseHistory.Clear();
+        UpdateGooseVisibleEventCount();
         _lastGooseState.Clear();
         _pendingGooseRows.Clear();
         _pendingDiagnosticEvents.Clear();
         _lastGooseHistoryTimeUtc = null;
+        _firstGooseHistoryTimeUtc = null;
         _selectedGooseTrafficRow = null;
         _selectedStream = null;
         _phasors = Array.Empty<PhasorDisplayItem>();
@@ -4485,14 +4682,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             .Select(value =>
             {
                 semanticByIndex.TryGetValue(value.Index, out var semantic);
+                // Only matching SCL metadata can identify a specific MMS BIT STRING as q.
+                // A generic BitString must never be treated as breaker state or quality.
+                var isMappedQuality = semantic?.IsQuality == true;
+                var decodedQuality = isMappedQuality &&
+                    GooseQualityPresentation.TryDecode(value.RawHex, value.Type, out var parsedQuality)
+                    ? parsedQuality : null;
                 return new GooseDatasetValueDisplayItem
                 {
                     Index = value.Index,
-                    NameText = semantic?.DisplayName ?? (string.IsNullOrWhiteSpace(value.Name) ? $"Entry {value.Index}" : value.Name),
-                    TypeText = BuildSemanticGooseTypeText(value, semantic),
-                    SemanticText = semantic is null ? "Generic typed decode" : "SCL DataSet entry",
+                    NameText = GooseDatasetEntryPresentation.ResolveName(value.Index, semantic?.SignalReference, value.Type),
+                    TypeText = GooseEngineeringLanguage.DataType(value.Type),
+                    ProtocolTypeText = value.Type,
+                    ConfigurationTypeText = semantic is null ? "" : BuildSemanticGooseTypeText(value, semantic),
+                    SemanticText = GooseEngineeringLanguage.SignalSource(semantic is not null && !string.IsNullOrWhiteSpace(semantic.SignalReference)),
                     ValueText = BuildSemanticGooseValueText(value, semantic),
                     RawHexText = value.RawHex,
+                    QualitySummaryText = GooseEngineeringLanguage.QualitySummary(decodedQuality?.Summary),
+                    QualityDetailsText = decodedQuality?.DetailText ??
+                        (isMappedQuality ? "Signal quality could not be interpreted; check its original bit pattern." : string.Empty),
                     IsChanged = value.IsChanged,
                     PreviousValueText = string.IsNullOrWhiteSpace(value.PreviousValue)
                         ? value.PreviousValue
@@ -4528,8 +4736,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return string.Join(", ", changed) + suffix;
         }
 
-        return string.IsNullOrWhiteSpace(goose.ChangedSummaryText) || string.Equals(goose.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase)
-            ? "No dataset value change"
+        if (string.Equals(goose.ChangedSummaryText, "Initial DataSet baseline", StringComparison.Ordinal))
+            return "Initial values";
+        return string.IsNullOrWhiteSpace(goose.ChangedSummaryText) ||
+               string.Equals(goose.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase)
+            ? "No value changes observed"
             : goose.ChangedSummaryText;
     }
 
@@ -4539,17 +4750,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (semantic is null)
             return text;
 
-        if (string.Equals(semantic.Cdc, "DPC", StringComparison.OrdinalIgnoreCase))
-        {
-            return text switch
-            {
-                "10" => "CLOSE [10]",
-                "01" => "OPEN [01]",
-                "00" => "INTERMEDIATE [00]",
-                "11" => "BAD_STATE [11]",
-                _ => text
-            };
-        }
+        if (GooseEngineeringLanguage.TryDescribeDoublePoint(semantic, value.Type, text, out var state))
+            return state;
 
         if (string.Equals(semantic.Cdc, "SPS", StringComparison.OrdinalIgnoreCase) &&
             bool.TryParse(text, out var singlePoint))
@@ -4580,12 +4782,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             deltaMs = (msg.LastSeenUtc - _lastGooseHistoryTimeUtc.Value).TotalMilliseconds;
 
         _lastGooseHistoryTimeUtc = msg.LastSeenUtc;
+        _firstGooseHistoryTimeUtc ??= msg.LastSeenUtc;
+        var relativeMilliseconds = GooseRelativeTimePresentation.ElapsedMilliseconds(_firstGooseHistoryTimeUtc.Value, msg.LastSeenUtc);
 
         _pendingGooseRows.Enqueue(new GooseTrafficRow
         {
             Source = msg,
             EventType = eventType,
             DeltaMs = deltaMs,
+            RelativeMs = relativeMilliseconds,
             SemanticChangedSummaryText = BuildSemanticGooseChangedSummary(msg)
         });
 
@@ -4686,15 +4891,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             flushed++;
         }
 
+        var removeCount = 0;
         if (_gooseHistory.Count > GooseHistoryLimit)
         {
-            var removeCount = _gooseHistory.Count - GooseHistoryLimit;
+            removeCount = _gooseHistory.Count - GooseHistoryLimit;
             for (var i = 0; i < removeCount; i++)
                 _gooseHistory.RemoveAt(0);
         }
 
-        // CollectionView observes ObservableCollection adds/removes and filters
-        // each new row automatically. Refresh() here resets DataGrid selection.
+        // The view observes incremental changes. Never Refresh() on each event.
+        if (flushed > 0 || removeCount > 0)
+            UpdateGooseVisibleEventCount();
     }
 
     private void TryFlushBufferedGooseRows()
@@ -4711,50 +4918,96 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 }
 
+/// <summary>
+/// Stable, per-index WPF value row. DataSet snapshots never replace the
+/// ItemsControl ItemsSource; only truly changed fields raise UI notifications.
+/// </summary>
+public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
+{
+    private GooseDatasetValueDisplayItem _current;
+
+    public GooseDatasetDisplayRow(GooseDatasetValueDisplayItem item) => _current = item;
+    public int Index => _current.Index;
+    public string IndexText => _current.IndexText;
+    public string NameText => _current.NameText;
+    public string TypeText => _current.TypeText;
+    public string ProtocolTypeText => _current.ProtocolTypeText;
+    public string ConfigurationTypeText => _current.ConfigurationTypeText;
+    public Visibility ConfigurationTypeVisibility => string.IsNullOrWhiteSpace(_current.ConfigurationTypeText)
+        ? Visibility.Collapsed : Visibility.Visible;
+    public string SemanticText => _current.SemanticText;
+    public string TypeSourceText => $"{_current.TypeText} · {_current.SemanticText}";
+    public string ValueText => _current.ValueText;
+    public string DisplayValueText => _current.DisplayValueText;
+    public string RawHexDisplayText => _current.RawHexDisplayText;
+    public string ChangeText => _current.ChangeText;
+    public Visibility ChangeVisibility => _current.ChangeVisibility;
+    public string QualityDetailsText => _current.QualityDetailsText;
+    public Visibility QualityDetailsVisibility => _current.QualityDetailsVisibility;
+    public Brush ValueBrush => _current.ValueBrush;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void Update(GooseDatasetValueDisplayItem next)
+    {
+        var previous = _current;
+        if (previous.Index == next.Index &&
+            previous.NameText == next.NameText &&
+            previous.TypeText == next.TypeText &&
+            previous.ProtocolTypeText == next.ProtocolTypeText &&
+            previous.ConfigurationTypeText == next.ConfigurationTypeText &&
+            previous.SemanticText == next.SemanticText &&
+            previous.ValueText == next.ValueText &&
+            previous.RawHexText == next.RawHexText &&
+            previous.QualitySummaryText == next.QualitySummaryText &&
+            previous.QualityDetailsText == next.QualityDetailsText &&
+            previous.IsChanged == next.IsChanged &&
+            previous.PreviousValueText == next.PreviousValueText)
+            return;
+
+        _current = next;
+        // Empty property name means all bound fields of this one row changed.
+        // WPF preserves the selected/expanded item container object.
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+    }
+}
+
 public sealed class GooseDatasetValueDisplayItem
 {
+    private static readonly Brush NormalValueBrush = FrozenBrush(228, 241, 253);
+    private static readonly Brush ChangedValueBrush = FrozenBrush(255, 190, 82);
+
     public int Index { get; init; }
     public string NameText { get; init; } = string.Empty;
-    public string TypeText { get; init; } = "Unknown";
-    public string SemanticText { get; init; } = "Generic typed decode";
+    public string TypeText { get; init; } = "Unknown data type";
+    public string ProtocolTypeText { get; init; } = "Unknown";
+    public string ConfigurationTypeText { get; init; } = string.Empty;
+    public string SemanticText { get; init; } = "Signal not identified";
     public string ValueText { get; init; } = "-";
     public string RawHexText { get; init; } = string.Empty;
+    public string QualitySummaryText { get; init; } = string.Empty;
+    public string QualityDetailsText { get; init; } = string.Empty;
     public bool IsChanged { get; init; }
     public string PreviousValueText { get; init; } = string.Empty;
 
-    public string DisplayValueText => ValueText switch
-    {
-        "10" => "[10] CLOSE",
-        "01" => "[01] OPEN",
-        _ => ValueText
-    };
-
+    // No guesswork: raw "10"/"01" is not an IEC 61850 DPC state unless
+    // the SCL-aware value formatter has already verified the CDC.
+    public string DisplayValueText => string.IsNullOrEmpty(QualitySummaryText)
+        ? ValueText : QualitySummaryText;
+    public string IndexText => Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public string RawHexDisplayText => string.IsNullOrWhiteSpace(RawHexText) ? "Not available" : RawHexText;
     public string ChangeText => IsChanged && !string.IsNullOrWhiteSpace(PreviousValueText)
-        ? $"changed: {PreviousValueText} -> {ValueText}"
-        : IsChanged ? "changed" : string.Empty;
-
+        ? $"Previously: {PreviousValueText}" : IsChanged ? "Value changed (earlier value unavailable)" : string.Empty;
     public Visibility ChangeVisibility => IsChanged ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility RawHexVisibility => string.IsNullOrWhiteSpace(RawHexText) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility QualityDetailsVisibility => string.IsNullOrWhiteSpace(QualityDetailsText)
+        ? Visibility.Collapsed : Visibility.Visible;
+    public Brush ValueBrush => IsChanged ? ChangedValueBrush : NormalValueBrush;
 
-    public Brush ValueBrush => ResolveBrush(ValueText, IsChanged);
-
-    private static Brush ResolveBrush(string value, bool isChanged)
+    private static Brush FrozenBrush(byte red, byte green, byte blue)
     {
-        if (isChanged)
-            return new SolidColorBrush(Color.FromRgb(255, 190, 82));
-
-        if (bool.TryParse(value, out var b))
-            return b
-                ? new SolidColorBrush(Color.FromRgb(255, 80, 80))
-                : new SolidColorBrush(Color.FromRgb(55, 214, 122));
-
-        if (value == "10")
-            return new SolidColorBrush(Color.FromRgb(255, 80, 80));
-
-        if (value == "01")
-            return new SolidColorBrush(Color.FromRgb(55, 214, 122));
-
-        return new SolidColorBrush(Color.FromRgb(143, 168, 191));
+        var brush = new SolidColorBrush(Color.FromRgb(red, green, blue));
+        brush.Freeze();
+        return brush;
     }
 }
 
@@ -4764,9 +5017,14 @@ public sealed class GooseTrafficRow
 
     public string EventType { get; init; } = "STATE";
     public double? DeltaMs { get; init; }
+    // Relative to the first observed GOOSE event of this capture, not to
+    // the preceding event (the latter is DeltaMs).
+    public double RelativeMs { get; init; }
+    public string RelativeTimeText => (RelativeMs / 1000).ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture);
     public string SemanticChangedSummaryText { get; init; } = string.Empty;
 
-    public string TimeText => Source.LastSeenUtc.ToString("HH:mm:ss.fff");
+    // Timeline and Inspector must use the same operator-local clock.
+    public string TimeText => Source.LastSeenUtc.ToLocalTime().ToString("h:mm:ss.fffffff tt", System.Globalization.CultureInfo.InvariantCulture);
     public string DeltaText => DeltaMs.HasValue ? $"{DeltaMs.Value:0.0}" : "-";
 
     public string GoId => Source.GoId;
@@ -4776,10 +5034,8 @@ public sealed class GooseTrafficRow
     public uint SqNum => Source.SqNum;
     public string StatusText => Source.StatusText;
     public string ValuesText => Source.ValuesText;
-    public string DisplayStatusText =>
-        string.IsNullOrWhiteSpace(Source.StatusText) || string.Equals(Source.StatusText, "N/A", StringComparison.OrdinalIgnoreCase)
-            ? EventType
-            : Source.StatusText;
+    public string DisplayStatusText => GooseEngineeringLanguage.Event(EventType);
+    public string EventDescriptionText => GooseEngineeringLanguage.Event(EventType);
 
     public string DisplayValuesText
     {
@@ -4800,7 +5056,7 @@ public sealed class GooseTrafficRow
             }
 
             if (Source.DataValues.Count == 0)
-                return "View details";
+                return "Open message to see values";
 
             var preview = Source.DataValues
                 .Take(2)

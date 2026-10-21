@@ -259,6 +259,13 @@ public partial class MainWindow : Window
         }
     }
 
+    private void GooseClearSearch_Click(object sender, RoutedEventArgs e)
+    {
+        // The command clears exactly one filter property. Restore keyboard focus
+        // without blocking the capture thread or queuing another UI refresh.
+        GooseSourceSearchBox.Focus();
+    }
+
     private void GoosePublisherRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // WPF SelectionChanged does not fire when the operator clicks an item

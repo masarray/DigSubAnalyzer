@@ -42,6 +42,7 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     public string GoId => Current.GoId;
     public string GoCbRef => Current.GoCbRef;
     public string AppId => Current.AppId;
+    public bool IsTest => Current.IsTest;
     public uint StNum => Current.StNum;
     public uint SqNum => Current.SqNum;
 
@@ -66,6 +67,7 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
         if (before.GoId != message.GoId) OnPropertyChanged(nameof(GoId));
         if (before.GoCbRef != message.GoCbRef) OnPropertyChanged(nameof(GoCbRef));
         if (before.AppId != message.AppId) OnPropertyChanged(nameof(AppId));
+        if (before.IsTest != message.IsTest) OnPropertyChanged(nameof(IsTest));
         if (before.StNum != message.StNum) OnPropertyChanged(nameof(StNum));
         if (before.SqNum != message.SqNum) OnPropertyChanged(nameof(SqNum));
         return true;

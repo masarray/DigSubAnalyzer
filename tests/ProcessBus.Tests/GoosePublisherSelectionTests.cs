@@ -122,6 +122,48 @@ public sealed class GoosePublisherSelectionTests
     }
 
     [Fact]
+    public void SingleSearchCoversNamesAddressesAndAppCodeWithoutChangingIdentity()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var first = Frame(source: "02:00:4C:4E:4E:50");
+        var second = Frame(source: "02:00:4C:4E:4E:51", goCb: "PROTECTION/LLN0$GO$trip");
+        var selectedKey = GoosePublisherKey.From(first);
+        catalog.Reconcile([first, second], selectedKey);
+        var selected = catalog.Find(selectedKey);
+
+        Assert.True(GoosePublisherCatalog.MatchesFilter(first, "All", "sharedgoid"));
+        Assert.True(GoosePublisherCatalog.MatchesFilter(first, "All", "0x0001"));
+        Assert.True(GoosePublisherCatalog.MatchesFilter(first, "All", "02:00:4c:4e:4e:50"));
+        Assert.True(GoosePublisherCatalog.MatchesFilter(second, "All", "TRIP"));
+        Assert.False(GoosePublisherCatalog.MatchesFilter(first, "All", "TRIP"));
+        Assert.True(GoosePublisherCatalog.MatchesFilter(first, "All", string.Empty)); // Clear returns all rows.
+        Assert.True(GoosePublisherCatalog.MatchesFilter(second, "All", null));
+        Assert.Same(selected, catalog.Find(selectedKey));
+        Assert.Equal(2, catalog.Rows.Count);
+    }
+
+    [Fact]
+    public void TestFlagUpdatesWithoutRecreatingTheSelectedPublisherRow()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var first = Frame();
+        first.IsTest = true;
+        var key = GoosePublisherKey.From(first);
+        catalog.Reconcile([first], null);
+        var selected = catalog.Find(key)!;
+        var changed = new List<string?>();
+        selected.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert.True(selected.IsTest);
+
+        var received = Frame(sq: 2);
+        received.IsTest = false;
+        catalog.Reconcile([received], key);
+        Assert.Same(selected, catalog.Find(key));
+        Assert.False(selected.IsTest);
+        Assert.Contains(nameof(GoosePublisherRow.IsTest), changed);
+    }
+
+    [Fact]
     public void HighTrafficDoesNotCauseUnboundedRows()
     {
         var catalog = new GoosePublisherCatalog();

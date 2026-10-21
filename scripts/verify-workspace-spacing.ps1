@@ -56,7 +56,7 @@ Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' '0.8
 
 # All five customer-facing workspaces share the same horizontal or vertical rhythm.
 Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,8,Auto,8,Auto,Auto,*') 'Diagnostics primary vertical gutters'
-Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,8,400') 'GOOSE timeline/inspector gutter'
+Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '*,8,460') 'GOOSE timeline/inspector gutter (readable engineering details, 8 DIP separator)'
 Assert-True (Has-Definitions 'Grid.RowDefinitions' 'RowDefinition' 'Height' 'Auto,8,Auto,8,*') 'Timing/PTP major sections'
 Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.15*,8,1.1*,8,1.2*') 'Timing/PTP header-card gutters'
 Assert-True (Has-Definitions 'Grid.ColumnDefinitions' 'ColumnDefinition' 'Width' '1.1*,8,1.4*') 'Timing/PTP evidence gutter'
@@ -86,4 +86,98 @@ Assert-True ($legacyCardGapCount -eq 0) 'no legacy 12-DIP gaps between adjacent 
 foreach ($name in @('WorkspacePanelInset', 'WorkspacePanelGapBelow', 'WorkspaceHeroInset')) {
     Assert-True ($source.Contains("{StaticResource $name}")) "workspace must use spacing token $name"
 }
+# GOOSE-specific P0–P3 readout contracts: only GOOSE receives the
+# compact disclosure style; all other workspace layout tokens stay untouched.
+$gooseExpanderStyle = $theme.SelectNodes("//w:Style[@x:Key='GooseDatasetExpanderStyle']", $ns)
+Assert-True ($gooseExpanderStyle.Count -eq 1) 'GOOSE has one scoped engineer disclosure style'
+$gooseExpanderUsage = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseDatasetExpanderStyle}']", $ns)
+Assert-True ($gooseExpanderUsage.Count -eq 1) 'GOOSE typed rows use scoped compact chevrons'
+foreach ($binding in @(
+    'GooseInspectorRows',
+    'GooseTimelineCountersText',
+    'GooseInspectorModeBadgeText',
+    'GooseInspectorMessage.IsTest',
+    'GooseReturnToLiveCommand'
+)) {
+    Assert-True ($source.Contains($binding)) "GOOSE inspector contract: $binding"
+}
+# Exact UI defect reported in operator screenshots: Inspector controls must
+# remain visible when raw evidence scrolls; count must have its own grid cell.
+$inspectorStart = $source.IndexOf('<!-- Right inspector: clean grouped information, typed values emphasized. -->')
+$inspectorEnd = $source.IndexOf('<TabItem>', $inspectorStart)
+Assert-True ($inspectorStart -ge 0 -and $inspectorEnd -gt $inspectorStart) 'GOOSE inspector markup found'
+$inspector = $source.Substring($inspectorStart, $inspectorEnd - $inspectorStart)
+$headerOffset = $inspector.IndexOf('Text="Details"')
+$scrollOffset = $inspector.IndexOf('<ScrollViewer Grid.Row="1"')
+Assert-True ($headerOffset -ge 0 -and $scrollOffset -gt $headerOffset) 'Inspector header remains above independently scrolling evidence'
+Assert-True ($inspector.Contains('Grid.Row="0" Margin="0,0,0,12"')) 'Inspector header stays in fixed grid row'
+Assert-True ($inspector.Contains('Text="Data"')) 'Value group has compact title'
+Assert-True ($inspector.Contains('Grid.Column="1" Margin="10,0,3,0"')) 'Value item count uses a separate aligned column'
+Assert-True ($inspector.Contains('Text="{Binding TypeText}"')) 'Expanded signal kind uses friendly type description'
+Assert-True ($inspector.Contains('Text="{Binding ProtocolTypeText}"')) 'Exact original wire type stays available in expanded evidence'
+Assert-True ($inspector.Contains('Text="{Binding ConfigurationTypeText}"')) 'Matched configuration type remains available as technical evidence'
+Assert-True ($inspector.Contains('Text="Status number"')) 'State number is named rather than abbreviated'
+Assert-True ($inspector.Contains('Text="Sequence number"')) 'Sequence number is named rather than abbreviated'
+Assert-True ($inspector.Contains('Text="GOOSE ID"')) 'Message name explains the GOOSE identifier'
+Assert-True ($inspector.Contains('Text="Time allowed to live (ms)"')) 'Time allowed to live uses understandable wording'
+Assert-True ($source.Contains('Text="Messages"')) 'History describes what operators are reading'
+Assert-True ($source.Contains('ToolTip="{Binding EventDescriptionText}"')) 'Recorded event types are translated for operators'
+Assert-True ($source.Contains('GooseOpenConfigurationCommand')) 'Unidentified values provide a path to device configuration'
+Assert-True ($source.Contains('Text="Name"')) 'Unnamed raw data is explicitly identified'
+$viewModelPath = Join-Path $Root 'src/ProcessBus.App.Wpf/ViewModels/MainWindowViewModel.cs'
+$vmSource = Get-Content -LiteralPath $viewModelPath -Raw
+Assert-True ($vmSource.Contains('Source.LastSeenUtc.ToLocalTime().ToString("h:mm:ss.fffffff tt"')) 'GOOSE timeline uses the same local clock as Inspector'
+Assert-True ($vmSource.Contains('GooseEngineeringLanguage.TryDescribeDoublePoint')) 'Signal position labels use config-validated state interpretation'
+Assert-True ($vmSource.Contains('GooseEngineeringLanguage.DataType')) 'Data type labels use human-friendly terminology'
+Assert-True ($inspector.Contains('Text="Data"')) 'Compact signal table title remains meaningful'
+Assert-True ($source.Contains('Text="Value"')) 'Values remain clearly distinguished from interpretation'
+foreach ($heading in @('Header="Time"', 'Header="Relative time"', 'Header="Source"', 'Header="Destination"', 'Header="Description"')) {
+    Assert-True ($source.Contains($heading)) "standard message column: $heading"
+}
+foreach ($label in @('Text="Control Block reference"', 'Text="Destination MAC address"',
+                    'Text="Source MAC address"', 'Text="Application ID"', 'Text="GOOSE ID"',
+                    'Text="DataSet reference"', 'Text="VLAN ID"', 'Text="VLAN priority"',
+                    'Text="Needs commissioning"', 'Text="Configuration revision"',
+                    'Text="Simulation/Test"', 'Text="Entry time"', 'Text="Status number"',
+                    'Text="Sequence number"', 'Text="Time allowed to live (ms)"')) {
+    Assert-True ($inspector.Contains($label)) "standard detail field: $label"
+}
+Assert-True ($source.Contains('Text="Name"') -and $source.Contains('Text="Value"')) 'Data group has Name / Value columns'
+Assert-True ($vmSource.Contains('_firstGooseHistoryTimeUtc ??= msg.LastSeenUtc;')) 'Relative time derives from first observed message, not previous gap'
+Assert-True ($vmSource.Contains('RelativeMs = relativeMilliseconds')) 'Relative time evidence stored with each history row'
+Write-Host 'GOOSE standard terminology contract: PASS (documented messages, details, fields and relative time)'
+Write-Host 'GOOSE operator language contract: PASS (plain labels + original wire evidence)'
+Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
+Write-Host 'GOOSE Inspector screenshot regression gate: PASS (fixed header, count alignment, compact MMS details)'
+# Operator-approved compact GOOSE UX: no duplicated name filter, no
+# unbounded ListView inside a StackPanel, and all three independent sections.
+$gooseLeftStart = $source.IndexOf('GOOSE LEFT EXPLORER')
+$gooseLeftEnd = $source.IndexOf('TIMING / PTP LEFT EXPLORER', $gooseLeftStart)
+Assert-True ($gooseLeftStart -ge 0 -and $gooseLeftEnd -gt $gooseLeftStart) 'GOOSE source panel markup available'
+$gooseLeft = $source.Substring($gooseLeftStart, $gooseLeftEnd - $gooseLeftStart)
+Assert-True (-not $gooseLeft.Contains('<ComboBox')) 'GOOSE source list has only one search filter, not a duplicate dropdown'
+Assert-True ($gooseLeft.Contains('x:Name="GooseSourceSearchBox"')) 'Source search has a directly focusable TextBox'
+Assert-True ($gooseLeft.Contains('GooseMaterialSearch')) 'Material vector search icon is present'
+Assert-True ($gooseLeft.Contains('GooseMaterialClose')) 'Material vector clear icon is present'
+Assert-True ($gooseLeft.Contains('Command="{Binding GooseClearSearchCommand}"')) 'Clear action is wired'
+Assert-True ($gooseLeft.Contains('GooseHasSearchText')) 'Clear control visibility responds to actual input'
+Assert-True ($gooseLeft.Contains('ScrollViewer.VerticalScrollBarVisibility="Auto"')) 'Source list has an independent scrollbar'
+Assert-True ($gooseLeft.Contains('VirtualizingPanel.VirtualizationMode="Recycling"')) 'Source rows remain virtualized'
+Assert-True ($gooseLeft.Contains('<Grid Grid.Row="3" MinHeight="0">')) 'Scrollable source viewport is height constrained'
+Assert-True (-not $gooseLeft.Contains('Text="{Binding GooseFilterSummaryText}"')) 'Redundant source footer removed'
+
+$sectionNodes = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseInspectorSectionExpanderStyle}']", $ns)
+Assert-True ($sectionNodes.Count -eq 3) 'Exactly three collapsible GOOSE Inspector sections'
+Assert-True (($sectionNodes[0].GetAttribute('IsExpanded') -eq '{Binding GooseMessageExpanded, Mode=TwoWay}') -and
+             ($sectionNodes[1].GetAttribute('IsExpanded') -eq '{Binding GooseNetworkExpanded, Mode=TwoWay}') -and
+             ($sectionNodes[2].GetAttribute('IsExpanded') -eq '{Binding GooseValuesExpanded, Mode=TwoWay}')) 'Three independent section states are bound to session ViewModel'
+Assert-True ($vmSource.Contains('private bool _gooseMessageExpanded = true;') -and
+             $vmSource.Contains('private bool _gooseNetworkExpanded;') -and
+             $vmSource.Contains('private bool _gooseValuesExpanded = true;')) 'Message and Values open by default; Network closed'
+Assert-True ($theme.OuterXml.Contains('GooseMaterialExpandCircle')) 'Inspector and data items use the Material circled chevron'
+Assert-True (-not $inspector.Contains('Content="Identify these signals in the Configuration tab"')) 'Long textual onboarding removed from signal list'
+Assert-True ($inspector.Contains('Content="Identify signals"')) 'Compact signal mapping action retained'
+Assert-True ($source.Contains('Text="Messages"')) 'History is available without changing protocol logic'
+Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
+Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'

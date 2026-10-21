@@ -14,3 +14,13 @@ This hotfix follows published v1.4.1 and is **not** an IEC 61850 certification o
 A Windows hotfix candidate must pass repository health, Windows CI/test, Runtime Stability, Runtime Architecture, CodeQL, verified Inno installation/repair and exact-SHA BuildInfo provenance. A physical click/selection stream test remains a separate required check (100%, 125%, 150% DPI; sustained retransmissions, multiple publishers and filters).
 
 **Distribution:** candidate artifacts produced by the PR workflow are not a published stable v1.4.2 release. Preserve v1.4.1 tag and published assets. Explicit approval required to release the hotfix.
+
+## Engineer-focused GOOSE readout refinement
+
+- Compact chevrons instead of prominent circular disclosure controls, with stable expanded raw MMS details during high-rate retransmissions.
+- Each unmapped entry is explicitly named `Entry n`; signal references appear only from matching SCL data.
+- `TEST` badges on publisher and Inspector, distinct `RX frames` and `visible events` counters, and GOOSE-specific capture status.
+- Explicit `LIVE / STALE / PINNED EVENT` context. Returning to Live clears the timeline's historical selection.
+- Strict 13-bit IEC 61850 q bit-string padding validation and additional positive/negative regression coverage.
+
+Manual Windows GUI/display-scaling field acceptance remains a separate approval gate.

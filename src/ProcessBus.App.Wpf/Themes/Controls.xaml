@@ -59,6 +59,163 @@
         <Setter Property="Padding" Value="10" />
     </Style>
 
+    <!-- Geometry from the Material icon vocabulary, drawn locally as WPF vectors.
+         No font, external runtime, or network dependency. -->
+    <Geometry x:Key="GooseMaterialSearch">M15.5,14 H14.71 L14.43,13.73 A6.5,6.5 0 1 0 13.73,14.43 L14,14.71 V15.5 L19,20.49 L20.49,19 Z M10,14 A4,4 0 1 1 10,6 A4,4 0 0 1 10,14 Z</Geometry>
+    <Geometry x:Key="GooseMaterialClose">M19,6.41 L17.59,5 L12,10.59 L6.41,5 L5,6.41 L10.59,12 L5,17.59 L6.41,19 L12,13.41 L17.59,19 L19,17.59 L13.41,12 Z</Geometry>
+    <Geometry x:Key="GooseMaterialExpandCircle">M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z M12,20 C7.59,20 4,16.41 4,12 C4,7.59 7.59,4 12,4 C16.41,4 20,7.59 20,12 C20,16.41 16.41,20 12,20 Z M12,16 L6,10 L7.41,8.59 L12,13.17 L16.59,8.59 L18,10 Z</Geometry>
+
+    <!-- Three independent, session-persistent GOOSE Inspector sections.
+         The controls stay alive while the selected message updates in place. -->
+    <Style x:Key="GooseInspectorSectionExpanderStyle" TargetType="{x:Type Expander}">
+        <Setter Property="Foreground" Value="#E8F3FF"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Expander}">
+                    <DockPanel LastChildFill="True">
+                        <ToggleButton DockPanel.Dock="Top"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Background="Transparent" BorderThickness="0" Padding="0"
+                                      Cursor="Hand" HorizontalContentAlignment="Stretch"
+                                      AutomationProperties.Name="Expand or collapse GOOSE detail section">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                    <Border x:Name="HeaderSurface" Padding="0,1,0,5"
+                                            Background="Transparent">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="26"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ContentPresenter Grid.Column="0" ContentSource="Content"
+                                                              VerticalAlignment="Center"
+                                                              HorizontalAlignment="Stretch"/>
+                                            <Path x:Name="CircleChevron" Grid.Column="1"
+                                                  Data="{StaticResource GooseMaterialExpandCircle}"
+                                                  Fill="#86A9C5" Width="17" Height="17"
+                                                  Stretch="Uniform" VerticalAlignment="Center"
+                                                  HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform Angle="-90"/>
+                                                </Path.RenderTransform>
+                                            </Path>
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="CircleChevron" Property="RenderTransform">
+                                                <Setter.Value><RotateTransform Angle="0"/></Setter.Value>
+                                            </Setter>
+                                            <Setter TargetName="CircleChevron" Property="Fill" Value="#79C5F5"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="CircleChevron" Property="Fill" Value="#D6EFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsKeyboardFocused" Value="True">
+                                            <Setter TargetName="HeaderSurface" Property="Background" Value="#123149"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="SectionContent" ContentSource="Content"
+                                          Visibility="Collapsed"
+                                          HorizontalAlignment="Stretch"/>
+                    </DockPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="SectionContent" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- GOOSE-only row disclosure uses the same restrained Material circle chevron
+         as section headers, without changing other workspaces. -->
+    <Style x:Key="GooseDatasetExpanderStyle" TargetType="{x:Type Expander}">
+        <Setter Property="Foreground" Value="#E7F3FF"/>
+        <Setter Property="Background" Value="#091A29"/>
+        <Setter Property="BorderBrush" Value="#1C384F"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Expander}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <DockPanel LastChildFill="True">
+                            <ToggleButton DockPanel.Dock="Top"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalContentAlignment="Stretch"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Cursor="Hand"
+                                          AutomationProperties.Name="Expand DataSet entry details">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="RowBackground" Background="Transparent" Padding="6,1,7,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Chevron"
+                                                      Grid.Column="0" Width="15" Height="15"
+                                                      Fill="#87A9C3"
+                                                      Data="{StaticResource GooseMaterialExpandCircle}"
+                                                      Stretch="Uniform" VerticalAlignment="Center"
+                                                      HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                    <Path.RenderTransform>
+                                                        <RotateTransform Angle="-90"/>
+                                                    </Path.RenderTransform>
+                                                </Path>
+                                                <ContentPresenter Grid.Column="1"
+                                                                  ContentSource="Content"
+                                                                  VerticalAlignment="Center"
+                                                                  HorizontalAlignment="Stretch"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Chevron" Property="RenderTransform">
+                                                    <Setter.Value><RotateTransform Angle="0"/></Setter.Value>
+                                                </Setter>
+                                                <Setter TargetName="Chevron" Property="Fill" Value="#79C5F5"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="RowBackground" Property="Background" Value="#112B40"/>
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="RowBackground" Property="Background" Value="#17354D"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ExpandedContent" ContentSource="Content"
+                                              Visibility="Collapsed"
+                                              HorizontalAlignment="Stretch"/>
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandedContent" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="PanelTitleTextStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="13.5" />
         <Setter Property="FontWeight" Value="SemiBold" />

@@ -762,10 +762,9 @@ public sealed class RawProcessBusAnalyzer
 
         if (previous is null || previous.DataValues.Count == 0)
         {
-            foreach (var value in current.DataValues)
-                value.IsChanged = true;
-
-            current.ChangedSummaryText = SummarizeGooseValues(current.DataValues);
+            // The first observation has no comparative baseline. Calling every
+            // value "changed" fabricates a state transition not seen on the wire.
+            current.ChangedSummaryText = "Initial DataSet baseline";
             return;
         }
 
