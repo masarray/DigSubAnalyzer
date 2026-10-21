@@ -1,4 +1,5 @@
 using ProcessBus.Core.Models;
+using ProcessBus.Core.Presentation;
 using ProcessBus.Iec61850.Raw.Decoding;
 using ProcessBus.Iec61850.Raw.Goose;
 using ProcessBus.Iec61850.Raw.Protocol;
@@ -24,6 +25,10 @@ public sealed class RawProcessBusAnalyzer
     // Avoid scoring + LINQ allocations for every 4,000/4,800 Hz ASDU.
     private readonly Dictionary<string, SvChannelMappingProfile?> _resolvedSvMappings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.Ordinal);
+    private const int MaxBufferedGooseValueChanges = 512;
+    private readonly Queue<GooseValueChangeEvent> _gooseValueChanges = new();
+    private long _gooseValueChangeRevision;
+    private long _gooseValueChangeOverflowCount;
     private readonly Dictionary<string, AggregatedEventState> _aggregatedEvents = new(StringComparer.OrdinalIgnoreCase);
     private readonly PtpHealthTracker _ptpTracker = new();
     private readonly Queue<PtpEventItem> _recentPtpEvents = new();
@@ -131,6 +136,8 @@ public sealed class RawProcessBusAnalyzer
                     ? "Raw GOOSE monitor waiting for traffic"
                     : $"Raw GOOSE monitor active: {_gooseStates.Count} message(s)",
                 TotalMessages = _goosePackets,
+                ValueChanges = _gooseValueChanges.ToArray(),
+                ValueChangeOverflowCount = _gooseValueChangeOverflowCount,
                 Messages = _gooseStates.Values
                     .OrderBy(x => x.FirstSeenOrder)
                     .Select(x => x.Clone())
@@ -152,6 +159,9 @@ public sealed class RawProcessBusAnalyzer
             _svScales.Clear();
             _resolvedSvMappings.Clear();
             _gooseStates.Clear();
+            _gooseValueChanges.Clear();
+            _gooseValueChangeRevision = 0;
+            _gooseValueChangeOverflowCount = 0;
             _events.Clear();
             _aggregatedEvents.Clear();
             _selectedSvKey = null;
@@ -501,6 +511,16 @@ public sealed class RawProcessBusAnalyzer
 
         var previous = state.Item;
         AnnotateGooseChanges(item, previous);
+        if (item.DataValues.Any(value => value.IsChanged))
+        {
+            _gooseValueChanges.Enqueue(new GooseValueChangeEvent(
+                GoosePublisherKey.From(item), ++_gooseValueChangeRevision, item.LastSeenUtc));
+            if (_gooseValueChanges.Count > MaxBufferedGooseValueChanges)
+            {
+                _gooseValueChanges.Dequeue();
+                _gooseValueChangeOverflowCount++;
+            }
+        }
 
         if (previous.StNum != item.StNum || previous.SqNum != item.SqNum)
         {
@@ -768,7 +788,23 @@ public sealed class RawProcessBusAnalyzer
             return;
         }
 
+        // A structural/confRev change has no trustworthy position-to-signal mapping.
+        // Fail closed: re-baseline rather than fabricate a changed value.
+        if (current.ConfRev != previous.ConfRev ||
+            current.DataValues.Count != previous.DataValues.Count ||
+            current.DataValues.Select(x => x.Index).Distinct().Count() != current.DataValues.Count ||
+            previous.DataValues.Select(x => x.Index).Distinct().Count() != previous.DataValues.Count)
+        {
+            current.ChangedSummaryText = "DataSet layout changed - new baseline";
+            return;
+        }
         var previousByIndex = previous.DataValues.ToDictionary(x => x.Index);
+        if (current.DataValues.Any(value => !previousByIndex.TryGetValue(value.Index, out var old) ||
+                                            !string.Equals(value.Type, old.Type, StringComparison.Ordinal)))
+        {
+            current.ChangedSummaryText = "DataSet entries changed - new baseline";
+            return;
+        }
         foreach (var value in current.DataValues)
         {
             if (!previousByIndex.TryGetValue(value.Index, out var oldValue))
