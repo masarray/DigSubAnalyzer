@@ -1,25 +1,39 @@
 # Changelog
 
-All notable changes are documented here. The project follows Semantic Versioning where practical while it remains in public beta.
+All notable changes are documented here. Public stable versions retain immutable tags and published binaries.
 
 ## [Unreleased]
 
-### Implemented in release-candidate branch (public stable acceptance pending)
-
-- Unified selected-stream phasor RMS/angle display without UI-side nominal phase overrides; improved six-vector label collisions, separate measured U/I scales, legible 270° convention, stale data and live-with-warning semantics
-- Removed fabricated Ethernet adapter fallback and pinned native Npcap discovery/capture to trusted Windows x64 system library paths
-- Added deterministic phasor, compact-caption, adapter and status regression tests
-- Made Inno Setup self-contained EXE the primary Windows distribution, with same-version repair, in-place upgrade, offline manuals and install/repair/uninstall CI evidence
-- Generated packaged PDF manuals from current Markdown source, with SHA256 provenance and stale-PDF rejection
-- Hardened stable publication to manual main-only authorization after documented physical acceptance; no automatic public release on tag push
-- Physical target-NIC/injector 60-minute acceptance remains pending for the current candidate; earlier 1.3.0 soak evidence does not substitute
-
 ### Planned
-
 - Sanitized golden PCAP/PCAPNG replay corpus with broader interoperability scenarios
 - Further decomposition of the analyzer runtime and WPF workspace
 - Expanded SCL validation
 - Evidence export for FAT/SAT reports
+- Independent canonical SV/PTP physical acceptance and soak evidence (tracked in issue #30)
+
+## [1.4.2] - 2026-10-21
+
+### Stable GOOSE engineering workflow
+- Stable physically keyed multi-source GOOSE publisher selection and searchable Sources
+- Compact one-line Messages header, Show repeats and Follow live switches, bounded event history
+- Actual decoded DataSet changes correlated across Sources, Messages, and Inspector
+- Shared operator acknowledgement state with unobtrusive red unread dot
+- Change value emphasis only while unread; before/after values available in tooltip
+- Robust stale-source handling, retransmission filtering, explicit decoder gap/overflow notices
+- Windows x64 self-contained stable Inno Setup installer, portable ZIP, SHA256 and manifest
+
+### Verification
+- Official stable v1.4.2 Windows Release build on main; 241/241 unit tests, layout contract, package verification and Inno install/repair/uninstall smoke PASS
+- Engineering PR checks also passed runtime stability, architecture, CodeQL and dependency security
+- Independent field TAP/IED acceptance is not claimed by a software release
+
+## [1.4.1] - 2026-10-21
+
+### Release highlights
+- Multi-stream SV metering, waveform, phasor and compact engineering workspaces
+- Stable Npcap adapter handling, diagnostics grouping, and readable SCL/PTP presentation
+- Self-contained Inno installer with in-place repair/upgrade and offline manuals
+- Deterministic phasor, adapter discovery and status regression coverage
 
 ## [1.4.0-beta.2] - 2026-07-15
 
@@ -112,7 +126,9 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 - Hardened BER parsing, Npcap lifecycle, release version propagation, and public-repository packaging.
 
-[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.0-beta.2...HEAD
+[Unreleased]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.1...v1.4.2
+[1.4.1]: https://github.com/masarray/DigSubAnalyzer/releases/tag/v1.4.1
 [1.4.0-beta.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.4.0-beta.1...v1.4.0-beta.2
 [1.4.0-beta.1]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.2...v1.4.0-beta.1
 [1.3.0-beta.2]: https://github.com/masarray/DigSubAnalyzer/compare/v1.3.0-beta.1...v1.3.0-beta.2
