@@ -4738,12 +4738,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 OnPropertyChanged(nameof(GooseHasValueChangeLoss));
             }
         }
+        // Hundreds of decoded transitions can share one 500 ms UI batch.
+        // Coalesce by stable publisher key: exactly one property-update group
+        // per source per batch, never one WPF notification per RX packet.
+        var latestByPublisher = new Dictionary<GoosePublisherKey, GooseValueChangeEvent>();
         foreach (var change in snapshot.ValueChanges)
         {
             if (change.Revision <= _lastGooseValueChangeRevision) continue;
-            _gooseCatalog.Find(change.PublisherKey)?.MarkDecodedValueChange(change.TimeUtc, change.Revision);
+            latestByPublisher[change.PublisherKey] = change;
             _lastGooseValueChangeRevision = change.Revision;
         }
+        foreach (var change in latestByPublisher.Values)
+            _gooseCatalog.Find(change.PublisherKey)?.MarkDecodedValueChange(
+                change.TimeUtc, change.Revision, snapshot.ValueChangeSessionId);
         foreach (var row in _gooseCatalog.Rows)
             if (row.HasRecentValueChange) row.ExpireValueChangeNotice(nowUtc);
         foreach (var row in _gooseHistory)
