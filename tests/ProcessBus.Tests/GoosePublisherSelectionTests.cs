@@ -122,6 +122,27 @@ public sealed class GoosePublisherSelectionTests
     }
 
     [Fact]
+    public void TestFlagUpdatesWithoutRecreatingTheSelectedPublisherRow()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var first = Frame();
+        first.IsTest = true;
+        var key = GoosePublisherKey.From(first);
+        catalog.Reconcile([first], null);
+        var selected = catalog.Find(key)!;
+        var changed = new List<string?>();
+        selected.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert.True(selected.IsTest);
+
+        var received = Frame(sq: 2);
+        received.IsTest = false;
+        catalog.Reconcile([received], key);
+        Assert.Same(selected, catalog.Find(key));
+        Assert.False(selected.IsTest);
+        Assert.Contains(nameof(GoosePublisherRow.IsTest), changed);
+    }
+
+    [Fact]
     public void HighTrafficDoesNotCauseUnboundedRows()
     {
         var catalog = new GoosePublisherCatalog();
