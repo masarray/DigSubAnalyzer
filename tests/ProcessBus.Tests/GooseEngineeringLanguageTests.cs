@@ -22,8 +22,8 @@ public sealed class GooseEngineeringLanguageTests
     {
         var display = GooseEngineeringLanguage.DataType("BitString");
         Assert.Equal("Binary bit pattern", display);
-        Assert.DoesNotContain("OPEN", display, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("CLOSE", display, StringComparison.OrdinalIgnoreCase);
+        Assert.False(display.Contains("OPEN", StringComparison.OrdinalIgnoreCase));
+        Assert.False(display.Contains("CLOSE", StringComparison.OrdinalIgnoreCase));
         Assert.Equal("Data item 1", GooseEngineeringLanguage.DataItemName(1, null));
     }
 
