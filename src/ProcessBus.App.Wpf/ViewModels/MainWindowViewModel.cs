@@ -4866,6 +4866,8 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
     public string TypeText => _current.TypeText;
     public string ProtocolTypeText => _current.ProtocolTypeText;
     public string ConfigurationTypeText => _current.ConfigurationTypeText;
+    public Visibility ConfigurationTypeVisibility => string.IsNullOrWhiteSpace(_current.ConfigurationTypeText)
+        ? Visibility.Collapsed : Visibility.Visible;
     public string SemanticText => _current.SemanticText;
     public string TypeSourceText => $"{_current.TypeText} · {_current.SemanticText}";
     public string ValueText => _current.ValueText;
