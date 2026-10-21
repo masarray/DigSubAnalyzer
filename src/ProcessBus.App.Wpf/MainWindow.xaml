@@ -1496,38 +1496,30 @@
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <ContentPresenter Grid.Column="0"/>
-                                                                <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
-                                                                    <TextBlock Text="Changed" FontSize="10" Foreground="#EBC18B"
-                                                                               ToolTip="{Binding LastValueChangeText}">
-                                                                        <TextBlock.Style>
-                                                                            <Style TargetType="TextBlock">
-                                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding HasUnacknowledgedValueChange}" Value="True">
-                                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                                    </DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </TextBlock.Style>
-                                                                    </TextBlock>
-                                                                </StackPanel>
-                                                                <TextBlock Grid.Column="1" Visibility="Collapsed"
-                                                                           Text="›"
-                                                                           Foreground="#57B8FF"
-                                                                           FontSize="18"
-                                                                           VerticalAlignment="Center"
-                                                                           Margin="8,0,0,0"/>
+                                                                <!-- Android-style unread badge: one unobtrusive red dot,
+                                                                     no text and no extra card height. The unread count
+                                                                     is a tooltip; ACK comes from the shared event journal. -->
+                                                                <Ellipse Grid.Column="1"
+                                                                         Width="8" Height="8"
+                                                                         Fill="#F04E5F"
+                                                                         HorizontalAlignment="Right"
+                                                                         VerticalAlignment="Top"
+                                                                         Margin="7,3,1,0"
+                                                                         ToolTip="{Binding UnreadEventText}">
+                                                                    <Ellipse.Style>
+                                                                        <Style TargetType="Ellipse">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding HasUnacknowledgedValueChange}" Value="True">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Ellipse.Style>
+                                                                </Ellipse>
                                                             </Grid>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
-                                                            <!-- Unacknowledged signal change never replaces selected-source styling. -->
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding HasUnacknowledgedValueChange}" Value="True"/>
-                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsSelected}" Value="False"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter TargetName="Card" Property="BorderBrush" Value="#A47D49"/>
-                                                            </MultiDataTrigger>
                                                             <Trigger Property="IsSelected" Value="True">
                                                                 <Setter TargetName="Card" Property="Background" Value="#0B3C68"/>
                                                                 <Setter TargetName="Card" Property="BorderBrush" Value="#1387DF"/>
