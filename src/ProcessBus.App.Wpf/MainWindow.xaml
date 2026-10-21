@@ -3077,6 +3077,7 @@
                                         </Grid>
 
                                         <DataGrid x:Name="GooseMessageGrid" Grid.Row="2"
+                                                  IsVisibleChanged="GooseMessageGrid_IsVisibleChanged"
                                                   Style="{StaticResource DarkDataGridStyle}"
                                                   ItemsSource="{Binding GooseHistoryView}"
                                                   SelectedItem="{Binding SelectedGooseTrafficRow, Mode=TwoWay}"
