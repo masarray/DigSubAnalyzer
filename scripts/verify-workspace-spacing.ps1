@@ -124,6 +124,13 @@ Assert-True ($source.Contains('Text="GOOSE Message History"')) 'History describe
 Assert-True ($source.Contains('Text="{Binding EventDescriptionText}"')) 'Recorded event types are translated for operators'
 Assert-True ($source.Contains('GooseOpenConfigurationCommand')) 'Unidentified values provide a path to device configuration'
 Assert-True ($source.Contains('Text="SIGNAL OR DATA ITEM"')) 'Unnamed raw data is explicitly identified'
+$viewModelPath = Join-Path $Root 'src/ProcessBus.App.Wpf/ViewModels/MainWindowViewModel.cs'
+$vmSource = Get-Content -LiteralPath $viewModelPath -Raw
+Assert-True ($vmSource.Contains('Source.LastSeenUtc.ToLocalTime().ToString("HH:mm:ss.fff")')) 'GOOSE timeline uses the same local clock as Inspector'
+Assert-True ($vmSource.Contains('GooseEngineeringLanguage.TryDescribeDoublePoint')) 'Signal position labels use config-validated state interpretation'
+Assert-True ($vmSource.Contains('GooseEngineeringLanguage.DataType')) 'Data type labels use human-friendly terminology'
+Assert-True ($source.Contains('Text="Published Values"')) 'Signal table uses plain wording'
+Assert-True ($source.Contains('Text="RECEIVED VALUE"')) 'Values remain clearly distinguished from interpretation'
 Write-Host 'GOOSE operator language contract: PASS (plain labels + original wire evidence)'
 Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
 Write-Host 'GOOSE Inspector screenshot regression gate: PASS (fixed header, count alignment, compact MMS details)'
