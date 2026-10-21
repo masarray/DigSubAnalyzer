@@ -45,6 +45,18 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     public bool IsTest => Current.IsTest;
     public uint StNum => Current.StNum;
     public uint SqNum => Current.SqNum;
+    public bool HasRecentValueChange { get; private set; }
+    public string LastValueChangeText => Current.LastValueChangeUtc.HasValue
+        ? $"DataSet changed {Current.LastValueChangeUtc.Value.ToLocalTime():HH:mm:ss.fff}" : string.Empty;
+    public void RefreshChangeIndicator(DateTime nowUtc)
+    {
+        var active = Current.ValueChangeRevision > 0 && Current.LastValueChangeUtc.HasValue &&
+            nowUtc >= Current.LastValueChangeUtc.Value &&
+            nowUtc - Current.LastValueChangeUtc.Value < TimeSpan.FromSeconds(3);
+        if (active == HasRecentValueChange) return;
+        HasRecentValueChange = active;
+        OnPropertyChanged(nameof(HasRecentValueChange));
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -70,6 +82,9 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
         if (before.IsTest != message.IsTest) OnPropertyChanged(nameof(IsTest));
         if (before.StNum != message.StNum) OnPropertyChanged(nameof(StNum));
         if (before.SqNum != message.SqNum) OnPropertyChanged(nameof(SqNum));
+        if (before.ValueChangeRevision != message.ValueChangeRevision)
+            OnPropertyChanged(nameof(LastValueChangeText));
+        RefreshChangeIndicator(DateTime.UtcNow);
         return true;
     }
 
@@ -98,8 +113,10 @@ public sealed class GoosePublisherCatalog
     public GoosePublisherRow? Find(GoosePublisherKey? key) =>
         key.HasValue && _byKey.TryGetValue(key.Value, out var row) ? row : null;
 
-    public bool Reconcile(IReadOnlyList<GooseMessageItem> messages, GoosePublisherKey? selected)
+    public bool Reconcile(IReadOnlyList<GooseMessageItem> messages, GoosePublisherKey? selected,
+        IReadOnlySet<GoosePublisherKey>? selectedSources = null)
     {
+        var nowUtc = DateTime.UtcNow;
         var seen = new HashSet<GoosePublisherKey>();
         var changed = false;
         foreach (var message in messages)
@@ -124,15 +141,19 @@ public sealed class GoosePublisherCatalog
         {
             var row = Rows[i];
             if (seen.Contains(row.Key)) continue;
-            if (selected.HasValue && selected.Value == row.Key)
+            if ((selected.HasValue && selected.Value == row.Key) ||
+                (selectedSources?.Contains(row.Key) ?? false))
             {
                 row.MarkStale();
+                row.RefreshChangeIndicator(nowUtc);
                 continue;
             }
             _byKey.Remove(row.Key);
             Rows.RemoveAt(i);
             changed = true;
         }
+        foreach (var row in Rows)
+            row.RefreshChangeIndicator(nowUtc);
         return changed;
     }
 
