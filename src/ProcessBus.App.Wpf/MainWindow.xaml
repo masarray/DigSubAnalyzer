@@ -1343,7 +1343,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Text="Retransmission"
+                                    <TextBlock Text="Show retransmissions"
                                                Foreground="#D9ECFF"
                                                FontSize="12"
                                                FontWeight="Medium"/>
@@ -1462,11 +1462,33 @@
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
-                                                <TextBlock Text="{Binding GoId}"
-                                                           Foreground="#F4FAFF"
-                                                           FontSize="12.5"
-                                                           FontWeight="SemiBold"
-                                                           TextTrimming="CharacterEllipsis"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding GoId}"
+                                                               Foreground="#F4FAFF" FontSize="12.5"
+                                                               FontWeight="Medium" TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding GoId}"/>
+                                                    <Border Grid.Column="1" Padding="5,1"
+                                                            CornerRadius="4" Margin="5,0,0,0"
+                                                            Background="#3B2C18" BorderBrush="#70552C"
+                                                            BorderThickness="1">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTest}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="TEST" FontSize="9"
+                                                                   Foreground="#F0C681" FontWeight="SemiBold"/>
+                                                    </Border>
+                                                </Grid>
                                                 <TextBlock Text="{Binding GoCbRef}"
                                                            Foreground="#8FAAC3"
                                                            FontSize="10.5"
@@ -3012,7 +3034,7 @@
                                                         BorderBrush="#1B5C8A"
                                                         BorderThickness="1"
                                                         CornerRadius="10">
-                                                    <TextBlock Text="{Binding GooseTotalMessagesText}"
+                                                    <TextBlock Text="{Binding GooseTimelineCountersText}"
                                                                Foreground="#7BD8FF"
                                                                FontSize="11"
                                                                FontWeight="SemiBold"/>
@@ -3180,10 +3202,34 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="GOOSE Inspector" Foreground="#F4FAFF"
-                                                               FontSize="15" FontWeight="SemiBold"/>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="GOOSE Inspector" Foreground="#F4FAFF"
+                                                                   FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                        <Border Padding="7,2" Margin="8,0,0,0" CornerRadius="4"
+                                                                Background="#143149" BorderBrush="#2B5973"
+                                                                BorderThickness="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding GooseInspectorModeBadgeText}"
+                                                                       Foreground="#9EDBFF" FontSize="9.5" FontWeight="SemiBold"/>
+                                                        </Border>
+                                                        <Border Padding="7,2" Margin="6,0,0,0" CornerRadius="4"
+                                                                Background="#392C17" BorderBrush="#6F562B"
+                                                                BorderThickness="1" VerticalAlignment="Center">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding GooseInspectorMessage.IsTest}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="TEST" FontSize="9.5" FontWeight="SemiBold"
+                                                                       Foreground="#F1CA85"/>
+                                                        </Border>
+                                                    </StackPanel>
                                                     <TextBlock Text="{Binding GooseInspectorModeText}" Foreground="#91B6D2"
-                                                               FontSize="11" Margin="0,4,8,0" TextWrapping="Wrap"/>
+                                                               FontSize="11" Margin="0,5,8,0" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                                 <Button Grid.Column="1" Content="Return to Live"
                                                         Command="{Binding GooseReturnToLiveCommand}" VerticalAlignment="Top"
@@ -3345,12 +3391,12 @@
                                                 <StackPanel>
                                                     <DockPanel Margin="0,0,0,10">
                                                         <TextBlock DockPanel.Dock="Left"
-                                                                   Text="DataSet entries"
+                                                                   Text="DataSet values"
                                                                    Foreground="#F4FAFF"
                                                                    FontSize="13.5"
                                                                    FontWeight="SemiBold"/>
                                                         <TextBlock DockPanel.Dock="Right"
-                                                                   Text="{Binding GooseInspectorDatasetCountText, StringFormat=({0})}"
+                                                                   Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} entries}"
                                                                    Foreground="#FFBE52"
                                                                    FontSize="11"
                                                                    FontWeight="SemiBold"/>
@@ -3377,9 +3423,8 @@
                                                     <ItemsControl ItemsSource="{Binding GooseInspectorRows}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                                                          Background="#0A1D2D" Foreground="#E7F3FF"
-                                                                          BorderBrush="#1A354B" BorderThickness="0,0,0,1"
+                                                                <Expander Style="{StaticResource GooseDatasetExpanderStyle}"
+                                                                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                                                           Margin="0,0,0,2" ToolTip="{Binding NameText}">
                                                                     <Expander.Header>
                                                                         <Grid MinHeight="38" HorizontalAlignment="Stretch">
