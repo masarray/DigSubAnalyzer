@@ -111,8 +111,8 @@ $headerOffset = $inspector.IndexOf('Text="Message Details"')
 $scrollOffset = $inspector.IndexOf('<ScrollViewer Grid.Row="1"')
 Assert-True ($headerOffset -ge 0 -and $scrollOffset -gt $headerOffset) 'Inspector header remains above independently scrolling evidence'
 Assert-True ($inspector.Contains('Grid.Row="0" Margin="0,0,0,12"')) 'Inspector header stays in fixed grid row'
-Assert-True ($inspector.Contains('<Grid Margin="0,0,0,10">')) 'DataSet heading/count have independent grid columns'
-Assert-True ($inspector.Contains('Grid.Column="1" Margin="12,0,0,0"')) 'DataSet entry count has clear separation from heading'
+Assert-True ($inspector.Contains('Text="Values"')) 'Value group has compact title'
+Assert-True ($inspector.Contains('Grid.Column="1" Margin="10,0,3,0"')) 'Value item count uses a separate aligned column'
 Assert-True ($inspector.Contains('Text="{Binding TypeText}"')) 'Expanded signal kind uses friendly type description'
 Assert-True ($inspector.Contains('Text="{Binding ProtocolTypeText}"')) 'Exact original wire type stays available in expanded evidence'
 Assert-True ($inspector.Contains('Text="{Binding ConfigurationTypeText}"')) 'Matched configuration type remains available as technical evidence'
@@ -134,5 +134,32 @@ Assert-True ($source.Contains('Text="RECEIVED VALUE"')) 'Values remain clearly d
 Write-Host 'GOOSE operator language contract: PASS (plain labels + original wire evidence)'
 Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
 Write-Host 'GOOSE Inspector screenshot regression gate: PASS (fixed header, count alignment, compact MMS details)'
+# Operator-approved compact GOOSE UX: no duplicated name filter, no
+# unbounded ListView inside a StackPanel, and all three independent sections.
+$gooseLeftStart = $source.IndexOf('GOOSE LEFT EXPLORER')
+$gooseLeftEnd = $source.IndexOf('TIMING / PTP LEFT EXPLORER', $gooseLeftStart)
+Assert-True ($gooseLeftStart -ge 0 -and $gooseLeftEnd -gt $gooseLeftStart) 'GOOSE source panel markup available'
+$gooseLeft = $source.Substring($gooseLeftStart, $gooseLeftEnd - $gooseLeftStart)
+Assert-True (-not $gooseLeft.Contains('<ComboBox')) 'GOOSE source list has only one search filter, not a duplicate dropdown'
+Assert-True ($gooseLeft.Contains('x:Name="GooseSourceSearchBox"')) 'Source search has a directly focusable TextBox'
+Assert-True ($gooseLeft.Contains('GooseMaterialSearch')) 'Material vector search icon is present'
+Assert-True ($gooseLeft.Contains('GooseMaterialClose')) 'Material vector clear icon is present'
+Assert-True ($gooseLeft.Contains('Command="{Binding GooseClearSearchCommand}"')) 'Clear action is wired'
+Assert-True ($gooseLeft.Contains('GooseHasSearchText')) 'Clear control visibility responds to actual input'
+Assert-True ($gooseLeft.Contains('ScrollViewer.VerticalScrollBarVisibility="Auto"')) 'Source list has an independent scrollbar'
+Assert-True ($gooseLeft.Contains('VirtualizingPanel.VirtualizationMode="Recycling"')) 'Source rows remain virtualized'
+Assert-True ($gooseLeft.Contains('<Grid Grid.Row="3" MinHeight="0">')) 'Scrollable source viewport is height constrained'
+Assert-True (-not $gooseLeft.Contains('Text="{Binding GooseFilterSummaryText}"')) 'Redundant source footer removed'
+
+$sectionNodes = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseInspectorSectionExpanderStyle}']", $ns)
+Assert-True ($sectionNodes.Count -eq 3) 'Exactly three collapsible GOOSE Inspector sections'
+Assert-True (($sectionNodes[0].GetAttribute('IsExpanded') -eq 'True') -and
+             ($sectionNodes[1].GetAttribute('IsExpanded') -eq 'False') -and
+             ($sectionNodes[2].GetAttribute('IsExpanded') -eq 'True')) 'Message and Values open by default, Network closed'
+Assert-True ($theme.OuterXml.Contains('GooseMaterialExpandCircle')) 'Inspector and data items use the Material circled chevron'
+Assert-True (-not $inspector.Contains('Content="Identify these signals in the Configuration tab"')) 'Long textual onboarding removed from signal list'
+Assert-True ($inspector.Contains('Content="Identify signals"')) 'Compact signal mapping action retained'
+Assert-True ($source.Contains('Text="GOOSE Message History"')) 'History is available without changing protocol logic'
+Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'
