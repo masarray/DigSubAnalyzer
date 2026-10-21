@@ -44,14 +44,22 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     public bool HasRecentValueChange { get; private set; }
     public string LastValueChangeText => LastValueChangeUtc?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-";
 
-    public void MarkDecodedValueChange(DateTime timeUtc, long revision)
+    private Guid _lastChangeSessionId;
+
+    public void MarkDecodedValueChange(DateTime timeUtc, long revision, Guid sessionId = default)
     {
+        if (sessionId != Guid.Empty && sessionId != _lastChangeSessionId)
+        {
+            _lastChangeSessionId = sessionId;
+            ChangeRevision = 0; // Decoder restart; preserve row identity, reset revision scope.
+        }
         if (revision <= ChangeRevision) return;
         ChangeRevision = revision;
         LastValueChangeUtc = timeUtc;
+        var wasRecent = HasRecentValueChange;
         HasRecentValueChange = true;
         OnPropertyChanged(nameof(LastValueChangeText));
-        OnPropertyChanged(nameof(HasRecentValueChange));
+        if (!wasRecent) OnPropertyChanged(nameof(HasRecentValueChange));
     }
 
     public void ExpireValueChangeNotice(DateTime nowUtc)
