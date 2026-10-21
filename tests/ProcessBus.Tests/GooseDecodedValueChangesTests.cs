@@ -86,5 +86,14 @@ public sealed class GooseDecodedValueChangesTests
         row.ExpireValueChangeNotice(now.AddMilliseconds(2600));
         Assert.False(row.HasRecentValueChange);
         Assert.Equal(1, row.ChangeRevision);
+
+        // Reconnected analyzer may start at revision 1 again; a stable UI row
+        // must not suppress that first verified transition.
+        var firstSession = Guid.NewGuid();
+        var secondSession = Guid.NewGuid();
+        row.MarkDecodedValueChange(now.AddSeconds(3), 42, firstSession);
+        row.MarkDecodedValueChange(now.AddSeconds(4), 1, secondSession);
+        Assert.Equal(1, row.ChangeRevision);
+        Assert.Equal(now.AddSeconds(4), row.LastValueChangeUtc);
     }
 }
