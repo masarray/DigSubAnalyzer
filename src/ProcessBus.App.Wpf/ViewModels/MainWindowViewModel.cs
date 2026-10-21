@@ -337,9 +337,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public void ClearGooseSourceSelection() =>
         SetGooseSourceSelection(Array.Empty<GoosePublisherKey>());
 
-    public void AcknowledgeGooseSource(GoosePublisherKey publisherKey) =>
-        _gooseCatalog.Find(publisherKey)?.AcknowledgeValueChange();
-
 
     // Operator accordion state is SSOT in the session ViewModel, independent
     // of capture snapshots and TabControl visual tree recreation.
@@ -2433,12 +2430,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseSnapshot = gooseSnapshot;
             _gooseMessages = _gooseSnapshot.Messages;
             _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey, _selectedGooseSourceKeys);
-            ApplyDecodedGooseValueChangeEvents(_gooseSnapshot, now);
+            var decodedChangedPublishers = ApplyDecodedGooseValueChangeEvents(_gooseSnapshot);
             UpdateGooseIdFilterOptions();
 
             foreach (var msg in _gooseSnapshot.Messages)
             {
                 var key = GoosePublisherKey.From(msg);
+                if (decodedChangedPublishers.Contains(key))
+                {
+                    // An exact decoder-backed event already covers this latest
+                    // publisher snapshot. Do not create a misleading second row.
+                    _lastGooseState[key] = msg;
+                    continue;
+                }
 
                 if (!_lastGooseState.TryGetValue(key, out var last))
                 {
@@ -4729,7 +4733,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Freshness = channel.Freshness
         };
 
-    private void ApplyDecodedGooseValueChangeEvents(GooseMonitorSnapshot snapshot, DateTime nowUtc)
+    // The decoder's immutable per-event DataSet frame is the journal input.
+    // Never fabricate exact signal changes from a latest-only publisher snapshot.
+    private HashSet<GoosePublisherKey> ApplyDecodedGooseValueChangeEvents(GooseMonitorSnapshot snapshot)
     {
         if (snapshot.ValueChangeSessionId != Guid.Empty &&
             snapshot.ValueChangeSessionId != _lastGooseValueChangeSessionId)
@@ -4737,9 +4743,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _lastGooseValueChangeSessionId = snapshot.ValueChangeSessionId;
             _lastGooseValueChangeRevision = 0;
         }
-        // Only revision gaps PROVE that the reader missed an event.
-        // Total ring evictions are NOT necessarily losses: earlier entries may
-        // already have been consumed by previous UI snapshots.
         if (snapshot.ValueChanges.Count > 0)
         {
             var first = snapshot.ValueChanges[0].Revision;
@@ -4750,19 +4753,64 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 OnPropertyChanged(nameof(GooseHasValueChangeLoss));
             }
         }
-        // Hundreds of decoded transitions can share one 500 ms UI batch.
-        // Coalesce by stable publisher key: exactly one property-update group
-        // per source per batch, never one WPF notification per RX packet.
-        var latestByPublisher = new Dictionary<GoosePublisherKey, GooseValueChangeEvent>();
+
+        var observed = new HashSet<GoosePublisherKey>();
         foreach (var change in snapshot.ValueChanges)
         {
-            if (change.Revision <= _lastGooseValueChangeRevision) continue;
-            latestByPublisher[change.PublisherKey] = change;
+            if (change.Revision <= _lastGooseValueChangeRevision)
+                continue;
+            // Each event is bounded, identified by capture session/revision,
+            // and carries its exact decoded previous/current value evidence.
+            BufferGooseHistoryRow(change.Frame, "State Change", change);
+            observed.Add(change.PublisherKey);
             _lastGooseValueChangeRevision = change.Revision;
         }
-        foreach (var change in latestByPublisher.Values)
-            _gooseCatalog.Find(change.PublisherKey)?.MarkDecodedValueChange(
-                change.TimeUtc, change.Revision, snapshot.ValueChangeSessionId);
+        ProjectGooseUnreadIndicators();
+        return observed;
+    }
+
+    private void ProjectGooseUnreadIndicators()
+    {
+        // SSOT = the bounded pending/history event rows. Sources are only a
+        // projection of those rows. ACK cannot diverge between the two panes.
+        var totals = new Dictionary<GoosePublisherKey, (int Count, DateTime LatestUtc)>();
+        foreach (var entry in _gooseHistory.Concat(_pendingGooseRows))
+        {
+            if (!entry.IsUnacknowledgedEvent || entry.ChangeEvidence is null)
+                continue;
+            var key = entry.ChangeEvidence.PublisherKey;
+            totals.TryGetValue(key, out var previous);
+            totals[key] = (previous.Count + 1,
+                entry.Source.LastSeenUtc > previous.LatestUtc ? entry.Source.LastSeenUtc : previous.LatestUtc);
+        }
+        foreach (var source in _gooseCatalog.Rows)
+        {
+            totals.TryGetValue(source.Key, out var total);
+            source.ProjectUnreadEvents(total.Count, total.Count > 0 ? total.LatestUtc : null);
+        }
+    }
+
+    // Explicit row ACK is the only acknowledgement operation. It also updates
+    // the source badge. Choosing a source is navigation, never an implicit ACK.
+    public void AcknowledgeGooseHistoryEvent(GooseTrafficRow entry)
+    {
+        if (!entry.IsUnacknowledgedEvent) return;
+        entry.Acknowledge();
+        ProjectGooseUnreadIndicators();
+    }
+
+    public GooseTrafficRow? InspectNextUnreadGooseSource(GoosePublisherKey key)
+    {
+        // Make a just-arrived event navigable even within the buffered 750 ms
+        // interaction quiet period. This is a user-triggered bounded flush.
+        FlushBufferedGooseRows(flushAll: true);
+        var target = _gooseHistory.FirstOrDefault(row =>
+            row.IsUnacknowledgedEvent && row.ChangeEvidence?.PublisherKey == key);
+        if (target is null) return null;
+
+        SuspendGooseFollow();
+        SelectedGooseTrafficRow = target; // Inspector pins the SAME frame.
+        return target;                     // View scrolls exactly this row.
     }
 
     private bool FilterGoosePublisher(object item) =>
@@ -4891,7 +4939,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         return $"{semanticType}  -  MMS {value.Type}";
     }
 
-    private void BufferGooseHistoryRow(GooseMessageItem msg, string eventType)
+    private void BufferGooseHistoryRow(GooseMessageItem msg, string eventType,
+        GooseValueChangeEvent? changeEvidence = null)
     {
         double? deltaMs = null;
 
@@ -4902,17 +4951,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _firstGooseHistoryTimeUtc ??= msg.LastSeenUtc;
         var relativeMilliseconds = GooseRelativeTimePresentation.ElapsedMilliseconds(_firstGooseHistoryTimeUtc.Value, msg.LastSeenUtc);
 
-        _pendingGooseRows.Enqueue(new GooseTrafficRow
+        var eventRow = new GooseTrafficRow
         {
             Source = msg,
             EventType = eventType,
             DeltaMs = deltaMs,
             RelativeMs = relativeMilliseconds,
+            ChangeEvidence = changeEvidence,
             SemanticChangedSummaryText = BuildSemanticGooseChangedSummary(msg)
-        });
+        };
+        if (changeEvidence is not null)
+            eventRow.MarkNewVisibleEvent();
+        _pendingGooseRows.Enqueue(eventRow);
 
         while (_pendingGooseRows.Count > 500)
             _pendingGooseRows.Dequeue();
+        if (changeEvidence is not null)
+            ProjectGooseUnreadIndicators();
     }
 
     private void DeferGooseUiFlush()
@@ -5009,7 +5064,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (FilterGooseHistory(row))
             {
                 newVisible++;
-                row.MarkNewVisibleEvent();
             }
             _gooseHistory.Add(row);
             flushed++;
@@ -5025,7 +5079,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         // The view observes incremental changes. Never Refresh() on each event.
         if (flushed > 0 || removeCount > 0)
+        {
             UpdateGooseVisibleEventCount();
+            ProjectGooseUnreadIndicators();
+        }
         if (newVisible > 0)
         {
             if (!_gooseFollowLive)
@@ -5147,6 +5204,8 @@ public sealed class GooseDatasetValueDisplayItem
 
 public sealed class GooseTrafficRow : INotifyPropertyChanged
 {
+    public GooseValueChangeEvent? ChangeEvidence { get; init; }
+    public bool HasDecodedValueChange => ChangeEvidence is not null;
     private bool _isUnacknowledgedEvent;
     public bool IsUnacknowledgedEvent => _isUnacknowledgedEvent;
     public event PropertyChangedEventHandler? PropertyChanged;
