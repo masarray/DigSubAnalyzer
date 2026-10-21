@@ -1307,7 +1307,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0"
-                                           Text="GOOSE Publishers"
+                                           Text="GOOSE Sending Devices"
                                            Foreground="#F4FAFF"
                                            FontSize="15"
                                            FontWeight="SemiBold"
@@ -1321,14 +1321,14 @@
                             </Grid>
 
                             <StackPanel Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}">
-                                <TextBlock Text="Search"
+                                <TextBlock Text="Find a device or message"
                                            Foreground="#7FA8CC"
                                            FontSize="10.5"
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,5"/>
                                 <TextBox Style="{StaticResource CompactSearchBoxStyle}"
                                          Text="{Binding GoosePublisherFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Filter publisher, GOOSE ID, APPID, MAC, or DataSet"/>
+                                         ToolTip="Search by device, message name, network address, application code or published data"/>
                             </StackPanel>
 
                             <Grid Grid.Row="2" Margin="{StaticResource WorkspacePanelGapBelow}">
@@ -1343,7 +1343,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Text="Show retransmissions"
+                                    <TextBlock Text="Show repeated messages"
                                                Foreground="#D9ECFF"
                                                FontSize="12"
                                                FontWeight="Medium"/>
@@ -1389,7 +1389,7 @@
                                 </ToggleButton>
 
                                 <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
-                                    <TextBlock Text="GOOSE ID"
+                                    <TextBlock Text="Message name"
                                                Foreground="#7FA8CC"
                                                FontSize="10.5"
                                                FontWeight="SemiBold"
@@ -1401,7 +1401,7 @@
                             </Grid>
 
                             <StackPanel Grid.Row="3">
-                                <TextBlock Text="Detected publishers"
+                                <TextBlock Text="Detected sending devices"
                                            Foreground="#7FA8CC"
                                            FontSize="10.5"
                                            FontWeight="SemiBold"
