@@ -20,9 +20,21 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        if (DataContext is MainWindowViewModel viewModel) { }
+        // One GOOSE read-ack gesture for the whole visible workspace.
+        // Tunnelling preview runs before selection changes, so a click on a
+        // different row acknowledges the previously inspected event only.
+        PreviewMouseDown += GooseWindow_PreviewMouseDown;
+        PreviewKeyDown += GooseWindow_PreviewKeyDown;
 
-        Loaded += (_, _) => { UpdateHeaderDensity(); UpdateWorkspaceActivePill(animate: false); };
+        Loaded += (_, _) =>
+        {
+            UpdateHeaderDensity(); UpdateWorkspaceActivePill(animate: false);
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.PropertyChanged += GooseViewModel_PropertyChanged;
+                SyncGooseSourceVisualSelection();
+            }
+        };
         SizeChanged += (_, _) => UpdateHeaderDensity();
         Closing += MainWindow_Closing;
         Closed += (_, _) => Application.Current?.Shutdown();
@@ -266,14 +278,130 @@ public partial class MainWindow : Window
         GooseSourceSearchBox.Focus();
     }
 
+    private void GooseViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainWindowViewModel.GoosePublisherFilterText) or
+            nameof(MainWindowViewModel.GooseSourceScopeText))
+            Dispatcher.BeginInvoke(new Action(SyncGooseSourceVisualSelection),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
+
+        if (e.PropertyName == nameof(MainWindowViewModel.GooseVisibleAppendRevision))
+            ScheduleGooseFollowScroll();
+        else if (e.PropertyName == nameof(MainWindowViewModel.GooseFollowLive) &&
+                 sender is MainWindowViewModel { GooseFollowLive: true })
+            ScheduleGooseFollowScroll();
+    }
+
+    private bool _syncingGooseSourceSelection;
+    private ProcessBus.Core.Presentation.GoosePublisherKey? _gooseSourceRangeAnchor;
+
     private void GoosePublisherRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // WPF SelectionChanged does not fire when the operator clicks an item
-        // that is already selected. The explicit click still means "inspect live"
-        // after a historical timeline event had been pinned.
-        if (DataContext is MainWindowViewModel viewModel &&
-            sender is ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
-            viewModel.SelectedGoosePublisherRow = row;
+        if (DataContext is not MainWindowViewModel vm ||
+            sender is not ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
+            return;
+
+        var next = vm.SelectedGooseSourceKeys.ToHashSet();
+        var modifiers = Keyboard.Modifiers;
+        var shift = modifiers.HasFlag(ModifierKeys.Shift);
+        var control = modifiers.HasFlag(ModifierKeys.Control);
+        if (shift && _gooseSourceRangeAnchor.HasValue)
+        {
+            var visible = GooseSourceList.Items.OfType<ProcessBus.Core.Presentation.GoosePublisherRow>().ToList();
+            var start = visible.FindIndex(item => item.Key == _gooseSourceRangeAnchor.Value);
+            var finish = visible.FindIndex(item => item.Key == row.Key);
+            if (start >= 0 && finish >= 0)
+            {
+                if (!control) next.Clear();
+                foreach (var item in visible.Skip(Math.Min(start, finish)).Take(Math.Abs(start - finish) + 1))
+                    next.Add(item.Key);
+            }
+            else next.Add(row.Key);
+        }
+        else if (control)
+        {
+            if (!next.Add(row.Key)) next.Remove(row.Key);
+        }
+        else
+        {
+            var onlySelected = next.Count == 1 && next.Contains(row.Key);
+            next.Clear();
+            // Re-clicking an unread source navigates to its pending event.
+            // Re-clicking an already-read source clears its scope to All.
+            if (!onlySelected || row.HasUnacknowledgedValueChange) next.Add(row.Key);
+        }
+        if (!shift) _gooseSourceRangeAnchor = row.Key;
+        // Source click means "find the unread change", not "acknowledge it".
+        // Modifier selection only scopes Messages; it never steals Inspector focus.
+        var navigate = !shift && !control && next.Contains(row.Key) && row.HasUnacknowledgedValueChange;
+        vm.SetGooseSourceSelection(next, !shift && !control && !navigate && next.Contains(row.Key) ? row : null);
+        var target = navigate ? vm.InspectNextUnreadGooseSource(row.Key) : null;
+        SyncGooseSourceVisualSelection();
+        e.Handled = true;
+        ((ListViewItem)sender).Focus();
+        if (target is not null)
+            ScrollToOperatorGooseEvent(target);
+    }
+
+    private void GooseSourceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingGooseSourceSelection || DataContext is not MainWindowViewModel vm)
+            return;
+        // Native keyboard selection is supported; a filtered-out selection is
+        // not an operator deselection and must survive in stable key storage.
+        var next = vm.SelectedGooseSourceKeys.ToHashSet();
+        foreach (ProcessBus.Core.Presentation.GoosePublisherRow row in e.RemovedItems)
+            if (GooseSourceList.Items.Contains(row)) next.Remove(row.Key);
+        foreach (ProcessBus.Core.Presentation.GoosePublisherRow row in e.AddedItems)
+            next.Add(row.Key);
+        vm.SetGooseSourceSelection(next);
+    }
+
+    private void GooseSourceList_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Space or Key.Enter) || DataContext is not MainWindowViewModel vm ||
+            GooseSourceList.SelectedItem is not ProcessBus.Core.Presentation.GoosePublisherRow row)
+            return;
+        // Enter navigates to the oldest unread event for this source.
+        // Space modifies selection only; no implicit acknowledgement.
+        if (e.Key == Key.Enter)
+        {
+            var target = vm.InspectNextUnreadGooseSource(row.Key);
+            if (target is not null) ScrollToOperatorGooseEvent(target);
+            else vm.SelectedGoosePublisherRow = row;
+            e.Handled = true;
+            return;
+        }
+        var next = vm.SelectedGooseSourceKeys.ToHashSet();
+        if (!next.Add(row.Key)) next.Remove(row.Key);
+        vm.SetGooseSourceSelection(next);
+        SyncGooseSourceVisualSelection();
+        e.Handled = true;
+    }
+
+    private void SyncGooseSourceVisualSelection()
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        _syncingGooseSourceSelection = true;
+        try
+        {
+            GooseSourceList.SelectedItems.Clear();
+            foreach (ProcessBus.Core.Presentation.GoosePublisherRow item in GooseSourceList.Items)
+                if (vm.SelectedGooseSourceKeys.Contains(item.Key))
+                    GooseSourceList.SelectedItems.Add(item);
+        }
+        finally { _syncingGooseSourceSelection = false; }
+    }
+
+    private void ScrollToOperatorGooseEvent(GooseTrafficRow target)
+    {
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!GooseMessageGrid.IsVisible) return;
+            // Scroll to the exact decoded row; do not ACK it, alter live
+            // stream state or let Follow live drag the viewport away.
+            GooseMessageGrid.ScrollIntoView(target);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void GooseTraffic_Interaction(object sender, MouseEventArgs e)
@@ -281,9 +409,107 @@ public partial class MainWindow : Window
         DeferGooseTrafficFlush();
     }
 
+    private void GooseWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left || !GooseMessageGrid.IsVisible)
+            return;
+        if (DataContext is MainWindowViewModel vm)
+            vm.AcknowledgeInspectedGooseEvent();
+        // Do not mark Handled: the original button, source, table row and
+        // DataSet expander still receive and perform their normal click.
+    }
+
+    private void GooseWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.IsRepeat || !GooseMessageGrid.IsVisible)
+            return;
+        if (DataContext is MainWindowViewModel vm)
+            vm.AcknowledgeInspectedGooseEvent();
+        // Enter remains available to the focused control for normal operation.
+    }
+
     private void GooseTraffic_ClickInteraction(object sender, MouseButtonEventArgs e)
     {
+        SuspendGooseFollowFromOperator();
         DeferGooseTrafficFlush();
+        if (e.ChangedButton != MouseButton.Left) return;
+
+        // ACK only the row that was actually clicked, not the selected item in
+        // the VM: that item may still reference an earlier pinned history event.
+        // Never ACK all rows, nor ACK on passive streaming/virtualized recycling.
+        for (var node = e.OriginalSource as DependencyObject;
+             node is not null && !ReferenceEquals(node, GooseMessageGrid);
+             node = VisualTreeHelper.GetParent(node))
+        {
+            if (node is DataGridRow { DataContext: GooseTrafficRow history })
+            {
+                // Root preview already ACKed the event that was being read.
+                // A first click on a DIFFERENT row is navigation, not an
+                // accidental acknowledgement of evidence not yet inspected.
+                if (DataContext is MainWindowViewModel vm &&
+                    ReferenceEquals(vm.SelectedGooseTrafficRow, history))
+                    vm.AcknowledgeGooseHistoryEvent(history);
+                return;
+            }
+        }
+    }
+
+    private bool _gooseFollowScrollScheduled;
+
+    private void SuspendGooseFollowFromOperator()
+    {
+        if (DataContext is MainWindowViewModel vm)
+            vm.SuspendGooseFollow();
+    }
+
+    private void GooseMessageGrid_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true) ScheduleGooseFollowScroll();
+    }
+
+    private void GooseMessageGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
+        SuspendGooseFollowFromOperator();
+
+    private void GooseMessageGrid_PreviewTouchDown(object sender, TouchEventArgs e) =>
+        SuspendGooseFollowFromOperator();
+
+    private void GooseMessageGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Up or Key.Down or Key.Home or Key.End or
+            Key.PageUp or Key.PageDown or Key.Space or Key.Left or Key.Right or Key.Enter)
+            SuspendGooseFollowFromOperator();
+
+        // Enter is handled centrally by the window (including when focus is
+        // inside the Inspector). Space ACKs the selected pinned history row.
+        if (e.Key == Key.Space &&
+            GooseMessageGrid.SelectedItem is GooseTrafficRow selected &&
+            DataContext is MainWindowViewModel vm &&
+            ReferenceEquals(vm.SelectedGooseTrafficRow, selected))
+        {
+            vm.AcknowledgeGooseHistoryEvent(selected);
+            e.Handled = true;
+        }
+    }
+
+    private void ScheduleGooseFollowScroll()
+    {
+        if (DataContext is not MainWindowViewModel { GooseFollowLive: true }) return;
+        if (_gooseFollowScrollScheduled) return;
+        _gooseFollowScrollScheduled = true;
+
+        // A completed batch has already increased the ScrollViewer extent.
+        // Comparing its *new* bottom against the old offset would falsely
+        // suspend follow on ordinary appends. Only genuine operator wheel,
+        // touch, mouse/scrollbar or navigation input can suspend the explicit
+        // Follow live switch; programmatic follow never changes selection.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _gooseFollowScrollScheduled = false;
+            if (DataContext is not MainWindowViewModel vm || !vm.GooseFollowLive ||
+                !GooseMessageGrid.IsVisible) return;
+            var last = vm.GooseLatestVisibleTrafficRow;
+            if (last is not null) GooseMessageGrid.ScrollIntoView(last);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void DeferGooseTrafficFlush()

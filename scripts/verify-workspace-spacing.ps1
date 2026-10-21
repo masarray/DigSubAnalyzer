@@ -90,8 +90,10 @@ foreach ($name in @('WorkspacePanelInset', 'WorkspacePanelGapBelow', 'WorkspaceH
 # compact disclosure style; all other workspace layout tokens stay untouched.
 $gooseExpanderStyle = $theme.SelectNodes("//w:Style[@x:Key='GooseDatasetExpanderStyle']", $ns)
 Assert-True ($gooseExpanderStyle.Count -eq 1) 'GOOSE has one scoped engineer disclosure style'
-$gooseExpanderUsage = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseDatasetExpanderStyle}']", $ns)
-Assert-True ($gooseExpanderUsage.Count -eq 1) 'GOOSE typed rows use scoped compact chevrons'
+# The event-aware DataSet row is based on the shared GOOSE-only disclosure style,
+# preserving its exact compact chevron template while adding conditional value accents.
+$gooseExpanderUsage = $window.SelectNodes("//w:Expander/w:Expander.Style/w:Style[@BasedOn='{StaticResource GooseDatasetExpanderStyle}']", $ns)
+Assert-True ($gooseExpanderUsage.Count -eq 1) 'GOOSE typed rows retain scoped compact chevrons through BasedOn'
 foreach ($binding in @(
     'GooseInspectorRows',
     'GooseTimelineCountersText',
@@ -112,7 +114,7 @@ $scrollOffset = $inspector.IndexOf('<ScrollViewer Grid.Row="1"')
 Assert-True ($headerOffset -ge 0 -and $scrollOffset -gt $headerOffset) 'Inspector header remains above independently scrolling evidence'
 Assert-True ($inspector.Contains('Grid.Row="0" Margin="0,0,0,12"')) 'Inspector header stays in fixed grid row'
 Assert-True ($inspector.Contains('Text="Data"')) 'Value group has compact title'
-Assert-True ($inspector.Contains('Grid.Column="1" Margin="10,0,3,0"')) 'Value item count uses a separate aligned column'
+Assert-True ($inspector.Contains('<StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,3,0">')) 'Value and changed counts share a separate aligned column'
 Assert-True ($inspector.Contains('Text="{Binding TypeText}"')) 'Expanded signal kind uses friendly type description'
 Assert-True ($inspector.Contains('Text="{Binding ProtocolTypeText}"')) 'Exact original wire type stays available in expanded evidence'
 Assert-True ($inspector.Contains('Text="{Binding ConfigurationTypeText}"')) 'Matched configuration type remains available as technical evidence'
@@ -163,7 +165,9 @@ Assert-True ($gooseLeft.Contains('Command="{Binding GooseClearSearchCommand}"'))
 Assert-True ($gooseLeft.Contains('GooseHasSearchText')) 'Clear control visibility responds to actual input'
 Assert-True ($gooseLeft.Contains('ScrollViewer.VerticalScrollBarVisibility="Auto"')) 'Source list has an independent scrollbar'
 Assert-True ($gooseLeft.Contains('VirtualizingPanel.VirtualizationMode="Recycling"')) 'Source rows remain virtualized'
-Assert-True ($gooseLeft.Contains('<Grid Grid.Row="3" MinHeight="0">')) 'Scrollable source viewport is height constrained'
+# The obsolete Sources repeat toggle was removed. The bounded source list now
+# occupies row 2 rather than row 3; the star-sized viewport is unchanged.
+Assert-True ($gooseLeft.Contains('<Grid Grid.Row="2" MinHeight="0">')) 'Scrollable source viewport is height constrained'
 Assert-True (-not $gooseLeft.Contains('Text="{Binding GooseFilterSummaryText}"')) 'Redundant source footer removed'
 
 $sectionNodes = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseInspectorSectionExpanderStyle}']", $ns)
@@ -178,6 +182,55 @@ Assert-True ($theme.OuterXml.Contains('GooseMaterialExpandCircle')) 'Inspector a
 Assert-True (-not $inspector.Contains('Content="Identify these signals in the Configuration tab"')) 'Long textual onboarding removed from signal list'
 Assert-True ($inspector.Contains('Content="Identify signals"')) 'Compact signal mapping action retained'
 Assert-True ($source.Contains('Text="Messages"')) 'History is available without changing protocol logic'
+# GOOSE operator-acknowledged alert contract: UX should never silently expire
+# received evidence before the engineer has a chance to inspect it.
+Assert-True ($source.Contains('x:Key="GooseHeaderSwitchStyle"')) 'GOOSE header exposes one compact vector switch style'
+Assert-True (([regex]::Matches($source, 'Style="\{StaticResource GooseHeaderSwitchStyle\}"')).Count -eq 2) 'Show repeats and Follow live use exactly two adjacent switches'
+Assert-True ($source.Contains('IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"')) 'Repeats switch binds only to message representation'
+Assert-True ($source.Contains('IsChecked="{Binding GooseFollowLive, Mode=TwoWay}"')) 'Follow-live switch is a two-way explicit state'
+Assert-True (-not $source.Contains('Command="{Binding GooseResumeFollowCommand}"')) 'Old transient Follow live button is removed'
+Assert-True ($source.Contains('IsUnacknowledgedEvent') -and $source.Contains('HasUnacknowledgedValueChange')) 'Message and source alert visuals bind to acknowledged state'
+Assert-True ($vmSource.Contains('public void Acknowledge()') -and
+             $vmSource.Contains('public void AcknowledgeGooseHistoryEvent(')) 'ACK belongs to the history event, not an independent source flag'
+Assert-True (-not $vmSource.Contains('ExpireEmphasis(') -and
+             -not $vmSource.Contains('ExpireValueChangeNotice(')) 'Streaming UI does not auto-expire unread engineering evidence'
+$messageStart = $source.IndexOf('<!-- Main event timeline: lean, readable, no debug ornaments. -->')
+$messageEnd = $source.IndexOf('x:Name="GooseMessageGrid"', $messageStart)
+Assert-True ($messageStart -ge 0 -and $messageEnd -gt $messageStart) 'Messages header markup present'
+$messageHeader = $source.Substring($messageStart, $messageEnd - $messageStart)
+Assert-True (-not $messageHeader.Contains('Clear filter')) 'Messages header has no ugly Clear filter button'
+Assert-True (-not $messageHeader.Contains('Grid.Row="1"')) 'Messages header uses exactly one horizontal line'
+Assert-True ($messageHeader.Contains('GooseTimelineCountersText')) 'Compact counters remain inline in Messages header'
+Assert-True ($vmSource.Contains('InspectNextUnreadGooseSource(') -and
+             $vmSource.Contains('AcknowledgeGooseHistoryEvent(') -and
+             $vmSource.Contains('ProjectGooseUnreadIndicators(')) 'Sources and Messages share one unread-event journal'
+Assert-True ($inspector.Contains('GooseInspectorChangedCountText') -and
+             $inspector.Contains('Binding IsChangeHighlighted') -and
+             $inspector.Contains('ChangeTooltipText')) 'Inspector shows only unread decoded changes and keeps before/after in tooltips'
+Assert-True (-not $inspector.Contains('Text="CHANGED"') -and
+             -not $inspector.Contains('Text="{Binding ChangeText}"')) 'GOOSE Data values remain one line, no stacked change labels'
+Assert-True ($vmSource.Contains('public bool AcknowledgeInspectedGooseEvent()') -and
+             $vmSource.Contains('private bool GooseInspectorAlertActive =>') -and
+             $vmSource.Contains('ReferenceEquals(_selectedGooseTrafficRow, entry)')) 'One ACK invalidates selected Inspector visual state immediately'
+$windowCode = Get-Content -LiteralPath (Join-Path $Root 'src/ProcessBus.App.Wpf/MainWindow.xaml.cs') -Raw
+Assert-True ($windowCode.Contains('PreviewMouseDown += GooseWindow_PreviewMouseDown') -and
+             $windowCode.Contains('PreviewKeyDown += GooseWindow_PreviewKeyDown')) 'Workspace click/Enter acknowledge current inspected event without suppressing controls'
+Assert-True ($windowCode.Contains('ReferenceEquals(vm.SelectedGooseTrafficRow, history)')) 'Clicking a different history row never pre-ACKs unread evidence'
+Write-Host 'GOOSE tri-pane event contract: PASS (one-line header, decoder evidence, source navigation, single ACK, inspector deltas)'
+# Source unread state must be an Android-style minimal dot, never on-card text
+# or a second notification border. Tooltip retains the count without noise.
+$gooseSourceStart = $source.IndexOf('x:Name="GooseSourceList"')
+$gooseSourceEnd = $source.IndexOf('<!-- Main event timeline:', $gooseSourceStart)
+Assert-True ($gooseSourceStart -ge 0 -and $gooseSourceEnd -gt $gooseSourceStart) 'GOOSE source notification template found'
+$gooseSourceTemplate = $source.Substring($gooseSourceStart, $gooseSourceEnd - $gooseSourceStart)
+Assert-True ($gooseSourceTemplate.Contains('<Ellipse Grid.Column="1"') -and
+             $gooseSourceTemplate.Contains('Fill="#F04E5F"') -and
+             $gooseSourceTemplate.Contains('ToolTip="{Binding UnreadEventText}"') -and
+             $gooseSourceTemplate.Contains('Binding HasUnacknowledgedValueChange')) 'Unread status is one unobtrusive red dot, tooltip only'
+Assert-True (-not $gooseSourceTemplate.Contains('<TextBlock Text="Changed"') -and
+             -not $gooseSourceTemplate.Contains('BorderBrush" Value="#A47D49"')) 'No noisy Changed text or redundant amber card outline'
+Write-Host 'GOOSE source badge contract: PASS (single red dot, unread tooltip, SSOT ACK)'
+Write-Host 'GOOSE acknowledgement UX contract: PASS (paired switches, per-source/event ACK, no timer expiry)'
 Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'

@@ -1,6 +1,8 @@
 name: Dependency security review
 
 on:
+  push:
+    branches: [fix/goose-multisource-filter-20261021]
   pull_request:
     branches: [main]
 
@@ -58,6 +60,7 @@ jobs:
           exit 1
 
   github-dependency-review:
+    if: github.event_name == 'pull_request'
     name: GitHub dependency delta review
     runs-on: ubuntu-latest
     timeout-minutes: 6

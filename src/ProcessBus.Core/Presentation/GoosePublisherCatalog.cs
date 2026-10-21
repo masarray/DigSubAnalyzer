@@ -39,6 +39,66 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     public GoosePublisherKey Key { get; }
     public GooseMessageItem Current { get; private set; }
     public bool IsStale { get; private set; }
+    public DateTime? LastValueChangeUtc { get; private set; }
+    public long ChangeRevision { get; private set; }
+    // Latched notification: decoder evidence is acknowledged only by an
+    // explicit operator action on THIS stable physical publisher key.
+    // Selection/filter/search, snapshot refresh and time never acknowledge it.
+    public bool HasUnacknowledgedValueChange { get; private set; }
+    public int UnreadEventCount { get; private set; }
+    public string UnreadEventText => UnreadEventCount == 1 ? "1 unread change" : $"{UnreadEventCount} unread changes";
+    public string LastValueChangeText => LastValueChangeUtc?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-";
+
+    // The Messages event journal is the authority. The source row is just a
+    // count projection, never a second independently ACK-able state.
+    public void ProjectUnreadEvents(int unreadCount, DateTime? newestEventUtc)
+    {
+        var count = Math.Max(0, unreadCount);
+        if (UnreadEventCount != count)
+        {
+            UnreadEventCount = count;
+            OnPropertyChanged(nameof(UnreadEventCount));
+            OnPropertyChanged(nameof(UnreadEventText));
+        }
+        var unread = count > 0;
+        if (HasUnacknowledgedValueChange != unread)
+        {
+            HasUnacknowledgedValueChange = unread;
+            OnPropertyChanged(nameof(HasUnacknowledgedValueChange));
+        }
+        if (newestEventUtc.HasValue && LastValueChangeUtc != newestEventUtc)
+        {
+            LastValueChangeUtc = newestEventUtc;
+            OnPropertyChanged(nameof(LastValueChangeText));
+        }
+    }
+
+    private Guid _lastChangeSessionId;
+
+    public void MarkDecodedValueChange(DateTime timeUtc, long revision, Guid sessionId = default)
+    {
+        if (sessionId != Guid.Empty && sessionId != _lastChangeSessionId)
+        {
+            _lastChangeSessionId = sessionId;
+            ChangeRevision = 0; // Decoder restart; retain the stable row and ACK state.
+        }
+        if (revision <= ChangeRevision) return;
+        ChangeRevision = revision;
+        LastValueChangeUtc = timeUtc;
+        if (!HasUnacknowledgedValueChange)
+        {
+            HasUnacknowledgedValueChange = true;
+            OnPropertyChanged(nameof(HasUnacknowledgedValueChange));
+        }
+        OnPropertyChanged(nameof(LastValueChangeText));
+    }
+
+    public void AcknowledgeValueChange()
+    {
+        if (!HasUnacknowledgedValueChange) return;
+        HasUnacknowledgedValueChange = false;
+        OnPropertyChanged(nameof(HasUnacknowledgedValueChange));
+    }
     public string GoId => Current.GoId;
     public string GoCbRef => Current.GoCbRef;
     public string AppId => Current.AppId;
@@ -98,7 +158,8 @@ public sealed class GoosePublisherCatalog
     public GoosePublisherRow? Find(GoosePublisherKey? key) =>
         key.HasValue && _byKey.TryGetValue(key.Value, out var row) ? row : null;
 
-    public bool Reconcile(IReadOnlyList<GooseMessageItem> messages, GoosePublisherKey? selected)
+    public bool Reconcile(IReadOnlyList<GooseMessageItem> messages, GoosePublisherKey? selected,
+        IReadOnlySet<GoosePublisherKey>? selectedKeys = null)
     {
         var seen = new HashSet<GoosePublisherKey>();
         var changed = false;
@@ -124,7 +185,7 @@ public sealed class GoosePublisherCatalog
         {
             var row = Rows[i];
             if (seen.Contains(row.Key)) continue;
-            if (selected.HasValue && selected.Value == row.Key)
+            if ((selected.HasValue && selected.Value == row.Key) || selectedKeys?.Contains(row.Key) == true)
             {
                 row.MarkStale();
                 continue;
