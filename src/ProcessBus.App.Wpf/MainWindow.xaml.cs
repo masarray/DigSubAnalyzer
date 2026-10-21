@@ -297,6 +297,9 @@ public partial class MainWindow : Window
             sender is not ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
             return;
 
+        // This click ACKs exactly this physical publisher's decoded signal changes.
+        // Modifier/range selection never ACKs any other source in the set.
+        vm.AcknowledgeGooseSource(row.Key);
         var next = vm.SelectedGooseSourceKeys.ToHashSet();
         var modifiers = Keyboard.Modifiers;
         var shift = modifiers.HasFlag(ModifierKeys.Shift);
@@ -347,10 +350,12 @@ public partial class MainWindow : Window
 
     private void GooseSourceList_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Space || DataContext is not MainWindowViewModel vm ||
-            GooseSourceList.ItemContainerGenerator.ContainerFromItem(GooseSourceList.SelectedItem) is not ListViewItem ||
+        if (e.Key is not (Key.Space or Key.Enter) || DataContext is not MainWindowViewModel vm ||
             GooseSourceList.SelectedItem is not ProcessBus.Core.Presentation.GoosePublisherRow row)
             return;
+        // Space toggles membership and ACKs; Enter ACKs the focused source only.
+        vm.AcknowledgeGooseSource(row.Key);
+        if (e.Key == Key.Enter) { e.Handled = true; return; }
         var next = vm.SelectedGooseSourceKeys.ToHashSet();
         if (!next.Add(row.Key)) next.Remove(row.Key);
         vm.SetGooseSourceSelection(next);
@@ -381,6 +386,21 @@ public partial class MainWindow : Window
     {
         SuspendGooseFollowFromOperator();
         DeferGooseTrafficFlush();
+        if (e.ChangedButton != MouseButton.Left) return;
+
+        // ACK only the row that was actually clicked, not the selected item in
+        // the VM: that item may still reference an earlier pinned history event.
+        // Never ACK all rows, nor ACK on passive streaming/virtualized recycling.
+        for (var node = e.OriginalSource as DependencyObject;
+             node is not null && !ReferenceEquals(node, GooseMessageGrid);
+             node = VisualTreeHelper.GetParent(node))
+        {
+            if (node is DataGridRow { DataContext: GooseTrafficRow history })
+            {
+                history.Acknowledge();
+                return;
+            }
+        }
     }
 
     private bool _gooseFollowScrollScheduled;
@@ -406,8 +426,17 @@ public partial class MainWindow : Window
     private void GooseMessageGrid_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key is Key.Up or Key.Down or Key.Home or Key.End or
-            Key.PageUp or Key.PageDown or Key.Space or Key.Left or Key.Right)
+            Key.PageUp or Key.PageDown or Key.Space or Key.Left or Key.Right or Key.Enter)
             SuspendGooseFollowFromOperator();
+
+        // Accessible keyboard acknowledgement of the explicitly focused event.
+        // Directional navigation suspends follow but does not ACK history.
+        if (e.Key is Key.Enter or Key.Space &&
+            GooseMessageGrid.SelectedItem is GooseTrafficRow selected)
+        {
+            selected.Acknowledge();
+            e.Handled = true;
+        }
     }
 
     private static T? FindGooseVisualChild<T>(DependencyObject root) where T : DependencyObject
