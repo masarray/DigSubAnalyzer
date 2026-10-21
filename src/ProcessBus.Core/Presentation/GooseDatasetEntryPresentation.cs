@@ -9,6 +9,6 @@ public static class GooseDatasetEntryPresentation
 {
     public static string ResolveName(int index, string? matchedSclSignal)
         => string.IsNullOrWhiteSpace(matchedSclSignal)
-            ? $"Entry {index}"
+            ? $"Data item {index}"
             : matchedSclSignal.Trim();
 }
