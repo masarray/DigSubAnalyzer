@@ -1001,12 +1001,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var item = GooseInspectorMessage;
             if (item is null)
-                return "Choose a sending device for current values or a message for recorded values.";
+                return "Select a source or message";
             if (_gooseInspectHistoricalEvent)
-                return $"Recorded message at {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · values captured at that time";
+                return $"Captured {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff}";
             return IsGooseSelectedPublisherStale
-                ? $"No recent messages · last received {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff}"
-                : "Receiving messages · showing the latest recorded values";
+                ? $"Last seen {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff}"
+                : string.Empty;
         }
     }
 
