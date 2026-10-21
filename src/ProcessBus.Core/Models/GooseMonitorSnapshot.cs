@@ -3,7 +3,10 @@ using ProcessBus.Core.Presentation;
 namespace ProcessBus.Core.Models;
 
 // Bounded decoder-side evidence, independent of the UI snapshot cadence.
-public sealed record GooseValueChangeEvent(GoosePublisherKey PublisherKey, long Revision, DateTime TimeUtc);
+// The exact decoded frame is retained with its verified per-entry deltas.
+// A snapshot of the publisher's latest value cannot reconstruct this evidence.
+public sealed record GooseValueChangeEvent(
+    GoosePublisherKey PublisherKey, long Revision, DateTime TimeUtc, GooseMessageItem Frame);
 
 public sealed class GooseMonitorSnapshot
 {
