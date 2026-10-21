@@ -3268,37 +3268,46 @@
                                                           IsExpanded="{Binding GooseMessageExpanded, Mode=TwoWay}"
                                                           HorizontalAlignment="Stretch">
                                                     <Expander.Header>
-                                                        <TextBlock Text="Message" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+                                                        <TextBlock Text="Details" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
                                                     </Expander.Header>
-                                                    <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="112"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Message name" ToolTip="Original GOOSE ID (goID) field" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoId}" Foreground="#F4FAFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Control block" ToolTip="Sending control block reference (goCbRef)" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoCbRef}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Application code" ToolTip="APPID field: identifies this GOOSE message group" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.AppId}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="State number"
-                                                               ToolTip="State number (stNum): increments when publisher state changes"
-                                                               Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.StNum}"
-                                                               Foreground="#DDEEFF" FontWeight="SemiBold" Margin="0,3,0,3"/>
-                                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Sequence number"
-                                                               ToolTip="Sequence number (sqNum): identifies repetitions within a state"
-                                                               Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.SqNum}"
-                                                               Foreground="#DDEEFF" FontWeight="SemiBold" Margin="0,3,0,3"/>
-                                                </Grid>
+                                                                                                        <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="160"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Control Block reference"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoCbRef}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Application ID"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.AppId}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="GOOSE ID"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.GoId}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Status number"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.StNum}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Sequence number"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.SqNum}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Entry time"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorEntryTimeText}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                    </Grid>
                                                 </Expander>
                                             </Border>
 
@@ -3324,9 +3333,9 @@
                                                         <TextBlock Text="Network" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
                                                     </Expander.Header>
                                                     <StackPanel>
-                                                    <Grid>
+                                                                                                        <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="112"/>
+                                                            <ColumnDefinition Width="160"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <Grid.RowDefinitions>
@@ -3337,29 +3346,45 @@
                                                             <RowDefinition Height="Auto"/>
                                                             <RowDefinition Height="Auto"/>
                                                             <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
                                                         </Grid.RowDefinitions>
-                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Sender address" ToolTip="Original Ethernet source MAC address" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.SourceMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Group address" ToolTip="Destination Ethernet multicast MAC address" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.DestinationMac}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Network group" ToolTip="VLAN ID and network priority" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="2" Grid.Column="1" Foreground="#DDEEFF" Margin="0,3,0,3">
-                                                            <TextBlock.Text>
-                                                                <MultiBinding StringFormat="{}ID {0} · Priority {1}">
-                                                                    <Binding Path="GooseInspectorMessage.VlanId"/>
-                                                                    <Binding Path="GooseInspectorMessage.VlanPriority"/>
-                                                                </MultiBinding>
-                                                            </TextBlock.Text>
-                                                        </TextBlock>
-                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Published data" ToolTip="Full DataSet reference identifying the group of transmitted values" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.DataSet}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Configuration" ToolTip="Configuration version carried in the message (confRev)" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.ConfRev}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Allowed wait" ToolTip="Time allowed to live in milliseconds: how long a receiver can wait for another message" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorMessage.TimeAllowedToLiveMilliseconds, StringFormat={}{0} ms}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Message flags" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding GooseInspectorFlagsText}"
-                                                                   Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Destination MAC address"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GooseInspectorMessage.DestinationMac}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Source MAC address"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GooseInspectorMessage.SourceMac}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="DataSet reference"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GooseInspectorMessage.DataSet}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="VLAN ID"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.VlanId}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="VLAN priority"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.VlanPriority}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Needs commissioning"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorNeedsCommissioningText}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Configuration revision"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding GooseInspectorMessage.ConfRev}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Simulation/Test"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GooseInspectorSimulationTestText}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
+                                                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Time allowed to live (ms)"
+                                                                   Foreground="#8DB0CA" FontSize="11" TextWrapping="Wrap" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding GooseInspectorMessage.TimeAllowedToLiveMilliseconds}"
+                                                                   Foreground="#E5F2FC" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,3"/>
                                                     </Grid>
                                                 </StackPanel>
                                                 </Expander>
@@ -3385,7 +3410,7 @@
                                                     <Expander.Header>
                                                         <Grid>
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <TextBlock Text="Values" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+    <TextBlock Text="Data" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
     <TextBlock Grid.Column="1" Margin="10,0,3,0"
                Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} items}"
                Foreground="#9ABCD5" FontSize="10.5" VerticalAlignment="Center"/>
@@ -3422,9 +3447,9 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="160"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="SIGNAL OR DATA ITEM" FontSize="10"
+                                                        <TextBlock Grid.Column="0" Text="Name" FontSize="10"
                                                                    Foreground="#7D9DB6" FontWeight="SemiBold"/>
-                                                        <TextBlock Grid.Column="1" Text="RECEIVED VALUE" FontSize="10"
+                                                        <TextBlock Grid.Column="1" Text="Value" FontSize="10"
                                                                    Foreground="#7D9DB6" FontWeight="SemiBold"
                                                                    TextAlignment="Right" Margin="0,0,8,0"/>
                                                     </Grid>
@@ -3441,16 +3466,13 @@
                                                                                 <ColumnDefinition Width="*"/>
                                                                                 <ColumnDefinition Width="154"/>
                                                                             </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding IndexText}"
-                                                                                       Foreground="#7699B9" FontSize="10.5"
-                                                                                       VerticalAlignment="Center"/>
+
                                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center"
                                                                                         Margin="0,0,7,0">
                                                                                 <TextBlock Text="{Binding NameText}" FontSize="11.5"
                                                                                            Foreground="#EAF6FF" FontWeight="Medium"
                                                                                            TextTrimming="CharacterEllipsis"/>
-                                                                                <TextBlock Text="{Binding TypeText}" FontSize="10"
-                                                                                           Foreground="#7E9FB9" TextTrimming="CharacterEllipsis"/>
+
                                                                             </StackPanel>
                                                                             <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                                                 <TextBlock Text="{Binding DisplayValueText}"
@@ -3484,22 +3506,22 @@
                                                                                 <RowDefinition Height="Auto"/>
                                                                                 <RowDefinition Height="Auto"/>
                                                                             </Grid.RowDefinitions>
-                                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Signal / item"
+                                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Name"
                                                                                        Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
                                                                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NameText}"
                                                                                        Foreground="#E7F3FF" FontSize="11" TextWrapping="Wrap"
                                                                                        Margin="0,2,0,2" ToolTip="{Binding NameText}"/>
-                                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Value kind"
+                                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Type"
                                                                                        Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
                                                                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TypeText}"
                                                                                        Foreground="#B9D3E8" FontSize="10.5" TextWrapping="Wrap"
                                                                                        Margin="0,2,0,2"/>
-                                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Received value"
+                                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Value"
                                                                                        Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
                                                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ValueText}"
                                                                                        Foreground="#E7F3FF" FontSize="11" FontFamily="Consolas"
                                                                                        TextWrapping="Wrap" Margin="0,2,0,2"/>
-                                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Original bytes" ToolTip="Hexadecimal representation of the captured MMS data"
+                                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Raw data" ToolTip="Hexadecimal representation of the captured MMS data"
                                                                                        Foreground="#779EB9" FontSize="10.5" Margin="0,2,8,2"/>
                                                                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RawHexDisplayText}"
                                                                                        Foreground="#C2D9E9" FontSize="11" FontFamily="Consolas"
