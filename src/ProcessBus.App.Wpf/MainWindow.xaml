@@ -1307,7 +1307,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0"
-                                           Text="GOOSE Sending Devices"
+                                           Text="GOOSE Sources"
                                            Foreground="#F4FAFF"
                                            FontSize="15"
                                            FontWeight="SemiBold"
@@ -1321,7 +1321,7 @@
                             </Grid>
 
                             <StackPanel Grid.Row="1" Margin="{StaticResource WorkspacePanelGapBelow}">
-                                <TextBlock Text="Find a device or message"
+                                <TextBlock Text="Search name or address"
                                            Foreground="#7FA8CC"
                                            FontSize="10.5"
                                            FontWeight="SemiBold"
@@ -1401,7 +1401,7 @@
                             </Grid>
 
                             <StackPanel Grid.Row="3">
-                                <TextBlock Text="Detected sending devices"
+                                <TextBlock Text="Sending devices"
                                            Foreground="#7FA8CC"
                                            FontSize="10.5"
                                            FontWeight="SemiBold"
@@ -1499,7 +1499,7 @@
                                                            FontSize="10.5"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}{0} · st/sq {1}/{2}">
+                                                        <MultiBinding StringFormat="{}App {0} · State {1} · Seq {2}">
                                                             <Binding Path="AppId"/>
                                                             <Binding Path="StNum"/>
                                                             <Binding Path="SqNum"/>
@@ -3417,10 +3417,32 @@
                                                                    VerticalAlignment="Center"/>
                                                     </Grid>
                                                     <TextBlock Text="{Binding SelectedGooseSemanticText}"
-                                                               Foreground="#8FAAC3"
+                                                               Foreground="#A1BED4"
                                                                FontSize="11"
                                                                TextWrapping="Wrap"
-                                                               Margin="0,0,0,10"/>
+                                                               Margin="0,0,0,5"/>
+                                                    <Button Content="Identify these signals in the Configuration tab"
+                                                            Command="{Binding GooseOpenConfigurationCommand}"
+                                                            Foreground="#81C9F7"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            HorizontalAlignment="Left"
+                                                            HorizontalContentAlignment="Left"
+                                                            Padding="0,1"
+                                                            FontSize="10.5"
+                                                            Cursor="Hand"
+                                                            Margin="0,0,0,7">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding GooseSignalNamesUnavailable}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
 
                                                     <!-- Name/value pairs keep raw typed data readable even without SCL.
                                                          Expanded rows reveal protocol evidence and verified quality. -->
