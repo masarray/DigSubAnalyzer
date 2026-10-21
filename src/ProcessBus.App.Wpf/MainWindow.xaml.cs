@@ -266,14 +266,88 @@ public partial class MainWindow : Window
         GooseSourceSearchBox.Focus();
     }
 
+    private bool _syncingGooseSourceSelection;
+    private ProcessBus.Core.Presentation.GoosePublisherKey? _gooseSourceRangeAnchor;
+
     private void GoosePublisherRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // WPF SelectionChanged does not fire when the operator clicks an item
-        // that is already selected. The explicit click still means "inspect live"
-        // after a historical timeline event had been pinned.
-        if (DataContext is MainWindowViewModel viewModel &&
-            sender is ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
-            viewModel.SelectedGoosePublisherRow = row;
+        if (DataContext is not MainWindowViewModel vm ||
+            sender is not ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
+            return;
+
+        var next = vm.SelectedGooseSourceKeys.ToHashSet();
+        var modifiers = Keyboard.Modifiers;
+        var shift = modifiers.HasFlag(ModifierKeys.Shift);
+        var control = modifiers.HasFlag(ModifierKeys.Control);
+        if (shift && _gooseSourceRangeAnchor.HasValue)
+        {
+            var visible = GooseSourceList.Items.OfType<ProcessBus.Core.Presentation.GoosePublisherRow>().ToList();
+            var start = visible.FindIndex(item => item.Key == _gooseSourceRangeAnchor.Value);
+            var finish = visible.FindIndex(item => item.Key == row.Key);
+            if (start >= 0 && finish >= 0)
+            {
+                if (!control) next.Clear();
+                foreach (var item in visible.Skip(Math.Min(start, finish)).Take(Math.Abs(start - finish) + 1))
+                    next.Add(item.Key);
+            }
+            else next.Add(row.Key);
+        }
+        else if (control)
+        {
+            if (!next.Add(row.Key)) next.Remove(row.Key);
+        }
+        else
+        {
+            var onlySelected = next.Count == 1 && next.Contains(row.Key);
+            next.Clear();
+            if (!onlySelected) next.Add(row.Key);
+        }
+        if (!shift) _gooseSourceRangeAnchor = row.Key;
+        vm.SetGooseSourceSelection(next, !shift && !control && next.Contains(row.Key) ? row : null);
+        SyncGooseSourceVisualSelection();
+        e.Handled = true;
+        ((ListViewItem)sender).Focus();
+    }
+
+    private void GooseSourceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingGooseSourceSelection || DataContext is not MainWindowViewModel vm)
+            return;
+        // Native keyboard selection is supported; a filtered-out selection is
+        // not an operator deselection and must survive in stable key storage.
+        var next = vm.SelectedGooseSourceKeys.ToHashSet();
+        foreach (ProcessBus.Core.Presentation.GoosePublisherRow row in e.RemovedItems)
+            if (GooseSourceList.Items.Contains(row)) next.Remove(row.Key);
+        foreach (ProcessBus.Core.Presentation.GoosePublisherRow row in e.AddedItems)
+            next.Add(row.Key);
+        vm.SetGooseSourceSelection(next);
+    }
+
+    private void GooseSourceList_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Space || DataContext is not MainWindowViewModel vm ||
+            GooseSourceList.ItemContainerGenerator.ContainerFromItem(GooseSourceList.SelectedItem) is not ListViewItem ||
+            GooseSourceList.SelectedItem is not ProcessBus.Core.Presentation.GoosePublisherRow row)
+            return;
+        var next = vm.SelectedGooseSourceKeys.ToHashSet();
+        if (!next.Add(row.Key)) next.Remove(row.Key);
+        vm.SetGooseSourceSelection(next);
+        SyncGooseSourceVisualSelection();
+        e.Handled = true;
+    }
+
+    private void SyncGooseSourceVisualSelection()
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        _syncingGooseSourceSelection = true;
+        try
+        {
+            GooseSourceList.SelectedItems.Clear();
+            foreach (ProcessBus.Core.Presentation.GoosePublisherRow item in GooseSourceList.Items)
+                if (vm.SelectedGooseSourceKeys.Contains(item.Key))
+                    GooseSourceList.SelectedItems.Add(item);
+        }
+        finally { _syncingGooseSourceSelection = false; }
     }
 
     private void GooseTraffic_Interaction(object sender, MouseEventArgs e)
