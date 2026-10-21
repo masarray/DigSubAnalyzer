@@ -1,3 +1,72 @@
+
+// Public release discovery. GitHub /releases/latest excludes prereleases and
+// drafts. Every anchor already has a working direct stable EXE fallback in HTML,
+// so API outages, offline use, rate limits, and disabled JavaScript never send
+// a user to an obsolete "portable ZIP" CTA or a CI artifact.
+const releaseApi = 'https://api.github.com/repos/masarray/DigSubAnalyzer/releases/latest';
+const releaseAssetRoot = 'https://github.com/masarray/DigSubAnalyzer/releases/download/';
+const releaseFilename = /^ProcessBusInsight-v\d+\.\d+\.\d+-win-x64-(setup\.exe|portable\.zip)$/;
+const checksumFilename = 'SHA256SUMS.txt';
+
+function safeReleaseAsset(asset, tag) {
+  if (!asset || typeof asset.name !== 'string' || typeof asset.browser_download_url !== 'string') return false;
+  if (!(releaseFilename.test(asset.name) || asset.name === checksumFilename)) return false;
+  const prefix = `${releaseAssetRoot}${tag}/`;
+  return asset.browser_download_url === prefix + asset.name;
+}
+
+function setReleaseLinks(kind, url) {
+  document.querySelectorAll(`[data-release-download="${kind}"]`).forEach((anchor) => {
+    anchor.href = url;
+  });
+}
+
+function applyLatestStableRelease(release) {
+  if (!release || release.draft || release.prerelease ||
+      !/^v\d+\.\d+\.\d+$/.test(release.tag_name) || !Array.isArray(release.assets)) return;
+
+  const tag = release.tag_name;
+  const assets = release.assets.filter((asset) => safeReleaseAsset(asset, tag));
+  const exe = assets.find((asset) => asset.name === `ProcessBusInsight-${tag}-win-x64-setup.exe`);
+  if (!exe) return; // Never direct the primary button to ZIP or a nonexistent asset.
+  const portable = assets.find((asset) => asset.name === `ProcessBusInsight-${tag}-win-x64-portable.zip`);
+  const checksum = assets.find((asset) => asset.name === checksumFilename);
+  const releasePage = `https://github.com/masarray/DigSubAnalyzer/releases/tag/${tag}`;
+
+  setReleaseLinks('installer', exe.browser_download_url);
+  if (portable) setReleaseLinks('portable', portable.browser_download_url);
+  if (checksum) setReleaseLinks('checksum', checksum.browser_download_url);
+  document.querySelectorAll('[data-release-page]').forEach((link) => { link.href = releasePage; });
+  document.querySelectorAll('[data-release-version]').forEach((label) => {
+    label.textContent = `Stable ${tag}`;
+  });
+
+  // Keep structured download metadata coherent for crawlers that execute JS.
+  const structured = document.querySelector('script[type="application/ld+json"]');
+  if (structured) {
+    try {
+      const data = JSON.parse(structured.textContent);
+      if (data['@type'] === 'SoftwareApplication') {
+        data.softwareVersion = tag.slice(1);
+        data.downloadUrl = exe.browser_download_url;
+        structured.textContent = JSON.stringify(data);
+      }
+    } catch { /* Noncritical metadata; keep the static stable fallback. */ }
+  }
+}
+
+if (document.querySelector('[data-release-download="installer"]')) {
+  fetch(releaseApi, {
+    headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store'
+  }).then((response) => {
+    if (!response.ok) throw new Error('GitHub latest release not accessible');
+    return response.json();
+  }).then(applyLatestStableRelease).catch(() => {
+    // HTML already points directly to verified v1.4.2 EXE.
+  });
+}
+
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const header = document.querySelector('[data-header]');
 const progressBar = document.querySelector('.scroll-progress');
