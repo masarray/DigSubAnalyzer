@@ -3086,45 +3086,33 @@
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
 
+                                        <!-- One horizontal header; scope/counters stay inline, no second row. -->
                                         <Grid Grid.Row="0">
-                                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Messages"
-                                                       Foreground="#F4FAFF" FontSize="16" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center"/>
-                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="Messages" Foreground="#F4FAFF"
+                                                           FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding GooseTimelineCountersText}"
+                                                           Foreground="#7BD8FF" FontSize="10.5" Margin="10,0,4,0"
+                                                           VerticalAlignment="Center"
+                                                           ToolTip="{Binding GooseValueChangeLossText}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <TextBlock Text="Show repeats" Foreground="#C6DDED" FontSize="11"
-                                                           Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                                           Margin="0,0,6,0" VerticalAlignment="Center"/>
                                                 <ToggleButton Style="{StaticResource GooseHeaderSwitchStyle}"
                                                               IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"
-                                                              ToolTip="Show repeated GOOSE messages without changing capture"
+                                                              ToolTip="Show repeated GOOSE messages"
                                                               AutomationProperties.Name="Show repeats"/>
                                                 <TextBlock Text="Follow live" Foreground="#C6DDED" FontSize="11"
-                                                           Margin="13,0,7,0" VerticalAlignment="Center"/>
+                                                           Margin="12,0,6,0" VerticalAlignment="Center"/>
                                                 <ToggleButton Style="{StaticResource GooseHeaderSwitchStyle}"
                                                               IsChecked="{Binding GooseFollowLive, Mode=TwoWay}"
                                                               ToolTip="{Binding GooseFollowButtonText}"
                                                               AutomationProperties.Name="Follow live"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,5,6,0"
-                                                       Text="{Binding GooseTimelineCountersText}" TextTrimming="CharacterEllipsis"
-                                                       Foreground="#7BD8FF" FontSize="11" VerticalAlignment="Center"
-                                                       ToolTip="{Binding GooseValueChangeLossText}"/>
-                                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"
-                                                        Margin="0,4,0,0" VerticalAlignment="Center">
-                                                <Button Content="Clear filter" Command="{Binding GooseClearSourceSelectionCommand}"
-                                                        Margin="0,0,6,0" Padding="6,2" FontSize="10.5"
-                                                        ToolTip="{Binding GooseSourceScopeText}">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers><DataTrigger Binding="{Binding GooseSourceFilterActive}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger></Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
-
                                             </StackPanel>
                                         </Grid>
 
@@ -3478,9 +3466,24 @@
                                                         <Grid>
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <TextBlock Text="Data" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
-    <TextBlock Grid.Column="1" Margin="10,0,3,0"
-               Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} items}"
-               Foreground="#9ABCD5" FontSize="10.5" VerticalAlignment="Center"/>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,3,0">
+        <TextBlock Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} items}"
+                   Foreground="#9ABCD5" FontSize="10.5" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding GooseInspectorChangedCountText}"
+                   Foreground="#F1C67D" FontSize="10.5" Margin="9,0,0,0"
+                   VerticalAlignment="Center" ToolTip="Values verified as changed in this captured message">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding GooseInspectorHasChangedValues}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+    </StackPanel>
 </Grid>
                                                     </Expander.Header>
                                                     <StackPanel>
@@ -3523,9 +3526,19 @@
                                                     <ItemsControl ItemsSource="{Binding GooseInspectorRows}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Expander Style="{StaticResource GooseDatasetExpanderStyle}"
-                                                                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                                                <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                                                           Margin="0,0,0,2" ToolTip="{Binding NameText}">
+                                                                    <Expander.Style>
+                                                                        <Style TargetType="Expander" BasedOn="{StaticResource GooseDatasetExpanderStyle}">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                                                                    <Setter Property="Background" Value="#233A48"/>
+                                                                                    <Setter Property="BorderBrush" Value="#E4B464"/>
+                                                                                    <Setter Property="BorderThickness" Value="3,0,0,1"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Expander.Style>
                                                                     <Expander.Header>
                                                                         <Grid MinHeight="38" HorizontalAlignment="Stretch">
                                                                             <Grid.ColumnDefinitions>
@@ -3542,6 +3555,19 @@
 
                                                                             </StackPanel>
                                                                             <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                                                <TextBlock Text="CHANGED" Foreground="#F6C681" FontSize="9"
+                                                                                           HorizontalAlignment="Right" Margin="0,0,0,1">
+                                                                                    <TextBlock.Style>
+                                                                                        <Style TargetType="TextBlock">
+                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </TextBlock.Style>
+                                                                                </TextBlock>
                                                                                 <TextBlock Text="{Binding DisplayValueText}"
                                                                                            FontFamily="Consolas, Segoe UI"
                                                                                            Foreground="{Binding ValueBrush}" FontSize="11.5"
