@@ -4855,6 +4855,7 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
     public string NameText => _current.NameText;
     public string TypeText => _current.TypeText;
     public string SemanticText => _current.SemanticText;
+    public string TypeSourceText => $"{_current.TypeText} · {_current.SemanticText}";
     public string ValueText => _current.ValueText;
     public string DisplayValueText => _current.DisplayValueText;
     public string RawHexDisplayText => _current.RawHexDisplayText;
