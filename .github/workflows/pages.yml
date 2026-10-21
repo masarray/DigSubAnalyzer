@@ -37,6 +37,13 @@ jobs:
           test -f docs/screenshot/analyzer-overview.webp
           grep -q 'Process Bus Insight' docs/index.html
 
+      - name: Validate latest stable EXE download contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-landing-release.py
+          node --check docs/app.js
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
