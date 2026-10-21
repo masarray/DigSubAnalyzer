@@ -315,8 +315,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             if (!IsRunning)
                 return "GOOSE capture stopped  •  Last received values kept for inspection";
             var testCount = _gooseMessages.Count(x => x.IsTest);
-            return $"GOOSE  •  {_gooseMessages.Count} sending device(s)  •  {_gooseSnapshot.TotalMessages:N0} messages received" +
-                (testCount > 0 ? $"  •  {testCount} device(s) sending test messages" : string.Empty);
+            return "GOOSE capture active" +
+                (testCount > 0 ? $"  •  {testCount} TEST source(s)" : string.Empty);
         }
     }
 
@@ -4689,7 +4689,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         if (string.Equals(goose.ChangedSummaryText, "Initial DataSet baseline", StringComparison.Ordinal))
-            return "First message received — initial values";
+            return "Initial values";
         return string.IsNullOrWhiteSpace(goose.ChangedSummaryText) ||
                string.Equals(goose.ChangedSummaryText, "N/A", StringComparison.OrdinalIgnoreCase)
             ? "No value changes observed"
