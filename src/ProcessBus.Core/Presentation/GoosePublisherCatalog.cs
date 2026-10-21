@@ -45,7 +45,33 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     // explicit operator action on THIS stable physical publisher key.
     // Selection/filter/search, snapshot refresh and time never acknowledge it.
     public bool HasUnacknowledgedValueChange { get; private set; }
+    public int UnreadEventCount { get; private set; }
+    public string UnreadEventText => UnreadEventCount == 1 ? "1 unread change" : $"{UnreadEventCount} unread changes";
     public string LastValueChangeText => LastValueChangeUtc?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-";
+
+    // The Messages event journal is the authority. The source row is just a
+    // count projection, never a second independently ACK-able state.
+    public void ProjectUnreadEvents(int unreadCount, DateTime? newestEventUtc)
+    {
+        var count = Math.Max(0, unreadCount);
+        if (UnreadEventCount != count)
+        {
+            UnreadEventCount = count;
+            OnPropertyChanged(nameof(UnreadEventCount));
+            OnPropertyChanged(nameof(UnreadEventText));
+        }
+        var unread = count > 0;
+        if (HasUnacknowledgedValueChange != unread)
+        {
+            HasUnacknowledgedValueChange = unread;
+            OnPropertyChanged(nameof(HasUnacknowledgedValueChange));
+        }
+        if (newestEventUtc.HasValue && LastValueChangeUtc != newestEventUtc)
+        {
+            LastValueChangeUtc = newestEventUtc;
+            OnPropertyChanged(nameof(LastValueChangeText));
+        }
+    }
 
     private Guid _lastChangeSessionId;
 
