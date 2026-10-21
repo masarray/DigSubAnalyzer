@@ -3090,7 +3090,7 @@
                                                     </DataGridTextColumn.ElementStyle>
                                                 </DataGridTextColumn>
 
-                                                <DataGridTextColumn Header="Gap (ms)" Binding="{Binding DeltaText}" Width="65">
+                                                <DataGridTextColumn Header="Gap (ms)" Binding="{Binding DeltaText}" Width="84">
                                                     <DataGridTextColumn.ElementStyle>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="VerticalAlignment" Value="Center"/>
