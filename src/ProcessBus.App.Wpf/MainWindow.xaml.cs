@@ -452,7 +452,7 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(new Action(() =>
         {
             _gooseFollowScrollScheduled = false;
-            if (DataContext is not MainWindowViewModel { GooseFollowLive: true } vm ||
+            if (DataContext is not MainWindowViewModel vm || !vm.GooseFollowLive ||
                 !GooseMessageGrid.IsVisible) return;
             var last = vm.GooseLatestVisibleTrafficRow;
             if (last is not null) GooseMessageGrid.ScrollIntoView(last);
