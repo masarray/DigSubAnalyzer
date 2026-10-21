@@ -217,6 +217,19 @@ Assert-True ($windowCode.Contains('PreviewMouseDown += GooseWindow_PreviewMouseD
              $windowCode.Contains('PreviewKeyDown += GooseWindow_PreviewKeyDown')) 'Workspace click/Enter acknowledge current inspected event without suppressing controls'
 Assert-True ($windowCode.Contains('ReferenceEquals(vm.SelectedGooseTrafficRow, history)')) 'Clicking a different history row never pre-ACKs unread evidence'
 Write-Host 'GOOSE tri-pane event contract: PASS (one-line header, decoder evidence, source navigation, single ACK, inspector deltas)'
+# Source unread state must be an Android-style minimal dot, never on-card text
+# or a second notification border. Tooltip retains the count without noise.
+$gooseSourceStart = $source.IndexOf('x:Name="GooseSourceList"')
+$gooseSourceEnd = $source.IndexOf('<!-- Main event timeline:', $gooseSourceStart)
+Assert-True ($gooseSourceStart -ge 0 -and $gooseSourceEnd -gt $gooseSourceStart) 'GOOSE source notification template found'
+$gooseSourceTemplate = $source.Substring($gooseSourceStart, $gooseSourceEnd - $gooseSourceStart)
+Assert-True ($gooseSourceTemplate.Contains('<Ellipse Grid.Column="1"') -and
+             $gooseSourceTemplate.Contains('Fill="#F04E5F"') -and
+             $gooseSourceTemplate.Contains('ToolTip="{Binding UnreadEventText}"') -and
+             $gooseSourceTemplate.Contains('Binding HasUnacknowledgedValueChange')) 'Unread status is one unobtrusive red dot, tooltip only'
+Assert-True (-not $gooseSourceTemplate.Contains('<TextBlock Text="Changed"') -and
+             -not $gooseSourceTemplate.Contains('BorderBrush" Value="#A47D49"')) 'No noisy Changed text or redundant amber card outline'
+Write-Host 'GOOSE source badge contract: PASS (single red dot, unread tooltip, SSOT ACK)'
 Write-Host 'GOOSE acknowledgement UX contract: PASS (paired switches, per-source/event ACK, no timer expiry)'
 Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
