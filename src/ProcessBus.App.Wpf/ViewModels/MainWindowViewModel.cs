@@ -955,6 +955,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
 
+    public string GooseInspectorFlagsText
+    {
+        get
+        {
+            var message = GooseInspectorMessage;
+            if (message is null)
+                return "No message selected";
+            return $"Test message: {(message.IsTest ? "Yes" : "No")} · " +
+                   $"Needs commissioning: {(message.NeedsCommission ? "Yes" : "No")}";
+        }
+    }
+
     public bool GooseSignalNamesUnavailable
     {
         get
@@ -1044,6 +1056,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SelectedGooseMessage));
         OnPropertyChanged(nameof(GooseInspectorMessage));
         OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
+        OnPropertyChanged(nameof(GooseInspectorFlagsText));
         OnPropertyChanged(nameof(GooseInspectorModeText));
         OnPropertyChanged(nameof(GooseInspectorModeBadgeText));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
