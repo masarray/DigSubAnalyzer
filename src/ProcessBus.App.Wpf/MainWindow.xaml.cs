@@ -440,8 +440,12 @@ public partial class MainWindow : Window
     private void GooseMessagesGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
         SuspendGooseFollow();
 
-    private void GooseMessagesGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e) =>
+    private void GooseMessagesGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // Preserve the pre-existing bounded operator-interaction flush deferral.
+        DeferGooseTrafficFlush();
         SuspendGooseFollow();
+    }
 
     private void GooseMessagesGrid_PreviewKeyDown(object sender, KeyEventArgs e)
     {
