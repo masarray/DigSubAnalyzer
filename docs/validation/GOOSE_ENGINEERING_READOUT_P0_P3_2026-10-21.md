@@ -38,3 +38,11 @@ Windows repository health, workspace layout/source contract, full .NET solution 
 At 1366×768, 1586×893 and 1920×1080 (where available) under 100%, 125%, and 150% display scaling: inspect normal/expanded DataSet rows without clipping, confirm chevron click and keyboard toggle, tab through TEST/LIVE/PINNED/STALE indicators, select multiple GOOSE publishers during continuous retransmissions, pin events, click Return to Live, use filter search/GOOSE ID with no selection loss, and observe updates with real or recorded GOOSE traffic. Import a matching SCL and verify genuine signal/quality mappings, then repeat without SCL to confirm raw-only fallback.
 
 **Acceptance boundary:** a successful automated CI build does not prove physical UI readability or IEC 61850 interoperability at a specific field installation. Keep candidate publication and branch promotion separate from this manual sign-off.
+
+## Follow-up: operator screenshot inspection, expanded raw MMS entries
+
+Three operator screenshots of the P0–P3 candidate demonstrate selection stability during reception and successful simultaneous expansion of two typed DataSet entries. They also reveal three visual defects: DataSet title/count running together, the Inspector context disappearing when the entire pane scrolls, and unnecessarily tall expanded MMS details.
+
+The targeted follow-up uses a fixed Inspector header row (including PINNED/TEST and Return to Live), a single scrolling evidence region, an explicitly aligned DataSet title/count grid, and compact key/value MMS details. These corrections do not alter packet reception, GOOSE state matching, generic typed decoding, or the 8-DIP workspace gutter.
+
+Required physical acceptance: expand two entries, scroll to the bottom and back, confirm the Inspector mode and Return to Live remain visible throughout; confirm the DataSet count does not touch the title at 100%, 125%, 150% DPI; verify selecting a different publisher or returning to Live changes Inspector context correctly without replacing unrelated publisher rows.
