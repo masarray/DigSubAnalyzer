@@ -32,6 +32,14 @@ Or with GitHub CLI:
 gh repo edit masarray/DigSubAnalyzer --default-branch main --delete-branch-on-merge=true
 ```
 
+## Latest stable Windows installer
+
+The landing page must lead with a **direct installer .exe** link, never an Actions artifact or the portable ZIP. At deployment time, all three primary download links (header, hero, and Download card) have a stable `v1.4.2` asset fallback. `docs/app.js` queries GitHub `/releases/latest` client-side and upgrades the buttons to the latest non-draft, non-prerelease version **only if** its matching `ProcessBusInsight-vX.Y.Z-win-x64-setup.exe` asset exists. Missing API access retains the already-published fallback.
+
+The portable ZIP, SHA256 checksum, and release notes remain secondary links. `scripts/verify-landing-release.py` checks that the pinned fallback matches `Directory.Build.props`, that structured metadata/README are synchronized and that no primary CTA silently sends engineers to ZIP or the Releases list. The Pages workflow also runs `node --check docs/app.js` before deployment. When publishing a new stable version, update the pinned fallback URLs and version in the repository even though runtime discovery can follow the latest release automatically.
+
+Latest public stable release: https://github.com/masarray/DigSubAnalyzer/releases/latest
+
 ## Deploy manually
 
 After pushing the latest repository content to `main`, run:
