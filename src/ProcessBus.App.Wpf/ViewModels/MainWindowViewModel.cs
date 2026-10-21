@@ -4783,7 +4783,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         _lastGooseHistoryTimeUtc = msg.LastSeenUtc;
         _firstGooseHistoryTimeUtc ??= msg.LastSeenUtc;
-        var relativeMilliseconds = Math.Max(0, (msg.LastSeenUtc - _firstGooseHistoryTimeUtc.Value).TotalMilliseconds);
+        var relativeMilliseconds = GooseRelativeTimePresentation.ElapsedMilliseconds(_firstGooseHistoryTimeUtc.Value, msg.LastSeenUtc);
 
         _pendingGooseRows.Enqueue(new GooseTrafficRow
         {
