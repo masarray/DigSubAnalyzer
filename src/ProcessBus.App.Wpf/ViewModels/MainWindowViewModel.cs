@@ -4823,6 +4823,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (target is null) return null;
 
         SuspendGooseFollow();
+        // Preserve source context for Show Latest / return-to-live while
+        // inspecting the exact historical decoded event from that publisher.
+        if (_selectedGoosePublisherKey != key)
+        {
+            _selectedGoosePublisherKey = key;
+            OnPropertyChanged(nameof(SelectedGoosePublisherRow));
+        }
         SelectedGooseTrafficRow = target; // Inspector pins the SAME frame.
         return target;                     // View scrolls exactly this row.
     }
