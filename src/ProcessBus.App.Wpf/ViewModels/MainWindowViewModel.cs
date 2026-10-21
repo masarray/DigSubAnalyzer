@@ -4676,7 +4676,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             return false;
         // No search/GoID coupling: only the union of stable physical source keys.
         return _selectedGooseSourceKeys.Count == 0 ||
-               _selectedGooseSourceKeys.Contains(GoosePublisherKey.From(row.Source));
+               GoosePublisherCatalog.MatchesSelection(row.Source, _selectedGooseSourceKeys);
     }
 
     private IReadOnlyList<GooseDatasetValueDisplayItem> BuildGooseDatasetValues(GooseMessageItem? goose)
@@ -4901,6 +4901,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         while (_pendingGooseRows.Count > 0 && flushed < limit)
         {
             var row = _pendingGooseRows.Dequeue();
+            if (FilterGooseHistory(row))
+                row.VisibleSinceUtc = DateTime.UtcNow;
             _gooseHistory.Add(row);
             if (FilterGooseHistory(row))
                 newestVisible = row;
@@ -5032,6 +5034,8 @@ public sealed class GooseDatasetValueDisplayItem
 
 public sealed class GooseTrafficRow
 {
+    // Only the first live realization after an actual UI-batch append may animate.
+    public DateTime VisibleSinceUtc { get; set; }
     public required GooseMessageItem Source { get; init; }
 
     public string EventType { get; init; } = "STATE";
