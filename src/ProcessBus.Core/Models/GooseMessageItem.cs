@@ -20,6 +20,9 @@ public sealed class GooseMessageItem
     public DateTime LastSeenUtc { get; set; }
     public string ValuesText { get; set; } = "N/A";
     public string ChangedSummaryText { get; set; } = "N/A";
+    // Decoder-owned revision survives retransmissions between UI snapshots.
+    public long ValueChangeRevision { get; set; }
+    public DateTime? LastValueChangeUtc { get; set; }
     public string StatusText { get; set; } = "Detected";
     public IReadOnlyList<GooseDatasetValueItem> DataValues { get; set; } = Array.Empty<GooseDatasetValueItem>();
 }
