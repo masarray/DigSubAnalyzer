@@ -20,7 +20,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        if (DataContext is MainWindowViewModel viewModel) { }
+        // One GOOSE read-ack gesture for the whole visible workspace.
+        // Tunnelling preview runs before selection changes, so a click on a
+        // different row acknowledges the previously inspected event only.
+        PreviewMouseDown += GooseWindow_PreviewMouseDown;
+        PreviewKeyDown += GooseWindow_PreviewKeyDown;
 
         Loaded += (_, _) =>
         {
@@ -405,6 +409,25 @@ public partial class MainWindow : Window
         DeferGooseTrafficFlush();
     }
 
+    private void GooseWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left || !GooseMessageGrid.IsVisible)
+            return;
+        if (DataContext is MainWindowViewModel vm)
+            vm.AcknowledgeInspectedGooseEvent();
+        // Do not mark Handled: the original button, source, table row and
+        // DataSet expander still receive and perform their normal click.
+    }
+
+    private void GooseWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.IsRepeat || !GooseMessageGrid.IsVisible)
+            return;
+        if (DataContext is MainWindowViewModel vm)
+            vm.AcknowledgeInspectedGooseEvent();
+        // Enter remains available to the focused control for normal operation.
+    }
+
     private void GooseTraffic_ClickInteraction(object sender, MouseButtonEventArgs e)
     {
         SuspendGooseFollowFromOperator();
@@ -420,7 +443,11 @@ public partial class MainWindow : Window
         {
             if (node is DataGridRow { DataContext: GooseTrafficRow history })
             {
-                if (DataContext is MainWindowViewModel vm)
+                // Root preview already ACKed the event that was being read.
+                // A first click on a DIFFERENT row is navigation, not an
+                // accidental acknowledgement of evidence not yet inspected.
+                if (DataContext is MainWindowViewModel vm &&
+                    ReferenceEquals(vm.SelectedGooseTrafficRow, history))
                     vm.AcknowledgeGooseHistoryEvent(history);
                 return;
             }
@@ -452,13 +479,14 @@ public partial class MainWindow : Window
             Key.PageUp or Key.PageDown or Key.Space or Key.Left or Key.Right or Key.Enter)
             SuspendGooseFollowFromOperator();
 
-        // Accessible keyboard acknowledgement of the explicitly focused event.
-        // Directional navigation suspends follow but does not ACK history.
-        if (e.Key is Key.Enter or Key.Space &&
-            GooseMessageGrid.SelectedItem is GooseTrafficRow selected)
+        // Enter is handled centrally by the window (including when focus is
+        // inside the Inspector). Space ACKs the selected pinned history row.
+        if (e.Key == Key.Space &&
+            GooseMessageGrid.SelectedItem is GooseTrafficRow selected &&
+            DataContext is MainWindowViewModel vm &&
+            ReferenceEquals(vm.SelectedGooseTrafficRow, selected))
         {
-            if (DataContext is MainWindowViewModel vm)
-                vm.AcknowledgeGooseHistoryEvent(selected);
+            vm.AcknowledgeGooseHistoryEvent(selected);
             e.Handled = true;
         }
     }
