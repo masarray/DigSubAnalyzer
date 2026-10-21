@@ -3368,19 +3368,13 @@
                                                         </TextBlock>
                                                         <TextBlock Grid.Row="3" Grid.Column="0" Text="Published data" ToolTip="Full DataSet reference identifying the group of transmitted values" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
                                                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GooseInspectorMessage.DataSet}" Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
-                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Config. version" ToolTip="Configuration revision (confRev)" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
+                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Configuration" ToolTip="Configuration version carried in the message (confRev)" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
                                                         <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.ConfRev}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="5" Grid.Column="0" Text="Allowed wait" ToolTip="Time allowed to live in milliseconds: how long a receiver can wait for another message" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
                                                         <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding GooseInspectorMessage.TimeAllowedToLiveMilliseconds, StringFormat={}{0} ms}" Foreground="#DDEEFF" Margin="0,3,0,3"/>
                                                         <TextBlock Grid.Row="6" Grid.Column="0" Text="Message flags" Foreground="#7FA8CC" FontSize="11" Margin="0,3,10,3"/>
-                                                        <TextBlock Grid.Row="6" Grid.Column="1" Foreground="#DDEEFF" Margin="0,3,0,3">
-                                                            <TextBlock.Text>
-                                                                <MultiBinding StringFormat="{}Test message: {0} · Needs commissioning: {1}">
-                                                                    <Binding Path="GooseInspectorMessage.IsTest"/>
-                                                                    <Binding Path="GooseInspectorMessage.NeedsCommission"/>
-                                                                </MultiBinding>
-                                                            </TextBlock.Text>
-                                                        </TextBlock>
+                                                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding GooseInspectorFlagsText}"
+                                                                   Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
                                                     </Grid>
                                                 </StackPanel>
                                             </Border>
