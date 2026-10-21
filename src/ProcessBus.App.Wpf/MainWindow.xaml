@@ -1343,6 +1343,19 @@
                                              VerticalContentAlignment="Center"
                                              Padding="0" Margin="0"
                                              ToolTip="Find a source by name, message, application code or network address"/>
+                                    <TextBlock Grid.Column="1" Text="Search sources…"
+                                               Foreground="#789CB8" FontSize="11.5"
+                                               VerticalAlignment="Center" IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding GooseHasSearchText}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <Button Grid.Column="2" Width="25" Height="25"
                                             Command="{Binding GooseClearSearchCommand}"
                                             Click="GooseClearSearch_Click"
@@ -1459,7 +1472,7 @@
                                             <!-- Re-clicking the already selected publisher must exit pinned-event mode. -->
                                             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="GoosePublisherRow_PreviewMouseLeftButtonDown"/>
                                             <Setter Property="Padding" Value="0"/>
-                                            <Setter Property="Margin" Value="0,0,0,8"/>
+                                            <Setter Property="Margin" Value="0,0,0,6"/>
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             <Setter Property="Background" Value="Transparent"/>
                                             <Setter Property="BorderThickness" Value="0"/>
@@ -1468,7 +1481,7 @@
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="ListViewItem">
                                                         <Border x:Name="Card"
-                                                                Padding="10,9"
+                                                                Padding="9,7"
                                                                 Background="#071827"
                                                                 BorderBrush="#16324E"
                                                                 BorderThickness="1"
@@ -3071,18 +3084,7 @@
                                                 </Border>
                                             </StackPanel>
 
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Border Padding="8,3"
-                                                        Background="#0A1928"
-                                                        BorderBrush="#1D3C59"
-                                                        BorderThickness="1"
-                                                        CornerRadius="9"
-                                                        Margin="0,0,8,0">
-                                                    <TextBlock Text="{Binding GooseFilterSummaryText}"
-                                                               Foreground="#AFC4DA"
-                                                               FontSize="10.5"/>
-                                                </Border>
-                                            </StackPanel>
+                                            
                                         </Grid>
 
                                         <DataGrid Grid.Row="2"
