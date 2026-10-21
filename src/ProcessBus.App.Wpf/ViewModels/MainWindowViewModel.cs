@@ -310,6 +310,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _selectedGooseSourceKeys.UnionWith(next);
             OnPropertyChanged(nameof(GooseSourceFilterActive));
             OnPropertyChanged(nameof(GooseSourceScopeText));
+            OnPropertyChanged(nameof(GooseTimelineCountersText));
             OnPropertyChanged(nameof(GoosePublisherCountText));
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             _gooseHistoryView.Refresh();
@@ -416,7 +417,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GoosePublisherCountText => $"{_gooseMessages.Count} device{(_gooseMessages.Count == 1 ? "" : "s")}" +
         (_selectedGooseSourceKeys.Count == 0 ? "" : $" · {_selectedGooseSourceKeys.Count} selected");
     public string GooseTimelineCountersText =>
-        $"{_gooseSnapshot.TotalMessages:N0} messages received  ·  {_gooseVisibleEventCount:N0} shown";
+        $"{_gooseSnapshot.TotalMessages:N0} received · {_gooseVisibleEventCount:N0} shown · {GooseSourceScopeText}";
     public string GooseWorkspaceCaptureSummaryText
     {
         get
@@ -4737,11 +4738,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
         foreach (var row in _gooseCatalog.Rows)
             if (row.HasRecentValueChange) row.ExpireValueChangeNotice(nowUtc);
+        foreach (var row in _gooseHistory)
+            if (row.IsRecentMeaningfulEvent) row.ExpireEmphasis(nowUtc);
     }
 
     private bool FilterGoosePublisher(object item) =>
         item is GoosePublisherRow row &&
-        GoosePublisherCatalog.MatchesFilter(row.Current, SelectedGooseIdFilter, GoosePublisherFilterText);
+        GoosePublisherCatalog.MatchesFilter(row.Current, "All", GoosePublisherFilterText);
 
     private bool FilterGooseHistory(object item)
     {
@@ -4980,7 +4983,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         while (_pendingGooseRows.Count > 0 && flushed < limit)
         {
             var row = _pendingGooseRows.Dequeue();
-            if (FilterGooseHistory(row)) newVisible++;
+            if (FilterGooseHistory(row))
+            {
+                newVisible++;
+                row.MarkNewVisibleEvent(DateTime.UtcNow);
+            }
             _gooseHistory.Add(row);
             flushed++;
         }
@@ -5115,8 +5122,29 @@ public sealed class GooseDatasetValueDisplayItem
     }
 }
 
-public sealed class GooseTrafficRow
+public sealed class GooseTrafficRow : INotifyPropertyChanged
 {
+    private DateTime? _emphasisStartUtc;
+    private bool _isRecentMeaningfulEvent;
+    public bool IsRecentMeaningfulEvent => _isRecentMeaningfulEvent;
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void MarkNewVisibleEvent(DateTime nowUtc)
+    {
+        if (EventType == "Retrans") return;
+        _emphasisStartUtc = nowUtc;
+        _isRecentMeaningfulEvent = true;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRecentMeaningfulEvent)));
+    }
+
+    public void ExpireEmphasis(DateTime nowUtc)
+    {
+        if (!_isRecentMeaningfulEvent || !_emphasisStartUtc.HasValue ||
+            (nowUtc - _emphasisStartUtc.Value).TotalMilliseconds < 1500) return;
+        _isRecentMeaningfulEvent = false;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRecentMeaningfulEvent)));
+    }
+
     public required GooseMessageItem Source { get; init; }
 
     public string EventType { get; init; } = "STATE";
