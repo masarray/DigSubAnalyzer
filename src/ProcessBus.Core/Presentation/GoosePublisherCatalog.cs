@@ -39,6 +39,28 @@ public sealed class GoosePublisherRow : INotifyPropertyChanged
     public GoosePublisherKey Key { get; }
     public GooseMessageItem Current { get; private set; }
     public bool IsStale { get; private set; }
+    public DateTime? LastValueChangeUtc { get; private set; }
+    public long ChangeRevision { get; private set; }
+    public bool HasRecentValueChange { get; private set; }
+    public string LastValueChangeText => LastValueChangeUtc?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-";
+
+    public void MarkDecodedValueChange(DateTime timeUtc, long revision)
+    {
+        if (revision <= ChangeRevision) return;
+        ChangeRevision = revision;
+        LastValueChangeUtc = timeUtc;
+        HasRecentValueChange = true;
+        OnPropertyChanged(nameof(LastValueChangeText));
+        OnPropertyChanged(nameof(HasRecentValueChange));
+    }
+
+    public void ExpireValueChangeNotice(DateTime nowUtc)
+    {
+        if (!HasRecentValueChange || !LastValueChangeUtc.HasValue ||
+            (nowUtc - LastValueChangeUtc.Value).TotalMilliseconds < 2500) return;
+        HasRecentValueChange = false;
+        OnPropertyChanged(nameof(HasRecentValueChange));
+    }
     public string GoId => Current.GoId;
     public string GoCbRef => Current.GoCbRef;
     public string AppId => Current.AppId;
