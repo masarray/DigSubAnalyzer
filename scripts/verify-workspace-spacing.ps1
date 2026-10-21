@@ -101,5 +101,20 @@ foreach ($binding in @(
 )) {
     Assert-True ($source.Contains($binding)) "GOOSE inspector contract: $binding"
 }
+# Exact UI defect reported in operator screenshots: Inspector controls must
+# remain visible when raw evidence scrolls; count must have its own grid cell.
+$inspectorStart = $source.IndexOf('<!-- Right inspector: clean grouped information, typed values emphasized. -->')
+$inspectorEnd = $source.IndexOf('<TabItem>', $inspectorStart)
+Assert-True ($inspectorStart -ge 0 -and $inspectorEnd -gt $inspectorStart) 'GOOSE inspector markup found'
+$inspector = $source.Substring($inspectorStart, $inspectorEnd - $inspectorStart)
+$headerOffset = $inspector.IndexOf('Text="GOOSE Inspector"')
+$scrollOffset = $inspector.IndexOf('<ScrollViewer Grid.Row="1"')
+Assert-True ($headerOffset -ge 0 -and $scrollOffset -gt $headerOffset) 'Inspector header remains above independently scrolling evidence'
+Assert-True ($inspector.Contains('Grid.Row="0" Margin="0,0,0,12"')) 'Inspector header stays in fixed grid row'
+Assert-True ($inspector.Contains('<Grid Margin="0,0,0,10">')) 'DataSet heading/count have independent grid columns'
+Assert-True ($inspector.Contains('Grid.Column="1" Margin="12,0,0,0"')) 'DataSet entry count has clear separation from heading'
+Assert-True ($inspector.Contains('Text="{Binding TypeSourceText}"')) 'Expanded MMS details use concise type/source row'
+Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
+Write-Host 'GOOSE Inspector screenshot regression gate: PASS (fixed header, count alignment, compact MMS details)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'
