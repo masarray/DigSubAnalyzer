@@ -107,30 +107,45 @@ $inspectorStart = $source.IndexOf('<!-- Right inspector: clean grouped informati
 $inspectorEnd = $source.IndexOf('<TabItem>', $inspectorStart)
 Assert-True ($inspectorStart -ge 0 -and $inspectorEnd -gt $inspectorStart) 'GOOSE inspector markup found'
 $inspector = $source.Substring($inspectorStart, $inspectorEnd - $inspectorStart)
-$headerOffset = $inspector.IndexOf('Text="Message Details"')
+$headerOffset = $inspector.IndexOf('Text="Details"')
 $scrollOffset = $inspector.IndexOf('<ScrollViewer Grid.Row="1"')
 Assert-True ($headerOffset -ge 0 -and $scrollOffset -gt $headerOffset) 'Inspector header remains above independently scrolling evidence'
 Assert-True ($inspector.Contains('Grid.Row="0" Margin="0,0,0,12"')) 'Inspector header stays in fixed grid row'
-Assert-True ($inspector.Contains('Text="Values"')) 'Value group has compact title'
+Assert-True ($inspector.Contains('Text="Data"')) 'Value group has compact title'
 Assert-True ($inspector.Contains('Grid.Column="1" Margin="10,0,3,0"')) 'Value item count uses a separate aligned column'
 Assert-True ($inspector.Contains('Text="{Binding TypeText}"')) 'Expanded signal kind uses friendly type description'
 Assert-True ($inspector.Contains('Text="{Binding ProtocolTypeText}"')) 'Exact original wire type stays available in expanded evidence'
 Assert-True ($inspector.Contains('Text="{Binding ConfigurationTypeText}"')) 'Matched configuration type remains available as technical evidence'
-Assert-True ($inspector.Contains('Text="State number"')) 'State number is named rather than abbreviated'
+Assert-True ($inspector.Contains('Text="Status number"')) 'State number is named rather than abbreviated'
 Assert-True ($inspector.Contains('Text="Sequence number"')) 'Sequence number is named rather than abbreviated'
-Assert-True ($inspector.Contains('Text="Message name"')) 'Message name explains the GOOSE identifier'
-Assert-True ($inspector.Contains('Text="Allowed wait"')) 'Time allowed to live uses understandable wording'
-Assert-True ($source.Contains('Text="GOOSE Message History"')) 'History describes what operators are reading'
-Assert-True ($source.Contains('Text="{Binding EventDescriptionText}"')) 'Recorded event types are translated for operators'
+Assert-True ($inspector.Contains('Text="GOOSE ID"')) 'Message name explains the GOOSE identifier'
+Assert-True ($inspector.Contains('Text="Time allowed to live (ms)"')) 'Time allowed to live uses understandable wording'
+Assert-True ($source.Contains('Text="Messages"')) 'History describes what operators are reading'
+Assert-True ($source.Contains('ToolTip="{Binding EventDescriptionText}"')) 'Recorded event types are translated for operators'
 Assert-True ($source.Contains('GooseOpenConfigurationCommand')) 'Unidentified values provide a path to device configuration'
-Assert-True ($source.Contains('Text="SIGNAL OR DATA ITEM"')) 'Unnamed raw data is explicitly identified'
+Assert-True ($source.Contains('Text="Name"')) 'Unnamed raw data is explicitly identified'
 $viewModelPath = Join-Path $Root 'src/ProcessBus.App.Wpf/ViewModels/MainWindowViewModel.cs'
 $vmSource = Get-Content -LiteralPath $viewModelPath -Raw
-Assert-True ($vmSource.Contains('Source.LastSeenUtc.ToLocalTime().ToString("HH:mm:ss.fff")')) 'GOOSE timeline uses the same local clock as Inspector'
+Assert-True ($vmSource.Contains('Source.LastSeenUtc.ToLocalTime().ToString("h:mm:ss.fffffff tt"')) 'GOOSE timeline uses the same local clock as Inspector'
 Assert-True ($vmSource.Contains('GooseEngineeringLanguage.TryDescribeDoublePoint')) 'Signal position labels use config-validated state interpretation'
 Assert-True ($vmSource.Contains('GooseEngineeringLanguage.DataType')) 'Data type labels use human-friendly terminology'
-Assert-True ($inspector.Contains('Text="Values"')) 'Compact signal table title remains meaningful'
-Assert-True ($source.Contains('Text="RECEIVED VALUE"')) 'Values remain clearly distinguished from interpretation'
+Assert-True ($inspector.Contains('Text="Data"')) 'Compact signal table title remains meaningful'
+Assert-True ($source.Contains('Text="Value"')) 'Values remain clearly distinguished from interpretation'
+foreach ($heading in @('Header="Time"', 'Header="Relative time"', 'Header="Source"', 'Header="Destination"', 'Header="Description"')) {
+    Assert-True ($source.Contains($heading)) "standard message column: $heading"
+}
+foreach ($label in @('Text="Control Block reference"', 'Text="Destination MAC address"',
+                    'Text="Source MAC address"', 'Text="Application ID"', 'Text="GOOSE ID"',
+                    'Text="DataSet reference"', 'Text="VLAN ID"', 'Text="VLAN priority"',
+                    'Text="Needs commissioning"', 'Text="Configuration revision"',
+                    'Text="Simulation/Test"', 'Text="Entry time"', 'Text="Status number"',
+                    'Text="Sequence number"', 'Text="Time allowed to live (ms)"')) {
+    Assert-True ($inspector.Contains($label)) "standard detail field: $label"
+}
+Assert-True ($source.Contains('Text="Name"') -and $source.Contains('Text="Value"')) 'Data group has Name / Value columns'
+Assert-True ($vmSource.Contains('_firstGooseHistoryTimeUtc ??= msg.LastSeenUtc;')) 'Relative time derives from first observed message, not previous gap'
+Assert-True ($vmSource.Contains('RelativeMs = relativeMilliseconds')) 'Relative time evidence stored with each history row'
+Write-Host 'GOOSE standard terminology contract: PASS (documented messages, details, fields and relative time)'
 Write-Host 'GOOSE operator language contract: PASS (plain labels + original wire evidence)'
 Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
 Write-Host 'GOOSE Inspector screenshot regression gate: PASS (fixed header, count alignment, compact MMS details)'
@@ -162,7 +177,7 @@ Assert-True ($vmSource.Contains('private bool _gooseMessageExpanded = true;') -a
 Assert-True ($theme.OuterXml.Contains('GooseMaterialExpandCircle')) 'Inspector and data items use the Material circled chevron'
 Assert-True (-not $inspector.Contains('Content="Identify these signals in the Configuration tab"')) 'Long textual onboarding removed from signal list'
 Assert-True ($inspector.Contains('Content="Identify signals"')) 'Compact signal mapping action retained'
-Assert-True ($source.Contains('Text="GOOSE Message History"')) 'History is available without changing protocol logic'
+Assert-True ($source.Contains('Text="Messages"')) 'History is available without changing protocol logic'
 Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'
