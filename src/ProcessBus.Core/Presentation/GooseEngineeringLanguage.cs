@@ -1,3 +1,5 @@
+using ProcessBus.Core.Models.Scl;
+
 namespace ProcessBus.Core.Presentation;
 
 /// <summary>
@@ -41,6 +43,35 @@ public static class GooseEngineeringLanguage
         "Retrans" => "Repeated",
         _ => "Message"
     };
+
+    /// <summary>
+    /// Decode DPC.stVal only when the loaded configuration identifies the exact
+    /// signal. Do not turn unidentified bit patterns into physical switch states.
+    /// </summary>
+    public static bool TryDescribeDoublePoint(
+        SclDataSetEntryModel? signal, string? wireType, string? twoBits,
+        out string description)
+    {
+        description = string.Empty;
+        if (signal is null || signal.IsQuality || signal.IsTimestamp ||
+            !string.Equals(signal.Cdc, "DPC", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(signal.DaName, "stVal", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(wireType, "BitString", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var switchPosition = string.Equals(signal.DoName, "Pos", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(signal.LnClass, "XCBR", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(signal.LnClass, "XSWI", StringComparison.OrdinalIgnoreCase));
+        description = twoBits switch
+        {
+            "00" => "Between positions (00)",
+            "01" => switchPosition ? "Open (01)" : "Off (01)",
+            "10" => switchPosition ? "Closed (10)" : "On (10)",
+            "11" => "Invalid position (11)",
+            _ => string.Empty
+        };
+        return description.Length != 0;
+    }
 
     public static string QualitySummary(string? rawQualitySummary)
     {
