@@ -292,25 +292,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public string GooseEmptyTitle => _gooseMessages.Count == 0
-        ? "No GOOSE publisher observed" : "No matching GOOSE events";
+        ? "No sending device found" : "No messages match your filters";
     public string GooseEmptyGuidance => _gooseMessages.Count == 0
-        ? "Check physical adapter, VLAN visibility and publisher traffic."
+        ? "Check the selected network adapter, incoming traffic, and network group settings."
         : IncludeGooseRetransmission
-            ? "Review the selected GOOSE ID filter and capture path."
-            : "No matching state changes. Include retransmissions to inspect traffic activity.";
-    public string GooseRetransmissionModeText => IncludeGooseRetransmission ? "Retrans ON" : "Retrans OFF";
+            ? "Check the message-name filter and search text."
+            : "No new state changes are shown. Turn on repeated messages to see ongoing traffic.";
+    public string GooseRetransmissionModeText => IncludeGooseRetransmission
+        ? "Repeated messages visible" : "Showing changes only";
     public string GoosePublisherCountText => $"{_gooseMessages.Count} publisher{(_gooseMessages.Count == 1 ? string.Empty : "s")}";
     public string GooseTimelineCountersText =>
-        $"{_gooseSnapshot.TotalMessages:N0} RX frames  ·  {_gooseVisibleEventCount:N0} visible event{(_gooseVisibleEventCount == 1 ? "" : "s")}";
+        $"{_gooseSnapshot.TotalMessages:N0} messages received  ·  {_gooseVisibleEventCount:N0} shown";
     public string GooseWorkspaceCaptureSummaryText
     {
         get
         {
             if (!IsRunning)
-                return "GOOSE capture stopped  •  Last valid publisher evidence retained";
+                return "GOOSE capture stopped  •  Last received values kept for inspection";
             var testCount = _gooseMessages.Count(x => x.IsTest);
-            return $"GOOSE  •  {_gooseMessages.Count} publisher(s)  •  {_gooseSnapshot.TotalMessages:N0} RX frames" +
-                (testCount > 0 ? $"  •  {testCount} TEST publisher(s)" : string.Empty);
+            return $"GOOSE  •  {_gooseMessages.Count} sending device(s)  •  {_gooseSnapshot.TotalMessages:N0} messages received" +
+                (testCount > 0 ? $"  •  {testCount} device(s) sending test messages" : string.Empty);
         }
     }
 
@@ -327,9 +328,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         get
         {
-            var filter = string.Equals(SelectedGooseIdFilter, "All", StringComparison.OrdinalIgnoreCase) ? "All GOOSE IDs" : SelectedGooseIdFilter;
-            var retrans = IncludeGooseRetransmission ? "with retransmission" : "state changes only";
-            return $"{filter}  -  {retrans}";
+            var filter = string.Equals(SelectedGooseIdFilter, "All", StringComparison.OrdinalIgnoreCase) ? "All message names" : SelectedGooseIdFilter;
+            var retrans = IncludeGooseRetransmission ? "including repeated messages" : "first messages and state changes";
+            return $"{filter}  ·  {retrans}";
         }
     }
 
@@ -342,15 +343,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var inspected = GooseInspectorMessage;
             if (inspected is null)
-                return "Select a GOOSE publisher or timeline event to inspect typed DataSet values.";
+                return "Select a sending device or a recorded message to see its values.";
 
             var match = ResolveSclGooseStream(inspected);
             if (match is null)
                 return HasSclProject
-                    ? "Semantic source: generic typed decode; no matching SCL GOOSE DataSet found."
-                    : "Semantic source: generic typed decode; load SCL to resolve signal names.";
+                    ? "Signal names unavailable: the imported configuration does not match this message."
+                    : "Signal names unavailable. Open the Configuration tab and import the device configuration (SCL) to identify these values.";
 
-            return $"Semantic source: SCL DataSet order  -  {match.ControlBlockReference}  -  {match.DataSetReference}";
+            return "Signal names taken from the matching device configuration (SCL).";
         }
     }
 
@@ -954,8 +955,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
 
     public string GooseInspectorModeBadgeText => IsGooseHistoryPinned
-        ? "PINNED EVENT" : GooseInspectorMessage is null ? "NO SELECTION" :
-        IsGooseSelectedPublisherStale ? "STALE" : "LIVE";
+        ? "SAVED MESSAGE" : GooseInspectorMessage is null ? "NOT SELECTED" :
+        IsGooseSelectedPublisherStale ? "NOT RECEIVING" : "LIVE";
 
     private bool IsGooseSelectedPublisherStale
     {
@@ -976,12 +977,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var item = GooseInspectorMessage;
             if (item is null)
-                return "Select a publisher for live values or an event for historical evidence.";
+                return "Choose a sending device for current values or a message for recorded values.";
             if (_gooseInspectHistoricalEvent)
-                return $"Pinned event · {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · historical values";
+                return $"Recorded message at {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · values captured at that time";
             return IsGooseSelectedPublisherStale
-                ? $"STALE · last received {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · last valid values retained"
-                : "Live publisher · latest received typed DataSet values";
+                ? $"No recent messages · last received {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff}"
+                : "Receiving messages · showing the latest recorded values";
         }
     }
 
@@ -4613,14 +4614,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return new GooseDatasetValueDisplayItem
                 {
                     Index = value.Index,
-                    NameText = GooseDatasetEntryPresentation.ResolveName(value.Index, semantic?.DisplayName),
-                    TypeText = BuildSemanticGooseTypeText(value, semantic),
-                    SemanticText = semantic is null ? "Generic typed decode" : "SCL DataSet entry",
+                    NameText = GooseDatasetEntryPresentation.ResolveName(value.Index, semantic?.SignalReference),
+                    TypeText = GooseEngineeringLanguage.DataType(value.Type),
+                    ProtocolTypeText = value.Type,
+                    ConfigurationTypeText = semantic is null ? "" : BuildSemanticGooseTypeText(value, semantic),
+                    SemanticText = GooseEngineeringLanguage.SignalSource(semantic is not null && !string.IsNullOrWhiteSpace(semantic.SignalReference)),
                     ValueText = BuildSemanticGooseValueText(value, semantic),
                     RawHexText = value.RawHex,
-                    QualitySummaryText = decodedQuality?.Summary ?? string.Empty,
+                    QualitySummaryText = GooseEngineeringLanguage.QualitySummary(decodedQuality?.Summary),
                     QualityDetailsText = decodedQuality?.DetailText ??
-                        (isMappedQuality ? "Quality q not decoded; inspect the original MMS bits." : string.Empty),
+                        (isMappedQuality ? "Signal quality could not be interpreted; check its original bit pattern." : string.Empty),
                     IsChanged = value.IsChanged,
                     PreviousValueText = string.IsNullOrWhiteSpace(value.PreviousValue)
                         ? value.PreviousValue
@@ -4854,6 +4857,8 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
     public string IndexText => _current.IndexText;
     public string NameText => _current.NameText;
     public string TypeText => _current.TypeText;
+    public string ProtocolTypeText => _current.ProtocolTypeText;
+    public string ConfigurationTypeText => _current.ConfigurationTypeText;
     public string SemanticText => _current.SemanticText;
     public string TypeSourceText => $"{_current.TypeText} · {_current.SemanticText}";
     public string ValueText => _current.ValueText;
@@ -4873,6 +4878,8 @@ public sealed class GooseDatasetDisplayRow : INotifyPropertyChanged
         if (previous.Index == next.Index &&
             previous.NameText == next.NameText &&
             previous.TypeText == next.TypeText &&
+            previous.ProtocolTypeText == next.ProtocolTypeText &&
+            previous.ConfigurationTypeText == next.ConfigurationTypeText &&
             previous.SemanticText == next.SemanticText &&
             previous.ValueText == next.ValueText &&
             previous.RawHexText == next.RawHexText &&
@@ -4896,8 +4903,10 @@ public sealed class GooseDatasetValueDisplayItem
 
     public int Index { get; init; }
     public string NameText { get; init; } = string.Empty;
-    public string TypeText { get; init; } = "Unknown";
-    public string SemanticText { get; init; } = "Generic typed decode";
+    public string TypeText { get; init; } = "Unknown data type";
+    public string ProtocolTypeText { get; init; } = "Unknown";
+    public string ConfigurationTypeText { get; init; } = string.Empty;
+    public string SemanticText { get; init; } = "Signal not identified";
     public string ValueText { get; init; } = "-";
     public string RawHexText { get; init; } = string.Empty;
     public string QualitySummaryText { get; init; } = string.Empty;
@@ -4912,7 +4921,7 @@ public sealed class GooseDatasetValueDisplayItem
     public string IndexText => Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
     public string RawHexDisplayText => string.IsNullOrWhiteSpace(RawHexText) ? "Not available" : RawHexText;
     public string ChangeText => IsChanged && !string.IsNullOrWhiteSpace(PreviousValueText)
-        ? $"Changed from {PreviousValueText}" : IsChanged ? "Changed (previous value unavailable)" : string.Empty;
+        ? $"Previously: {PreviousValueText}" : IsChanged ? "Value changed (earlier value unavailable)" : string.Empty;
     public Visibility ChangeVisibility => IsChanged ? Visibility.Visible : Visibility.Collapsed;
     public Visibility QualityDetailsVisibility => string.IsNullOrWhiteSpace(QualityDetailsText)
         ? Visibility.Collapsed : Visibility.Visible;
@@ -4944,10 +4953,8 @@ public sealed class GooseTrafficRow
     public uint SqNum => Source.SqNum;
     public string StatusText => Source.StatusText;
     public string ValuesText => Source.ValuesText;
-    public string DisplayStatusText =>
-        string.IsNullOrWhiteSpace(Source.StatusText) || string.Equals(Source.StatusText, "N/A", StringComparison.OrdinalIgnoreCase)
-            ? EventType
-            : Source.StatusText;
+    public string DisplayStatusText => GooseEngineeringLanguage.Event(EventType);
+    public string EventDescriptionText => GooseEngineeringLanguage.Event(EventType);
 
     public string DisplayValuesText
     {
@@ -4968,7 +4975,7 @@ public sealed class GooseTrafficRow
             }
 
             if (Source.DataValues.Count == 0)
-                return "View details";
+                return "Open message to see values";
 
             var preview = Source.DataValues
                 .Take(2)
