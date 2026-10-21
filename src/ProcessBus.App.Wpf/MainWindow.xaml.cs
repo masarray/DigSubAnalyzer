@@ -392,6 +392,11 @@ public partial class MainWindow : Window
             vm.SuspendGooseFollow();
     }
 
+    private void GooseMessageGrid_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true) ScheduleGooseFollowScroll(force: true);
+    }
+
     private void GooseMessageGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
         SuspendGooseFollowFromOperator();
 
