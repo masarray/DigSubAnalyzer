@@ -27,6 +27,7 @@ public sealed class RawProcessBusAnalyzer
     private readonly Dictionary<string, GooseState> _gooseStates = new(StringComparer.Ordinal);
     private const int MaxBufferedGooseValueChanges = 512;
     private readonly Queue<GooseValueChangeEvent> _gooseValueChanges = new();
+    private Guid _gooseValueChangeSessionId = Guid.NewGuid();
     private long _gooseValueChangeRevision;
     private long _gooseValueChangeOverflowCount;
     private readonly Dictionary<string, AggregatedEventState> _aggregatedEvents = new(StringComparer.OrdinalIgnoreCase);
@@ -138,6 +139,7 @@ public sealed class RawProcessBusAnalyzer
                 TotalMessages = _goosePackets,
                 ValueChanges = _gooseValueChanges.ToArray(),
                 ValueChangeOverflowCount = _gooseValueChangeOverflowCount,
+                ValueChangeSessionId = _gooseValueChangeSessionId,
                 Messages = _gooseStates.Values
                     .OrderBy(x => x.FirstSeenOrder)
                     .Select(x => x.Clone())
@@ -161,6 +163,7 @@ public sealed class RawProcessBusAnalyzer
             _gooseStates.Clear();
             _gooseValueChanges.Clear();
             _gooseValueChangeRevision = 0;
+            _gooseValueChangeSessionId = Guid.NewGuid();
             _gooseValueChangeOverflowCount = 0;
             _events.Clear();
             _aggregatedEvents.Clear();
