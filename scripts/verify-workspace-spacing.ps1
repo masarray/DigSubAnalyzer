@@ -180,6 +180,19 @@ Assert-True ($theme.OuterXml.Contains('GooseMaterialExpandCircle')) 'Inspector a
 Assert-True (-not $inspector.Contains('Content="Identify these signals in the Configuration tab"')) 'Long textual onboarding removed from signal list'
 Assert-True ($inspector.Contains('Content="Identify signals"')) 'Compact signal mapping action retained'
 Assert-True ($source.Contains('Text="Messages"')) 'History is available without changing protocol logic'
+# GOOSE operator-acknowledged alert contract: UX should never silently expire
+# received evidence before the engineer has a chance to inspect it.
+Assert-True ($source.Contains('x:Key="GooseHeaderSwitchStyle"')) 'GOOSE header exposes one compact vector switch style'
+Assert-True (([regex]::Matches($source, 'Style="\{StaticResource GooseHeaderSwitchStyle\}"')).Count -eq 2) 'Show repeats and Follow live use exactly two adjacent switches'
+Assert-True ($source.Contains('IsChecked="{Binding IncludeGooseRetransmission, Mode=TwoWay}"')) 'Repeats switch binds only to message representation'
+Assert-True ($source.Contains('IsChecked="{Binding GooseFollowLive, Mode=TwoWay}"')) 'Follow-live switch is a two-way explicit state'
+Assert-True (-not $source.Contains('Command="{Binding GooseResumeFollowCommand}"')) 'Old transient Follow live button is removed'
+Assert-True ($source.Contains('IsUnacknowledgedEvent') -and $source.Contains('HasUnacknowledgedValueChange')) 'Message and source alert visuals bind to acknowledged state'
+Assert-True ($vmSource.Contains('public void Acknowledge()') -and
+             $vmSource.Contains('public void AcknowledgeGooseSource(')) 'Operator-owned acknowledgement is available for history and sources'
+Assert-True (-not $vmSource.Contains('ExpireEmphasis(') -and
+             -not $vmSource.Contains('ExpireValueChangeNotice(')) 'Streaming UI does not auto-expire unread engineering evidence'
+Write-Host 'GOOSE acknowledgement UX contract: PASS (paired switches, per-source/event ACK, no timer expiry)'
 Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
 Write-Host 'WPF workspace spacing contract: PASS (8 DIP columns / 8 DIP panel gaps, named insets)'
