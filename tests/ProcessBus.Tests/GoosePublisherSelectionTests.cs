@@ -164,6 +164,68 @@ public sealed class GoosePublisherSelectionTests
     }
 
     [Fact]
+    public void SourceScopeUsesPhysicalKeysWithZeroOneAndManySelected()
+    {
+        var first = Frame(source: "02:00:4C:4E:4E:50");
+        var second = Frame(source: "02:00:4C:4E:4E:51");
+        var third = Frame(source: "02:00:4C:4E:4E:52");
+        var keys = new HashSet<GoosePublisherKey>();
+        Assert.True(GoosePublisherCatalog.MatchesSelection(first, keys));
+        Assert.True(GoosePublisherCatalog.MatchesSelection(second, keys));
+        keys.Add(GoosePublisherKey.From(first));
+        Assert.True(GoosePublisherCatalog.MatchesSelection(first, keys));
+        Assert.False(GoosePublisherCatalog.MatchesSelection(second, keys));
+        keys.Add(GoosePublisherKey.From(second));
+        Assert.True(GoosePublisherCatalog.MatchesSelection(second, keys));
+        Assert.False(GoosePublisherCatalog.MatchesSelection(third, keys));
+        keys.Clear();
+        Assert.True(GoosePublisherCatalog.MatchesSelection(third, keys));
+    }
+
+    [Fact]
+    public void MultipleSelectedPublishersSurviveStaleAndReappearance()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var a = Frame();
+        var b = Frame(source: "02:00:4C:4E:4E:51");
+        var keys = new HashSet<GoosePublisherKey> { GoosePublisherKey.From(a), GoosePublisherKey.From(b) };
+        catalog.Reconcile([a, b], null, keys);
+        var originalA = catalog.Find(GoosePublisherKey.From(a));
+        var originalB = catalog.Find(GoosePublisherKey.From(b));
+        catalog.Reconcile([], null, keys);
+        Assert.True(originalA!.IsStale);
+        Assert.True(originalB!.IsStale);
+        catalog.Reconcile([Frame(sq: 99)], null, keys);
+        Assert.Same(originalA, catalog.Find(GoosePublisherKey.From(a)));
+        Assert.Same(originalB, catalog.Find(GoosePublisherKey.From(b)));
+        Assert.False(originalA!.IsStale);
+        Assert.True(originalB!.IsStale);
+    }
+
+    [Fact]
+    public void ChangedNoticeNeedsPositiveDecoderRevisionAndExpires()
+    {
+        var catalog = new GoosePublisherCatalog();
+        var original = Frame();
+        catalog.Reconcile([original], null);
+        var row = Assert.Single(catalog.Rows);
+        Assert.False(row.HasRecentValueChange); // baseline
+        var repeat = Frame(sq: 2);
+        catalog.Reconcile([repeat], null);
+        Assert.False(row.HasRecentValueChange); // sqNum never proves changed value
+        var change = Frame(st: 2);
+        change.ValueChangeRevision = 1;
+        change.LastValueChangeUtc = DateTime.UtcNow;
+        catalog.Reconcile([change], null);
+        Assert.True(row.HasRecentValueChange);
+        var expired = Frame(sq: 5);
+        expired.ValueChangeRevision = 1;
+        expired.LastValueChangeUtc = DateTime.UtcNow.AddSeconds(-10);
+        catalog.Reconcile([expired], null);
+        Assert.False(row.HasRecentValueChange);
+    }
+
+    [Fact]
     public void HighTrafficDoesNotCauseUnboundedRows()
     {
         var catalog = new GoosePublisherCatalog();
