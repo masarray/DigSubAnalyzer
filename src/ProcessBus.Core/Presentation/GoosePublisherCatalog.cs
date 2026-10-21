@@ -98,7 +98,8 @@ public sealed class GoosePublisherCatalog
     public GoosePublisherRow? Find(GoosePublisherKey? key) =>
         key.HasValue && _byKey.TryGetValue(key.Value, out var row) ? row : null;
 
-    public bool Reconcile(IReadOnlyList<GooseMessageItem> messages, GoosePublisherKey? selected)
+    public bool Reconcile(IReadOnlyList<GooseMessageItem> messages, GoosePublisherKey? selected,
+        IReadOnlySet<GoosePublisherKey>? selectedKeys = null)
     {
         var seen = new HashSet<GoosePublisherKey>();
         var changed = false;
@@ -124,7 +125,7 @@ public sealed class GoosePublisherCatalog
         {
             var row = Rows[i];
             if (seen.Contains(row.Key)) continue;
-            if (selected.HasValue && selected.Value == row.Key)
+            if ((selected.HasValue && selected.Value == row.Key) || selectedKeys?.Contains(row.Key) == true)
             {
                 row.MarkStale();
                 continue;
