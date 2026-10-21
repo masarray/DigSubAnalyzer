@@ -153,9 +153,12 @@ Assert-True (-not $gooseLeft.Contains('Text="{Binding GooseFilterSummaryText}"')
 
 $sectionNodes = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseInspectorSectionExpanderStyle}']", $ns)
 Assert-True ($sectionNodes.Count -eq 3) 'Exactly three collapsible GOOSE Inspector sections'
-Assert-True (($sectionNodes[0].GetAttribute('IsExpanded') -eq 'True') -and
-             ($sectionNodes[1].GetAttribute('IsExpanded') -eq 'False') -and
-             ($sectionNodes[2].GetAttribute('IsExpanded') -eq 'True')) 'Message and Values open by default, Network closed'
+Assert-True (($sectionNodes[0].GetAttribute('IsExpanded') -eq '{Binding GooseMessageExpanded, Mode=TwoWay}') -and
+             ($sectionNodes[1].GetAttribute('IsExpanded') -eq '{Binding GooseNetworkExpanded, Mode=TwoWay}') -and
+             ($sectionNodes[2].GetAttribute('IsExpanded') -eq '{Binding GooseValuesExpanded, Mode=TwoWay}')) 'Three independent section states are bound to session ViewModel'
+Assert-True ($vmSource.Contains('private bool _gooseMessageExpanded = true;') -and
+             $vmSource.Contains('private bool _gooseNetworkExpanded;') -and
+             $vmSource.Contains('private bool _gooseValuesExpanded = true;')) 'Message and Values open by default; Network closed'
 Assert-True ($theme.OuterXml.Contains('GooseMaterialExpandCircle')) 'Inspector and data items use the Material circled chevron'
 Assert-True (-not $inspector.Contains('Content="Identify these signals in the Configuration tab"')) 'Long textual onboarding removed from signal list'
 Assert-True ($inspector.Contains('Content="Identify signals"')) 'Compact signal mapping action retained'
