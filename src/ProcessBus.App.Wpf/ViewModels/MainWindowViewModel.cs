@@ -4966,8 +4966,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         while (_pendingGooseRows.Count > 500)
             _pendingGooseRows.Dequeue();
-        if (changeEvidence is not null)
-            ProjectGooseUnreadIndicators();
     }
 
     private void DeferGooseUiFlush()
