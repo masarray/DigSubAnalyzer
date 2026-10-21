@@ -104,7 +104,7 @@ public static class GoldenFrames
         string dataSet = "IED1LD0/LLN0$DataSet01",
         string goId = "GO_TRIP",
         uint stNum = 3,
-        uint sqNum = 7)
+        uint sqNum = 7, bool signalValue = true, byte confRev = 1)
     {
         var utcTimestamp = new byte[8];
 
@@ -117,10 +117,10 @@ public static class GoldenFrames
             Tlv(0x85, new[] { (byte)stNum }),
             Tlv(0x86, new[] { (byte)sqNum }),
             Tlv(0x87, new byte[] { 0x00 }),
-            Tlv(0x88, new byte[] { 0x01 }),
+            Tlv(0x88, new byte[] { confRev }),
             Tlv(0x89, new byte[] { 0x00 }),
             Tlv(0x8A, new byte[] { 0x01 }),
-            Tlv(0xAB, Tlv(0x83, new byte[] { 0x01 })));
+            Tlv(0xAB, Tlv(0x83, new byte[] { signalValue ? (byte)0x01 : (byte)0x00 })));
     }
 
     /// <summary>
@@ -163,8 +163,10 @@ public static class GoldenFrames
         return EthernetFrame(SvEtherType, ProcessBusPayload(appId, SvApdu()), vlanTci);
     }
 
-    public static byte[] GooseFrame(ushort appId = 0x0001)
+    public static byte[] GooseFrame(ushort appId = 0x0001, uint stNum = 3, uint sqNum = 7,
+        bool signalValue = true, byte confRev = 1)
     {
-        return EthernetFrame(GooseEtherType, ProcessBusPayload(appId, GooseApdu()));
+        return EthernetFrame(GooseEtherType, ProcessBusPayload(appId,
+            GooseApdu(stNum: stNum, sqNum: sqNum, signalValue: signalValue, confRev: confRev)));
     }
 }
