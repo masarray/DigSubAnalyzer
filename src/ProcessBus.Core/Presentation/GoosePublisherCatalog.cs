@@ -157,6 +157,11 @@ public sealed class GoosePublisherCatalog
         return changed;
     }
 
+    /// <summary>Matches a union of physical publisher identities; empty means all.</summary>
+    public static bool MatchesSelection(GooseMessageItem message,
+        IReadOnlySet<GoosePublisherKey> keys) =>
+        keys.Count == 0 || keys.Contains(GoosePublisherKey.From(message));
+
     /// <summary>Same deterministic filter for publisher exploration; filtering
     /// never changes the operator's selected publisher key.</summary>
     public static bool MatchesFilter(GooseMessageItem message, string? gooseId, string? search)
