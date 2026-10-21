@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/masarray/DigSubAnalyzer/actions/workflows/codeql.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/codeql.yml)
 [![GitHub Pages](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/pages.yml)
 [![Release Package](https://github.com/masarray/DigSubAnalyzer/actions/workflows/release-package.yml/badge.svg)](https://github.com/masarray/DigSubAnalyzer/actions/workflows/release-package.yml)
-[![Latest Release](https://img.shields.io/github/v/release/masarray/DigSubAnalyzer?include_prereleases&label=release)](https://github.com/masarray/DigSubAnalyzer/releases)
+[![Latest Stable Release](https://img.shields.io/github/v/release/masarray/DigSubAnalyzer?label=stable)](https://github.com/masarray/DigSubAnalyzer/releases/latest)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4)](#download-and-run)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#build-from-source)
@@ -28,7 +28,7 @@ Process Bus Insight is intentionally receive-only. It does not send IEC 61850 co
 | SV analyzer | Multi-stream discovery, APPID/svID/MAC/VLAN/confRev evidence, selected-stream workspace, decoded waveform, RMS, phasor, sequence diagnostics, shape/distortion indication, and selectable scope windows. |
 | Runtime snapshots | Immutable selected-stream generations containing copied identity, waveform, analog, phasor, shape, and diagnostic evidence for coherent consumer reads. |
 | PCAP replay | Bounded classic Ethernet PCAP replay through the same decoder/analyzer entry point used by live Npcap capture. |
-| GOOSE inspector | Publisher discovery, stNum/sqNum tracking, event timeline, typed `allData` decoding, change summaries, and SCL-assisted semantic context. |
+| GOOSE inspector | Stable multi-publisher selection, physical-key Messages filtering, bounded decoded-change timeline, Follow live switch, red unread notification dots, unified message acknowledgement, typed DataSet value-change tooltips, and SCL-assisted signal/quality context. |
 | PTP visibility | Passive PTPv2 context, grandmaster/domain evidence where available, freshness wording, and timestamp-confidence boundaries. |
 | SCL validation | Load SCD/ICD/CID files and compare expected publishers/streams against observed APPID, destination MAC, VLAN, svID, confRev, and related evidence. |
 | Evidence workflow | Copyable engineering evidence, cautious timing language, target-aware diagnostics, and screenshot-friendly workspaces. |
@@ -46,14 +46,16 @@ The application can record what was configured in SCL, what the selected capture
 
 ## Download and run
 
-1. Download the latest published **Windows Inno Setup installer** (v1.4.2 after its public release) from [GitHub Releases](https://github.com/masarray/DigSubAnalyzer/releases): `ProcessBusInsight-v1.4.2-win-x64-setup.exe`.
+**[Download the latest stable installer (.exe) — v1.4.2](https://github.com/masarray/DigSubAnalyzer/releases/download/v1.4.2/ProcessBusInsight-v1.4.2-win-x64-setup.exe)** · [Landing page](https://masarray.github.io/DigSubAnalyzer/) · [Latest GitHub Release](https://github.com/masarray/DigSubAnalyzer/releases/latest)
+
+1. Download the public stable **Windows Inno Setup installer** directly from the link above. The landing page automatically resolves the newest stable Windows setup EXE and keeps v1.4.2 as a working fallback.
 2. Run the installer. Its stable app identity supports in-place updates, same-version repair, Windows uninstall, and optional desktop shortcut.
 3. **Offline manuals are installed directly inside the app folder** (`User Manual.pdf`, `Quick Start.pdf`, and `Install and Update.md`), with Start Menu shortcuts.
 4. Install **Npcap separately** when live raw Ethernet capture is required; it is not bundled. Offline PCAP analysis remains available without it.
 5. Launch Process Bus Insight, select an authorized TAP or mirror capture adapter, and start analysis.
 6. To update, close the app and run the newer installer; no uninstall is needed for standard in-place upgrades.
 
-An optional **portable ZIP** is also available for manual extraction. The community installer is currently unsigned, so verify its official source and SHA256; do not treat it as a background auto-updater. See [installation and update guidance](docs/INSTALLATION_AND_UPDATE.md).
+An optional [**portable ZIP**](https://github.com/masarray/DigSubAnalyzer/releases/download/v1.4.2/ProcessBusInsight-v1.4.2-win-x64-portable.zip) is also available for manual extraction. Compare its checksum or the installer's checksum with [SHA256SUMS.txt](https://github.com/masarray/DigSubAnalyzer/releases/download/v1.4.2/SHA256SUMS.txt). The community installer is currently unsigned, so verify its official source and SHA256; do not treat it as a background auto-updater. See [installation and update guidance](docs/INSTALLATION_AND_UPDATE.md).
 
 Current Windows distribution naming:
 
