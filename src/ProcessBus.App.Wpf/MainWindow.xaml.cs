@@ -1,3 +1,7 @@
+using ProcessBus.Core.Presentation;
+using System.Collections.Specialized;
+using System.Linq;
+using System.Windows.Threading;
 using ProcessBus.App.Wpf.ViewModels;
 using ProcessBus.App.Wpf.Views;
 using System.ComponentModel;
@@ -12,6 +16,13 @@ namespace ProcessBus.App.Wpf;
 public partial class MainWindow : Window
 {
     private DateTime _lastGooseInteractionUtc = DateTime.MinValue;
+    private bool _gooseWorkspaceHooksAttached;
+    private bool _gooseSourceSyncing;
+    private bool _gooseSourceSyncQueued;
+    private bool _gooseSourceKeyboardSelecting;
+    private GoosePublisherKey? _gooseSourceRangeAnchor;
+    private bool _gooseFollowQueued;
+    private bool _gooseProgrammaticScroll;
     private int _pendingWorkspaceTabIndex = -1;
     private bool _isWorkspaceTabSwitchQueued;
     private bool _shutdownStarted;
@@ -22,6 +33,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         if (DataContext is MainWindowViewModel viewModel) { }
 
+        Loaded += GooseWorkspace_Loaded;
         Loaded += (_, _) => { UpdateHeaderDensity(); UpdateWorkspaceActivePill(animate: false); };
         SizeChanged += (_, _) => UpdateHeaderDensity();
         Closing += MainWindow_Closing;
@@ -266,14 +278,213 @@ public partial class MainWindow : Window
         GooseSourceSearchBox.Focus();
     }
 
+    private void GooseWorkspace_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (_gooseWorkspaceHooksAttached || DataContext is not MainWindowViewModel vm) return;
+        _gooseWorkspaceHooksAttached = true;
+        vm.PropertyChanged += GooseViewModel_PropertyChanged;
+        vm.GoosePublisherRows.CollectionChanged += GooseSources_CollectionChanged;
+        vm.GooseVisibleMessagesAppended += GooseVisibleMessagesAppended;
+        QueueGooseSourceSync();
+    }
+
+    private void GooseViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainWindowViewModel.GoosePublisherFilterText)
+            or nameof(MainWindowViewModel.GooseSelectedSourceCount))
+            QueueGooseSourceSync();
+    }
+
+    private void GooseSources_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        QueueGooseSourceSync();
+
+    private void QueueGooseSourceSync()
+    {
+        if (_gooseSourceSyncQueued) return;
+        _gooseSourceSyncQueued = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _gooseSourceSyncQueued = false;
+            SyncGooseSourceSelection();
+        }), DispatcherPriority.Background);
+    }
+
+    private void SyncGooseSourceSelection()
+    {
+        if (_gooseSourceSyncing || DataContext is not MainWindowViewModel vm) return;
+        _gooseSourceSyncing = true;
+        try
+        {
+            var visible = GooseSourcesList.Items.OfType<GoosePublisherRow>()
+                .Where(row => vm.SelectedGooseSourceKeys.Contains(row.Key)).ToArray();
+            var selected = GooseSourcesList.SelectedItems.OfType<GoosePublisherRow>().ToArray();
+            if (visible.Length == selected.Length && visible.All(selected.Contains)) return;
+            GooseSourcesList.SelectedItems.Clear();
+            foreach (var row in visible)
+                GooseSourcesList.SelectedItems.Add(row);
+        }
+        finally { _gooseSourceSyncing = false; }
+    }
+
     private void GoosePublisherRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // WPF SelectionChanged does not fire when the operator clicks an item
-        // that is already selected. The explicit click still means "inspect live"
-        // after a historical timeline event had been pinned.
-        if (DataContext is MainWindowViewModel viewModel &&
-            sender is ListViewItem { DataContext: ProcessBus.Core.Presentation.GoosePublisherRow row })
-            viewModel.SelectedGoosePublisherRow = row;
+        if (DataContext is not MainWindowViewModel vm ||
+            sender is not ListViewItem { DataContext: GoosePublisherRow row })
+            return;
+
+        var chosen = vm.SelectedGooseSourceKeys.ToHashSet();
+        var modifier = Keyboard.Modifiers;
+        if ((modifier & ModifierKeys.Shift) != 0)
+        {
+            var visible = GooseSourcesList.Items.OfType<GoosePublisherRow>().ToArray();
+            var anchor = Array.FindIndex(visible, item => item.Key == _gooseSourceRangeAnchor);
+            var target = Array.FindIndex(visible, item => item.Key == row.Key);
+            if (anchor < 0) anchor = target;
+            if (target >= 0)
+                for (var i = Math.Min(anchor, target); i <= Math.Max(anchor, target); i++)
+                    chosen.Add(visible[i].Key);
+        }
+        else if ((modifier & ModifierKeys.Control) != 0)
+        {
+            if (!chosen.Add(row.Key)) chosen.Remove(row.Key);
+            _gooseSourceRangeAnchor = row.Key;
+        }
+        else
+        {
+            if (chosen.Count == 1 && chosen.Contains(row.Key)) chosen.Clear();
+            else { chosen.Clear(); chosen.Add(row.Key); }
+            _gooseSourceRangeAnchor = row.Key;
+        }
+
+        vm.SetGooseSourceSelection(chosen);
+        // Only plain click intentionally changes the live Inspector target.
+        if (modifier == ModifierKeys.None && chosen.Contains(row.Key))
+            vm.SelectedGoosePublisherRow = row;
+        SyncGooseSourceSelection();
+        ((ListViewItem)sender).Focus();
+        e.Handled = true; // WPF must not undo our explicit toggle/range semantics.
+    }
+
+    private void GooseSources_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Up or Key.Down or Key.Home or Key.End or Key.PageUp
+            or Key.PageDown or Key.Space)
+            _gooseSourceKeyboardSelecting = true;
+    }
+
+    private void GooseSources_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        _gooseSourceKeyboardSelecting = false;
+    }
+
+    private void GooseSources_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_gooseSourceSyncing || !_gooseSourceKeyboardSelecting ||
+            DataContext is not MainWindowViewModel vm) return;
+        // Hidden selected identities are retained when search narrows the left rail.
+        var visible = GooseSourcesList.Items.OfType<GoosePublisherRow>()
+            .Select(row => row.Key).ToHashSet();
+        var keys = vm.SelectedGooseSourceKeys.Where(key => !visible.Contains(key)).ToHashSet();
+        foreach (var row in GooseSourcesList.SelectedItems.OfType<GoosePublisherRow>())
+            keys.Add(row.Key);
+        vm.SetGooseSourceSelection(keys);
+        if (Keyboard.Modifiers == ModifierKeys.None &&
+            GooseSourcesList.SelectedItem is GoosePublisherRow focus)
+            vm.SelectedGoosePublisherRow = focus;
+    }
+
+    private void GooseVisibleMessagesAppended(GooseTrafficRow row)
+    {
+        if (DataContext is MainWindowViewModel { FollowGooseMessages: true })
+            QueueGooseFollow();
+    }
+
+    private void QueueGooseFollow()
+    {
+        if (_gooseFollowQueued || !GooseMessagesGrid.IsVisible) return;
+        _gooseFollowQueued = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _gooseFollowQueued = false;
+            if (DataContext is not MainWindowViewModel { FollowGooseMessages: true } vm ||
+                !GooseMessagesGrid.IsVisible) return;
+            var lastVisible = vm.GooseHistoryView.OfType<GooseTrafficRow>().LastOrDefault();
+            if (lastVisible is null) return;
+            _gooseProgrammaticScroll = true;
+            GooseMessagesGrid.ScrollIntoView(lastVisible);
+            Dispatcher.BeginInvoke(new Action(() => _gooseProgrammaticScroll = false),
+                DispatcherPriority.ContextIdle);
+        }), DispatcherPriority.Loaded);
+    }
+
+    private void GooseFollowLive_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        vm.FollowGooseMessages = true;
+        QueueGooseFollow();
+    }
+
+    private void GooseMessagesGrid_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true &&
+            DataContext is MainWindowViewModel { FollowGooseMessages: true })
+            QueueGooseFollow();
+    }
+
+    private void SuspendGooseFollow()
+    {
+        if (!_gooseProgrammaticScroll && DataContext is MainWindowViewModel vm)
+            vm.FollowGooseMessages = false;
+    }
+
+    private void GooseMessagesGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
+        SuspendGooseFollow();
+
+    private void GooseMessagesGrid_PreviewMouseDown(object sender, MouseButtonEventArgs e) =>
+        SuspendGooseFollow();
+
+    private void GooseMessagesGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown or
+            Key.Home or Key.End or Key.Space)
+            SuspendGooseFollow();
+    }
+
+    private void GooseMessagesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count > 0) SuspendGooseFollow();
+    }
+
+    private void GooseMessagesGrid_ContextMenuOpening(object sender, ContextMenuEventArgs e) =>
+        SuspendGooseFollow();
+
+    private void GooseMessagesGrid_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        // Real scrollbar/touch navigation away from bottom is an operator action.
+        // Content growth and programmatic follow do not suspend the follow state.
+        if (!_gooseProgrammaticScroll && e.ExtentHeightChange == 0 &&
+            Math.Abs(e.VerticalChange) > 0.01 &&
+            e.VerticalOffset < e.ExtentHeight - e.ViewportHeight - 2)
+            SuspendGooseFollow();
+    }
+
+    private void GooseMessagesGrid_LoadingRow(object sender, DataGridRowEventArgs e)
+    {
+        // Recycling must never transfer a previous event's visual accent.
+        e.Row.ClearValue(Control.BackgroundProperty);
+        if (e.Row.Item is not GooseTrafficRow row ||
+            row.EventType == "Retrans" ||
+            row.VisibleSinceUtc == DateTime.MinValue ||
+            DateTime.UtcNow - row.VisibleSinceUtc > TimeSpan.FromSeconds(1.5) ||
+            e.Row.IsSelected) return;
+        var brush = new SolidColorBrush(Color.FromArgb(53, 41, 125, 179));
+        e.Row.Background = brush;
+        brush.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation
+        {
+            To = Color.FromArgb(0, 41, 125, 179),
+            Duration = new Duration(TimeSpan.FromSeconds(1.25)),
+            FillBehavior = FillBehavior.HoldEnd
+        });
     }
 
     private void GooseTraffic_Interaction(object sender, MouseEventArgs e)
