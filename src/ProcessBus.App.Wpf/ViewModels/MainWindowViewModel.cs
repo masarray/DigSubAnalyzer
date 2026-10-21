@@ -49,6 +49,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private Guid _lastGooseValueChangeSessionId;
     private long _lastGooseValueChangeRevision;
     private long _gooseValueChangeDroppedSinceLastRead;
+    private long _gooseUnreadEvictedCount;
     private GooseTrafficRow? _selectedGooseTrafficRow;
     private bool _gooseFollowLive = true;
     private long _gooseVisibleAppendRevision;
@@ -261,9 +262,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public bool GooseHasSearchText => !string.IsNullOrWhiteSpace(GoosePublisherFilterText);
-    public string GooseValueChangeLossText => _gooseValueChangeDroppedSinceLastRead == 0
-        ? "" : $"{_gooseValueChangeDroppedSinceLastRead:N0} decoded changes dropped from buffer";
-    public bool GooseHasValueChangeLoss => _gooseValueChangeDroppedSinceLastRead > 0;
+    public string GooseValueChangeLossText => string.Join(" · ", new[]
+    {
+        _gooseValueChangeDroppedSinceLastRead > 0
+            ? $"{_gooseValueChangeDroppedSinceLastRead:N0} decoded changes missed before UI read" : "",
+        _gooseUnreadEvictedCount > 0
+            ? $"{_gooseUnreadEvictedCount:N0} unread events evicted at the bounded history limit" : ""
+    }.Where(text => text.Length > 0));
+    public bool GooseHasValueChangeLoss =>
+        _gooseValueChangeDroppedSinceLastRead > 0 || _gooseUnreadEvictedCount > 0;
     // Two-way switch binding. Switching ON explicitly resumes at newest visible
     // row; switching OFF freezes the viewport without altering Inspector/selection.
     public bool GooseFollowLive
@@ -4645,6 +4652,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _lastGooseValueChangeRevision = 0;
         _lastGooseValueChangeSessionId = Guid.Empty;
         _gooseValueChangeDroppedSinceLastRead = 0;
+        _gooseUnreadEvictedCount = 0;
         OnPropertyChanged(nameof(GooseValueChangeLossText));
         OnPropertyChanged(nameof(GooseHasValueChangeLoss));
         ClearGooseSourceSelection();
@@ -5078,7 +5086,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             removeCount = _gooseHistory.Count - GooseHistoryLimit;
             for (var i = 0; i < removeCount; i++)
-                _gooseHistory.RemoveAt(0);
+            {
+                // Retain unread engineering evidence ahead of retransmissions
+                // and acknowledged history, while preserving a hard memory cap.
+                var removeAt = 0;
+                while (removeAt < _gooseHistory.Count && _gooseHistory[removeAt].IsUnacknowledgedEvent)
+                    removeAt++;
+                if (removeAt == _gooseHistory.Count)
+                {
+                    removeAt = 0; // Bounded overflow: never retain indefinitely.
+                    _gooseUnreadEvictedCount++;
+                    OnPropertyChanged(nameof(GooseValueChangeLossText));
+                    OnPropertyChanged(nameof(GooseHasValueChangeLoss));
+                }
+                _gooseHistory.RemoveAt(removeAt);
+            }
         }
 
         // The view observes incremental changes. Never Refresh() on each event.
