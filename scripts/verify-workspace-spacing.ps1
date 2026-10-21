@@ -129,7 +129,7 @@ $vmSource = Get-Content -LiteralPath $viewModelPath -Raw
 Assert-True ($vmSource.Contains('Source.LastSeenUtc.ToLocalTime().ToString("HH:mm:ss.fff")')) 'GOOSE timeline uses the same local clock as Inspector'
 Assert-True ($vmSource.Contains('GooseEngineeringLanguage.TryDescribeDoublePoint')) 'Signal position labels use config-validated state interpretation'
 Assert-True ($vmSource.Contains('GooseEngineeringLanguage.DataType')) 'Data type labels use human-friendly terminology'
-Assert-True ($source.Contains('Text="Published Values"')) 'Signal table uses plain wording'
+Assert-True ($inspector.Contains('Text="Values"')) 'Compact signal table title remains meaningful'
 Assert-True ($source.Contains('Text="RECEIVED VALUE"')) 'Values remain clearly distinguished from interpretation'
 Write-Host 'GOOSE operator language contract: PASS (plain labels + original wire evidence)'
 Assert-True (-not $inspector.Contains('<DockPanel Margin="0,0,0,10">')) 'DataSet title no longer uses ambiguous DockPanel filling'
