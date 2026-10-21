@@ -62,13 +62,13 @@ git add -f docs/QUICK_START.pdf docs/USER_MANUAL.pdf
 ## Local packaging
 
 ```powershell
-.\scripts\repository-health.ps1 -ExpectedVersion "1.4.1"
+.\scripts\repository-health.ps1 -ExpectedVersion "1.4.2"
 python -m pip install reportlab==4.4.9
 python .\scripts\render-offline-manuals.py
-.\scripts\publish-windows-portable.ps1 -Version "1.4.1"
-.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.1-win-x64-portable.zip"
-.\scripts\publish-windows-installer.ps1 -Version "1.4.1"
-.\scripts\verify-windows-installer.ps1 -Installer ".\artifacts\release\ProcessBusInsight-v1.4.1-win-x64-setup.exe" -StageDir ".\artifacts\package\ProcessBusInsight-v1.4.1-win-x64-portable"
+.\scripts\publish-windows-portable.ps1 -Version "1.4.2"
+.\scripts\verify-release-package.ps1 -PackageZip ".\artifacts\release\ProcessBusInsight-v1.4.2-win-x64-portable.zip"
+.\scripts\publish-windows-installer.ps1 -Version "1.4.2"
+.\scripts\verify-windows-installer.ps1 -Installer ".\artifacts\release\ProcessBusInsight-v1.4.2-win-x64-setup.exe" -StageDir ".\artifacts\package\ProcessBusInsight-v1.4.2-win-x64-portable"
 ```
 
 ## GitHub workflows
