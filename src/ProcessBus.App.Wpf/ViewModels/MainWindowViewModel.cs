@@ -46,6 +46,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly GoosePublisherCatalog _gooseCatalog = new();
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private readonly HashSet<GoosePublisherKey> _selectedGooseSourceKeys = new();
+    private long _lastGooseValueChangeRevision;
+    private long _lastGooseValueChangeOverflow;
+    private long _gooseValueChangeDroppedSinceLastRead;
     private GooseTrafficRow? _selectedGooseTrafficRow;
     private bool _gooseInspectHistoricalEvent;
     private bool _gooseMessageExpanded = true;
@@ -254,6 +257,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public bool GooseHasSearchText => !string.IsNullOrWhiteSpace(GoosePublisherFilterText);
+    public string GooseValueChangeLossText => _gooseValueChangeDroppedSinceLastRead == 0
+        ? "" : $"{_gooseValueChangeDroppedSinceLastRead:N0} decoded changes dropped from buffer";
+    public bool GooseHasValueChangeLoss => _gooseValueChangeDroppedSinceLastRead > 0;
     public IReadOnlyCollection<GoosePublisherKey> SelectedGooseSourceKeys => _selectedGooseSourceKeys;
     public bool GooseSourceFilterActive => _selectedGooseSourceKeys.Count > 0;
     public string GooseSourceScopeText => _selectedGooseSourceKeys.Count == 0
@@ -2375,6 +2381,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _gooseSnapshot = gooseSnapshot;
             _gooseMessages = _gooseSnapshot.Messages;
             _gooseCatalog.Reconcile(_gooseMessages, _selectedGoosePublisherKey, _selectedGooseSourceKeys);
+            ApplyDecodedGooseValueChangeEvents(_gooseSnapshot, now);
             UpdateGooseIdFilterOptions();
 
             foreach (var msg in _gooseSnapshot.Messages)
@@ -4567,6 +4574,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _gooseSnapshot = new GooseMonitorSnapshot { StatusText = "Cleared" };
         _gooseMessages = Array.Empty<GooseMessageItem>();
         _gooseCatalog.Clear();
+        _lastGooseValueChangeRevision = 0;
+        _lastGooseValueChangeOverflow = 0;
+        _gooseValueChangeDroppedSinceLastRead = 0;
+        OnPropertyChanged(nameof(GooseValueChangeLossText));
+        OnPropertyChanged(nameof(GooseHasValueChangeLoss));
         ClearGooseSourceSelection();
         _selectedGoosePublisherKey = null;
         _gooseInspectHistoricalEvent = false;
@@ -4658,6 +4670,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Unit = channel.Unit,
             Freshness = channel.Freshness
         };
+
+    private void ApplyDecodedGooseValueChangeEvents(GooseMonitorSnapshot snapshot, DateTime nowUtc)
+    {
+        // The decoder ring is repeatedly sampled. Monotonic revisions prevent
+        // duplicate UI notifications; no raw frames are retained here.
+        foreach (var change in snapshot.ValueChanges)
+        {
+            if (change.Revision <= _lastGooseValueChangeRevision) continue;
+            _gooseCatalog.Find(change.PublisherKey)?.MarkDecodedValueChange(change.TimeUtc, change.Revision);
+            _lastGooseValueChangeRevision = change.Revision;
+        }
+        if (snapshot.ValueChangeOverflowCount > _lastGooseValueChangeOverflow)
+        {
+            _gooseValueChangeDroppedSinceLastRead += snapshot.ValueChangeOverflowCount - _lastGooseValueChangeOverflow;
+            _lastGooseValueChangeOverflow = snapshot.ValueChangeOverflowCount;
+            OnPropertyChanged(nameof(GooseValueChangeLossText));
+            OnPropertyChanged(nameof(GooseHasValueChangeLoss));
+        }
+        foreach (var row in _gooseCatalog.Rows)
+            if (row.HasRecentValueChange) row.ExpireValueChangeNotice(nowUtc);
+    }
 
     private bool FilterGoosePublisher(object item) =>
         item is GoosePublisherRow row &&
