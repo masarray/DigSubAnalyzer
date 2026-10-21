@@ -743,3 +743,7 @@ h3 {
   .preview-overlay { padding: 18px; }
   .preview-close { top: 14px; right: 14px; }
 }
+
+/* Stable installer is the primary action in the download section; preserve compact spacing. */
+.download-primary-cta{margin:14px 0 12px}
+.download-primary-cta .button{min-height:40px;display:inline-flex;align-items:center;gap:8px}
