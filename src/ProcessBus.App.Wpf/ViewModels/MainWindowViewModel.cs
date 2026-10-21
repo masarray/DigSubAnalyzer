@@ -4686,23 +4686,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (semantic is null)
             return text;
 
-        // Only a DataSet attribute explicitly resolved as DPC.stVal may be
-        // interpreted as a two-bit breaker/switch position. Quality/time/raw
-        // binary fields must not be mislabeled OPEN or CLOSE.
-        if (!semantic.IsQuality && !semantic.IsTimestamp &&
-            string.Equals(semantic.Cdc, "DPC", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(semantic.DaName, "stVal", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(value.Type, "BitString", StringComparison.OrdinalIgnoreCase))
-        {
-            return text switch
-            {
-                "10" => "CLOSE [10]",
-                "01" => "OPEN [01]",
-                "00" => "INTERMEDIATE [00]",
-                "11" => "BAD_STATE [11]",
-                _ => text
-            };
-        }
+        if (GooseEngineeringLanguage.TryDescribeDoublePoint(semantic, value.Type, text, out var state))
+            return state;
 
         if (string.Equals(semantic.Cdc, "SPS", StringComparison.OrdinalIgnoreCase) &&
             bool.TryParse(text, out var singlePoint))
