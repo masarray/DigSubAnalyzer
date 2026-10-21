@@ -47,6 +47,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private GooseTrafficRow? _selectedGooseTrafficRow;
     private bool _gooseInspectHistoricalEvent;
+    private bool _gooseMessageExpanded = true;
+    private bool _gooseNetworkExpanded;
+    private bool _gooseValuesExpanded = true;
     private GoosePublisherKey? _lastDisplayedGoosePublisherKey;
     private GooseTrafficRow? _lastDisplayedGooseHistoryEvent;
     private int _gooseVisibleEventCount;
@@ -251,6 +254,41 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public bool GooseHasSearchText => !string.IsNullOrWhiteSpace(GoosePublisherFilterText);
+
+    // Operator accordion state is SSOT in the session ViewModel, independent
+    // of capture snapshots and TabControl visual tree recreation.
+    public bool GooseMessageExpanded
+    {
+        get => _gooseMessageExpanded;
+        set
+        {
+            if (_gooseMessageExpanded == value) return;
+            _gooseMessageExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool GooseNetworkExpanded
+    {
+        get => _gooseNetworkExpanded;
+        set
+        {
+            if (_gooseNetworkExpanded == value) return;
+            _gooseNetworkExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool GooseValuesExpanded
+    {
+        get => _gooseValuesExpanded;
+        set
+        {
+            if (_gooseValuesExpanded == value) return;
+            _gooseValuesExpanded = value;
+            OnPropertyChanged();
+        }
+    }
 
     // Legacy protocol-level GOID filter stays available for API compatibility.
     // The compact explorer uses a single search box instead of a duplicate dropdown.
