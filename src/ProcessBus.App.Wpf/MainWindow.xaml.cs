@@ -276,10 +276,16 @@ public partial class MainWindow : Window
 
     private void GooseViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not (nameof(MainWindowViewModel.GoosePublisherFilterText) or
-            nameof(MainWindowViewModel.GooseSourceScopeText))) return;
-        Dispatcher.BeginInvoke(new Action(SyncGooseSourceVisualSelection),
-            System.Windows.Threading.DispatcherPriority.ContextIdle);
+        if (e.PropertyName is nameof(MainWindowViewModel.GoosePublisherFilterText) or
+            nameof(MainWindowViewModel.GooseSourceScopeText))
+            Dispatcher.BeginInvoke(new Action(SyncGooseSourceVisualSelection),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
+
+        if (e.PropertyName == nameof(MainWindowViewModel.GooseVisibleAppendRevision))
+            ScheduleGooseFollowScroll(force: false);
+        else if (e.PropertyName == nameof(MainWindowViewModel.GooseFollowLive) &&
+                 sender is MainWindowViewModel { GooseFollowLive: true })
+            ScheduleGooseFollowScroll(force: true);
     }
 
     private bool _syncingGooseSourceSelection;
@@ -373,7 +379,77 @@ public partial class MainWindow : Window
 
     private void GooseTraffic_ClickInteraction(object sender, MouseButtonEventArgs e)
     {
+        SuspendGooseFollowFromOperator();
         DeferGooseTrafficFlush();
+    }
+
+    private bool _gooseFollowScrollScheduled;
+    private bool _gooseForceFollowScroll;
+
+    private void SuspendGooseFollowFromOperator()
+    {
+        if (DataContext is MainWindowViewModel vm)
+            vm.SuspendGooseFollow();
+    }
+
+    private void GooseMessageGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
+        SuspendGooseFollowFromOperator();
+
+    private void GooseMessageGrid_PreviewTouchDown(object sender, TouchEventArgs e) =>
+        SuspendGooseFollowFromOperator();
+
+    private void GooseMessageGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Up or Key.Down or Key.Home or Key.End or
+            Key.PageUp or Key.PageDown or Key.Space or Key.Left or Key.Right)
+            SuspendGooseFollowFromOperator();
+    }
+
+    private static T? FindGooseVisualChild<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T result) return result;
+            var descendant = FindGooseVisualChild<T>(child);
+            if (descendant is not null) return descendant;
+        }
+        return null;
+    }
+
+    private bool IsGooseGridAtBottom()
+    {
+        var scroll = FindGooseVisualChild<ScrollViewer>(GooseMessageGrid);
+        return scroll is null || scroll.VerticalOffset >= scroll.ScrollableHeight - 1.5;
+    }
+
+    private void ScheduleGooseFollowScroll(bool force)
+    {
+        if (DataContext is not MainWindowViewModel { GooseFollowLive: true }) return;
+        if (!force && !IsGooseGridAtBottom())
+        {
+            SuspendGooseFollowFromOperator();
+            return;
+        }
+        _gooseForceFollowScroll |= force;
+        if (_gooseFollowScrollScheduled) return;
+        _gooseFollowScrollScheduled = true;
+        // The view has already received the entire bounded append batch.
+        // No selection/focus mutation, no per-frame or per-packet dispatch.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _gooseFollowScrollScheduled = false;
+            var shouldScroll = _gooseForceFollowScroll;
+            _gooseForceFollowScroll = false;
+            if (DataContext is not MainWindowViewModel vm || !vm.GooseFollowLive ||
+                !GooseMessageGrid.IsVisible) return;
+            if (shouldScroll || IsGooseGridAtBottom() ||
+                vm.GooseVisibleAppendRevision > 0)
+            {
+                var last = vm.GooseLatestVisibleTrafficRow;
+                if (last is not null) GooseMessageGrid.ScrollIntoView(last);
+            }
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void DeferGooseTrafficFlush()
