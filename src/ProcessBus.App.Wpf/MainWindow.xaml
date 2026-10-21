@@ -1304,12 +1304,24 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="GOOSE Sources"
-                                           Foreground="#F4FAFF"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="GOOSE Sources" Foreground="#F4FAFF"
+                                               FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock Text=" · Change gaps" Foreground="#EBC18B" FontSize="10"
+                                               Margin="5,0,0,0" VerticalAlignment="Center"
+                                               ToolTip="{Binding GooseValueChangeLossText}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding GooseHasValueChangeLoss}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding GoosePublisherCountText}"
                                            Foreground="#7FA8CC"
@@ -1398,7 +1410,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Only this bounded viewport scrolls; search and toggle stay fixed. -->
+                            <!-- Only this bounded viewport scrolls; source search stays fixed. -->
                             <Grid Grid.Row="2" MinHeight="0">
                                 <ListView x:Name="GooseSourceList" ItemsSource="{Binding GoosePublisherRowsView}"
                                           SelectionMode="Extended"
@@ -3095,8 +3107,19 @@
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <TextBlock Text="G" FontSize="11" FontWeight="SemiBold"
-                                                                       Foreground="#75C2F5" ToolTip="{Binding EventDescriptionText}"
-                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                       ToolTip="{Binding EventDescriptionText}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#75C2F5"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsRecentMeaningfulEvent}" Value="True">
+                                                                                <Setter Property="Foreground" Value="#F6C982"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
