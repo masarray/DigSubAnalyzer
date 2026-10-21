@@ -1,0 +1,59 @@
+name: Publish approved Process Bus Insight v1.4.2 stable
+
+# One-time owner approval marker after all dependent GOOSE PRs were merged.
+# Only the validated main branch can dispatch the official Windows release job.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/release/v1.4.2.approved"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch_stable:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout approved main
+        uses: actions/checkout@v7
+
+      - name: Confirm immutable version and release notes
+        shell: bash
+        run: |
+          grep -q '<VersionPrefix[^>]*>1.4.2</VersionPrefix>' Directory.Build.props
+          test -f docs/RELEASE_NOTES_v1.4.2.md
+          test -f .github/release/v1.4.2.approved
+
+      - name: Check immutable public release identity
+        id: existing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v1.4.2 --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v1.4.2 already public; do not overwrite it."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "v1.4.2 not yet published; dispatch release from main."
+          fi
+
+      - name: Dispatch validated public stable release
+        if: steps.existing.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh workflow run release-package.yml --repo "$GH_REPO" --ref main \
+            -f version=1.4.2 \
+            -f publish_release=true \
+            -f prerelease=false \
+            -f draft=false \
+            -f release_notes_file=docs/RELEASE_NOTES_v1.4.2.md
+          echo "Dispatched public stable v1.4.2 main-only Release build."
