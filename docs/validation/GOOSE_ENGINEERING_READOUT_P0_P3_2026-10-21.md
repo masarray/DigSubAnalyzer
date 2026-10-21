@@ -46,3 +46,28 @@ Three operator screenshots of the P0–P3 candidate demonstrate selection stabil
 The targeted follow-up uses a fixed Inspector header row (including PINNED/TEST and Return to Live), a single scrolling evidence region, an explicitly aligned DataSet title/count grid, and compact key/value MMS details. These corrections do not alter packet reception, GOOSE state matching, generic typed decoding, or the 8-DIP workspace gutter.
 
 Required physical acceptance: expand two entries, scroll to the bottom and back, confirm the Inspector mode and Return to Live remain visible throughout; confirm the DataSet count does not touch the title at 100%, 125%, 150% DPI; verify selecting a different publisher or returning to Live changes Inspector context correctly without replacing unrelated publisher rows.
+
+## Operator language acceptance — message/field terminology
+
+The application must explain what an electrical engineer is seeing without requiring familiarity with every IEC 61850 field name. Keep accurate original wire references in tooltips or expandable forensic rows.
+
+| Main display | Original technical evidence |
+| --- | --- |
+| Message name | goID |
+| Control block | goCbRef |
+| Application code | APPID |
+| State number / Sequence number | stNum / sqNum |
+| Sender address / Group address | Ethernet source / destination MAC |
+| Network group | VLAN ID and priority |
+| Configuration version | confRev |
+| Allowed wait | timeAllowedToLive, milliseconds |
+| Binary bit pattern | MMS BitString |
+| Data item 1, Data item 2… | Raw decoded values without matching SCL |
+| Open/Closed (verified switch-position signal only) | Matched SCL XCBR or XSWI / Pos.stVal |
+| First seen / State changed / Repeated | New / State Change / Retrans reception events |
+
+**Failure safety:** no breaker position can be inferred from a bare `00/01/10/11` bit pattern, unrelated DPC attributes, quality fields, timestamps or incomplete SCL identity. Source data is not renamed when evidence is missing. A configuration-tab shortcut explains how to identify signals.
+
+**Clock semantics:** the reception time in message history must use the same local clock as the recorded-message Inspector timestamp, avoiding false multi-hour offsets on site.
+
+**Additional physical acceptance:** use a multi-publisher real capture and a matching imported device configuration. Compare message history time against the Inspector time; validate names, interpreted switch position and decoded quality against a separately verified record. With no configuration, all entries remain generic with readable data type and raw bit/hex evidence. Test 100/125/150% scaling and expand two data rows without losing the sticky Inspector heading.
