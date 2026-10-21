@@ -308,6 +308,23 @@ h3 {
   line-height: 1.76;
 }
 .hero-actions { margin-top: 30px; }
+.hero-release-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.release-live-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a67d;
+  box-shadow: 0 0 0 3px rgba(22, 166, 125, 0.09);
+}
 .quick-facts {
   display: flex;
   flex-wrap: wrap;
@@ -437,6 +454,31 @@ h3 {
 .site-footer p,
 .shot-card figcaption span { color: var(--muted); }
 .download-panel > div > p { margin-top: 14px; max-width: 520px; }
+.download-alternatives {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 17px;
+  row-gap: 9px;
+  margin-top: 18px;
+  font-size: 12px;
+}
+.download-alternatives a {
+  color: #1761b2;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.download-alternatives a:hover,
+.download-alternatives a:focus-visible { color: #0b417f; }
+.download-installer-card {
+  border-color: rgba(22, 104, 232, 0.27);
+  background: rgba(234, 244, 255, 0.75);
+}
+.download-installer-card:hover,
+.download-installer-card:focus-visible {
+  border-color: rgba(22, 104, 232, 0.58);
+  background: rgba(231, 243, 255, 0.95);
+}
 .download-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .step-card {
   display: grid;
