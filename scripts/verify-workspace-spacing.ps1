@@ -107,7 +107,7 @@ $inspectorStart = $source.IndexOf('<!-- Right inspector: clean grouped informati
 $inspectorEnd = $source.IndexOf('<TabItem>', $inspectorStart)
 Assert-True ($inspectorStart -ge 0 -and $inspectorEnd -gt $inspectorStart) 'GOOSE inspector markup found'
 $inspector = $source.Substring($inspectorStart, $inspectorEnd - $inspectorStart)
-$headerOffset = $inspector.IndexOf('Text="GOOSE Inspector"')
+$headerOffset = $inspector.IndexOf('Text="Message Details"')
 $scrollOffset = $inspector.IndexOf('<ScrollViewer Grid.Row="1"')
 Assert-True ($headerOffset -ge 0 -and $scrollOffset -gt $headerOffset) 'Inspector header remains above independently scrolling evidence'
 Assert-True ($inspector.Contains('Grid.Row="0" Margin="0,0,0,12"')) 'Inspector header stays in fixed grid row'
