@@ -377,7 +377,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ? "Repeated messages visible" : "Showing changes only";
     public string GoosePublisherCountText => $"{_gooseMessages.Count} sources · {GooseSourceScopeText}";
     public string GooseTimelineCountersText =>
-        $"{_gooseSnapshot.TotalMessages:N0} messages received  ·  {_gooseVisibleEventCount:N0} shown";
+        $"{_gooseSnapshot.TotalMessages:N0} received · {_gooseVisibleEventCount:N0} shown";
     public string GooseWorkspaceCaptureSummaryText
     {
         get
