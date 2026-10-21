@@ -90,8 +90,10 @@ foreach ($name in @('WorkspacePanelInset', 'WorkspacePanelGapBelow', 'WorkspaceH
 # compact disclosure style; all other workspace layout tokens stay untouched.
 $gooseExpanderStyle = $theme.SelectNodes("//w:Style[@x:Key='GooseDatasetExpanderStyle']", $ns)
 Assert-True ($gooseExpanderStyle.Count -eq 1) 'GOOSE has one scoped engineer disclosure style'
-$gooseExpanderUsage = $window.SelectNodes("//w:Expander[@Style='{StaticResource GooseDatasetExpanderStyle}']", $ns)
-Assert-True ($gooseExpanderUsage.Count -eq 1) 'GOOSE typed rows use scoped compact chevrons'
+# The event-aware DataSet row is based on the shared GOOSE-only disclosure style,
+# preserving its exact compact chevron template while adding conditional value accents.
+$gooseExpanderUsage = $window.SelectNodes("//w:Expander/w:Expander.Style/w:Style[@BasedOn='{StaticResource GooseDatasetExpanderStyle}']", $ns)
+Assert-True ($gooseExpanderUsage.Count -eq 1) 'GOOSE typed rows retain scoped compact chevrons through BasedOn'
 foreach ($binding in @(
     'GooseInspectorRows',
     'GooseTimelineCountersText',
@@ -192,6 +194,19 @@ Assert-True ($vmSource.Contains('public void Acknowledge()') -and
              $vmSource.Contains('public void AcknowledgeGooseSource(')) 'Operator-owned acknowledgement is available for history and sources'
 Assert-True (-not $vmSource.Contains('ExpireEmphasis(') -and
              -not $vmSource.Contains('ExpireValueChangeNotice(')) 'Streaming UI does not auto-expire unread engineering evidence'
+$messageStart = $source.IndexOf('<!-- Main event timeline: lean, readable, no debug ornaments. -->')
+$messageEnd = $source.IndexOf('x:Name="GooseMessageGrid"', $messageStart)
+Assert-True ($messageStart -ge 0 -and $messageEnd -gt $messageStart) 'Messages header markup present'
+$messageHeader = $source.Substring($messageStart, $messageEnd - $messageStart)
+Assert-True (-not $messageHeader.Contains('Clear filter')) 'Messages header has no ugly Clear filter button'
+Assert-True (-not $messageHeader.Contains('Grid.Row="1"')) 'Messages header uses exactly one horizontal line'
+Assert-True ($messageHeader.Contains('GooseTimelineCountersText')) 'Compact counters remain inline in Messages header'
+Assert-True ($vmSource.Contains('InspectNextUnreadGooseSource(') -and
+             $vmSource.Contains('AcknowledgeGooseHistoryEvent(') -and
+             $vmSource.Contains('ProjectGooseUnreadIndicators(')) 'Sources and Messages share one unread-event journal'
+Assert-True ($inspector.Contains('GooseInspectorChangedCountText') -and
+             $inspector.Contains('Binding IsChanged')) 'Inspector highlights exact decoded changed entries'
+Write-Host 'GOOSE tri-pane event contract: PASS (one-line header, decoder evidence, source navigation, single ACK, inspector deltas)'
 Write-Host 'GOOSE acknowledgement UX contract: PASS (paired switches, per-source/event ACK, no timer expiry)'
 Write-Host 'GOOSE calm UX contract: PASS (Material icons, searchable scrolling sources, independent Inspector accordions)'
 Write-Host 'GOOSE readout contract: PASS (scoped chevron, RX/events, TEST, stable typed rows, live return)'
