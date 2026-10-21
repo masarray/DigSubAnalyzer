@@ -1458,7 +1458,6 @@
                                           Background="Transparent"
                                           BorderThickness="0"
                                           MinHeight="0"
-                                          EnableRowVirtualization="True"
                                           VirtualizingPanel.IsVirtualizing="True"
                                           VirtualizingPanel.VirtualizationMode="Recycling"
                                           ScrollViewer.CanContentScroll="True"
