@@ -3318,7 +3318,13 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <Grid>
+                                                <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
+                                                          IsExpanded="True"
+                                                          HorizontalAlignment="Stretch">
+                                                    <Expander.Header>
+                                                        <TextBlock Text="Message" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+                                                    </Expander.Header>
+                                                    <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="112"/>
                                                         <ColumnDefinition Width="*"/>
@@ -3347,6 +3353,7 @@
                                                     <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GooseInspectorMessage.SqNum}"
                                                                Foreground="#DDEEFF" FontWeight="SemiBold" Margin="0,3,0,3"/>
                                                 </Grid>
+                                                </Expander>
                                             </Border>
 
                                             <Border Padding="12"
@@ -3364,12 +3371,13 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <StackPanel>
-                                                    <TextBlock Text="Network Information"
-                                                               Foreground="#F4FAFF"
-                                                               FontSize="13.5"
-                                                               FontWeight="SemiBold"
-                                                               Margin="0,0,0,9"/>
+                                                <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
+                                                          IsExpanded="False"
+                                                          HorizontalAlignment="Stretch">
+                                                    <Expander.Header>
+                                                        <TextBlock Text="Network" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+                                                    </Expander.Header>
+                                                    <StackPanel>
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="112"/>
@@ -3408,6 +3416,7 @@
                                                                    Foreground="#DDEEFF" TextWrapping="Wrap" Margin="0,3,0,3"/>
                                                     </Grid>
                                                 </StackPanel>
+                                                </Expander>
                                             </Border>
 
                                             <Border Padding="12"
@@ -3424,28 +3433,20 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <StackPanel>
-                                                    <!-- Explicit grid prevents DockPanel's LastChildFill
-                                                         from collapsing the title/count separation. -->
-                                                    <Grid Margin="0,0,0,10">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="Published Values"
-                                                                   Foreground="#F4FAFF" FontSize="13.5"
-                                                                   FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="1" Margin="12,0,0,0"
-                                                                   Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} items}"
-                                                                   Foreground="#F0C17F" FontSize="11"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding SelectedGooseSemanticText}"
-                                                               Foreground="#A1BED4"
-                                                               FontSize="11"
-                                                               TextWrapping="Wrap"
-                                                               Margin="0,0,0,5"/>
-                                                    <Button Content="Identify these signals in the Configuration tab"
+                                                <Expander Style="{StaticResource GooseInspectorSectionExpanderStyle}"
+                                                          IsExpanded="True"
+                                                          HorizontalAlignment="Stretch">
+                                                    <Expander.Header>
+                                                        <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <TextBlock Text="Values" FontSize="12.5" FontWeight="SemiBold" Foreground="#F0F7FF"/>
+    <TextBlock Grid.Column="1" Margin="10,0,3,0"
+               Text="{Binding GooseInspectorDatasetCountText, StringFormat={}{0} items}"
+               Foreground="#9ABCD5" FontSize="10.5" VerticalAlignment="Center"/>
+</Grid>
+                                                    </Expander.Header>
+                                                    <StackPanel>
+                                                    <Button Content="Identify signals" ToolTip="Import matching device configuration (SCL) to label these values"
                                                             Command="{Binding GooseOpenConfigurationCommand}"
                                                             Foreground="#81C9F7"
                                                             Background="Transparent"
@@ -3455,7 +3456,7 @@
                                                             Padding="0,1"
                                                             FontSize="10.5"
                                                             Cursor="Hand"
-                                                            Margin="0,0,0,7">
+                                                            Margin="0,0,0,9">
                                                         <Button.Style>
                                                             <Style TargetType="Button">
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -3580,6 +3581,7 @@
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
                                                 </StackPanel>
+                                                </Expander>
                                             </Border>
                                             </StackPanel>
                                         </ScrollViewer>
