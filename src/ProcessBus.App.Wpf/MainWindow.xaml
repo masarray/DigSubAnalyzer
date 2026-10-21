@@ -3132,6 +3132,7 @@
                                                   IsVisibleChanged="GooseMessagesGrid_IsVisibleChanged"
                                                   ScrollViewer.ScrollChanged="GooseMessagesGrid_ScrollChanged"
                                                   PreviewMouseWheel="GooseMessagesGrid_PreviewMouseWheel"
+                                                  PreviewMouseDown="GooseMessagesGrid_PreviewMouseDown"
                                                   PreviewKeyDown="GooseMessagesGrid_PreviewKeyDown"
                                                   SelectionChanged="GooseMessagesGrid_SelectionChanged"
                                                   ContextMenuOpening="GooseMessagesGrid_ContextMenuOpening"
