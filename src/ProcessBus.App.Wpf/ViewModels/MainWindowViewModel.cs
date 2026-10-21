@@ -47,6 +47,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private GoosePublisherKey? _selectedGoosePublisherKey;
     private GooseTrafficRow? _selectedGooseTrafficRow;
     private bool _gooseInspectHistoricalEvent;
+    private GoosePublisherKey? _lastDisplayedGoosePublisherKey;
+    private GooseTrafficRow? _lastDisplayedGooseHistoryEvent;
+    private int _gooseVisibleEventCount;
     private IReadOnlyList<string> _gooseIdFilterOptions = ["All"];
     private IReadOnlyList<GooseMessageItem> _gooseMessages = Array.Empty<GooseMessageItem>();
     private GooseMonitorSnapshot _gooseSnapshot = new();
@@ -223,6 +226,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
         }
     }
 
@@ -239,6 +243,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
             _goosePublisherRowsView.Refresh();
             OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
@@ -280,6 +285,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(GooseFilterSummaryText));
             OnPropertyChanged(nameof(GooseEmptyGuidance));
             _gooseHistoryView.Refresh();
+            UpdateGooseVisibleEventCount();
             _goosePublisherRowsView.Refresh();
             OnPropertyChanged(nameof(SelectedGoosePublisherRow));
         }
@@ -294,6 +300,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             : "No matching state changes. Include retransmissions to inspect traffic activity.";
     public string GooseRetransmissionModeText => IncludeGooseRetransmission ? "Retrans ON" : "Retrans OFF";
     public string GoosePublisherCountText => $"{_gooseMessages.Count} publisher{(_gooseMessages.Count == 1 ? string.Empty : "s")}";
+    public string GooseTimelineCountersText =>
+        $"{_gooseSnapshot.TotalMessages:N0} RX frames  ·  {_gooseVisibleEventCount:N0} visible event{(_gooseVisibleEventCount == 1 ? "" : "s")}";
+    public string GooseWorkspaceCaptureSummaryText
+    {
+        get
+        {
+            if (!IsRunning)
+                return "GOOSE capture stopped  •  Last valid publisher evidence retained";
+            var testCount = _gooseMessages.Count(x => x.IsTest);
+            return $"GOOSE  •  {_gooseMessages.Count} publisher(s)  •  {_gooseSnapshot.TotalMessages:N0} RX frames" +
+                (testCount > 0 ? $"  •  {testCount} TEST publisher(s)" : string.Empty);
+        }
+    }
+
+    private void UpdateGooseVisibleEventCount()
+    {
+        // Count the bounded view only on history/filter changes, never per RX frame.
+        var visible = _gooseHistoryView.Cast<object>().Count();
+        if (visible == _gooseVisibleEventCount)
+            return;
+        _gooseVisibleEventCount = visible;
+        OnPropertyChanged(nameof(GooseTimelineCountersText));
+    }
     public string GooseFilterSummaryText
     {
         get
@@ -858,6 +887,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
             _selectedGoosePublisherKey = value.Key;
             _gooseInspectHistoricalEvent = false;
+            if (_selectedGooseTrafficRow is not null)
+            {
+                _selectedGooseTrafficRow = null;
+                OnPropertyChanged(nameof(SelectedGooseTrafficRow));
+            }
             BeginWorkspaceTargetTransition();
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsGooseHistoryPinned));
@@ -906,6 +940,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (!_gooseInspectHistoricalEvent)
             return;
         _gooseInspectHistoricalEvent = false;
+        _selectedGooseTrafficRow = null;
+        OnPropertyChanged(nameof(SelectedGooseTrafficRow));
         OnPropertyChanged(nameof(IsGooseHistoryPinned));
         RaiseGooseInspectorProperties();
         RaiseAdvancedProperties();
@@ -917,6 +953,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string GooseInspectorDatasetCountText =>
         (GooseInspectorMessage?.DataValues.Count ?? 0).ToString();
 
+    public string GooseInspectorModeBadgeText => IsGooseHistoryPinned
+        ? "PINNED EVENT" : GooseInspectorMessage is null ? "NO SELECTION" :
+        IsGooseSelectedPublisherStale ? "STALE" : "LIVE";
+
+    private bool IsGooseSelectedPublisherStale
+    {
+        get
+        {
+            var item = SelectedGooseMessage;
+            if (item is null)
+                return true;
+            var ttl = Math.Max(1000.0, item.TimeAllowedToLiveMilliseconds);
+            return SelectedGoosePublisherRow?.IsStale == true ||
+                   DateTime.UtcNow - item.LastSeenUtc > TimeSpan.FromMilliseconds(ttl);
+        }
+    }
+
     public string GooseInspectorModeText
     {
         get
@@ -926,10 +979,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return "Select a publisher for live values or an event for historical evidence.";
             if (_gooseInspectHistoricalEvent)
                 return $"Pinned event · {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · historical values";
-            var ttl = Math.Max(1000.0, item.TimeAllowedToLiveMilliseconds);
-            var stale = SelectedGoosePublisherRow?.IsStale == true ||
-                        DateTime.UtcNow - item.LastSeenUtc > TimeSpan.FromMilliseconds(ttl);
-            return stale
+            return IsGooseSelectedPublisherStale
                 ? $"STALE · last received {item.LastSeenUtc.ToLocalTime():HH:mm:ss.fff} · last valid values retained"
                 : "Live publisher · latest received typed DataSet values";
         }
@@ -937,6 +987,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void ReconcileGooseInspectorRows()
     {
+        var liveContext = _gooseInspectHistoricalEvent ? null : _selectedGoosePublisherKey;
+        var eventContext = _gooseInspectHistoricalEvent ? _selectedGooseTrafficRow : null;
+        if (_lastDisplayedGoosePublisherKey != liveContext ||
+            !ReferenceEquals(_lastDisplayedGooseHistoryEvent, eventContext))
+        {
+            // Switching publishers or pinning a different event resets expansion
+            // only for that deliberate context change, not for retransmissions.
+            _lastDisplayedGoosePublisherKey = liveContext;
+            _lastDisplayedGooseHistoryEvent = eventContext;
+            _gooseInspectorRows.Clear();
+        }
         var latest = BuildGooseDatasetValues(GooseInspectorMessage);
         for (var index = 0; index < latest.Count; index++)
         {
@@ -973,6 +1034,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GooseInspectorMessage));
         OnPropertyChanged(nameof(GooseInspectorDatasetCountText));
         OnPropertyChanged(nameof(GooseInspectorModeText));
+        OnPropertyChanged(nameof(GooseInspectorModeBadgeText));
         OnPropertyChanged(nameof(SelectedGooseDatasetValues));
         OnPropertyChanged(nameof(SelectedGooseSemanticText));
     }
@@ -2693,6 +2755,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         get
         {
+            if (IsGooseTabActive)
+                return GooseWorkspaceCaptureSummaryText;
             if (!IsRunning)
                 return "Capture stopped  •  Select an Ethernet adapter and press Start";
 
@@ -2868,6 +2932,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(GooseSnapshot));
         OnPropertyChanged(nameof(GooseStatusText));
         OnPropertyChanged(nameof(GooseTotalMessagesText));
+        OnPropertyChanged(nameof(GooseTimelineCountersText));
         OnPropertyChanged(nameof(GooseDetectedCountText));
         OnPropertyChanged(nameof(GoosePublisherCountText));
         OnPropertyChanged(nameof(GooseFilterSummaryText));
@@ -4399,6 +4464,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(IsGooseHistoryPinned));
         UpdateGooseIdFilterOptions();
         _gooseHistory.Clear();
+        UpdateGooseVisibleEventCount();
         _lastGooseState.Clear();
         _pendingGooseRows.Clear();
         _pendingDiagnosticEvents.Clear();
@@ -4547,7 +4613,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 return new GooseDatasetValueDisplayItem
                 {
                     Index = value.Index,
-                    NameText = semantic?.DisplayName ?? (string.IsNullOrWhiteSpace(value.Name) ? $"Entry {value.Index}" : value.Name),
+                    NameText = GooseDatasetEntryPresentation.ResolveName(value.Index, semantic?.DisplayName),
                     TypeText = BuildSemanticGooseTypeText(value, semantic),
                     SemanticText = semantic is null ? "Generic typed decode" : "SCL DataSet entry",
                     ValueText = BuildSemanticGooseValueText(value, semantic),
@@ -4748,15 +4814,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             flushed++;
         }
 
+        var removeCount = 0;
         if (_gooseHistory.Count > GooseHistoryLimit)
         {
-            var removeCount = _gooseHistory.Count - GooseHistoryLimit;
+            removeCount = _gooseHistory.Count - GooseHistoryLimit;
             for (var i = 0; i < removeCount; i++)
                 _gooseHistory.RemoveAt(0);
         }
 
-        // CollectionView observes ObservableCollection adds/removes and filters
-        // each new row automatically. Refresh() here resets DataGrid selection.
+        // The view observes incremental changes. Never Refresh() on each event.
+        if (flushed > 0 || removeCount > 0)
+            UpdateGooseVisibleEventCount();
     }
 
     private void TryFlushBufferedGooseRows()
