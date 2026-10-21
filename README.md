@@ -44,6 +44,10 @@ The application can record what was configured in SCL, what the selected capture
 - equipment isolation, switching authority, or site authorization; or
 - proof that an IED received, accepted, trusted, or acted on observed traffic.
 
+## Latest public stable — v1.4.2
+
+**Public release:** [Process Bus Insight v1.4.2](https://github.com/masarray/DigSubAnalyzer/releases/tag/v1.4.2), built from `main` after merging GOOSE PRs [#48](https://github.com/masarray/DigSubAnalyzer/pull/48), [#49](https://github.com/masarray/DigSubAnalyzer/pull/49) and [#51](https://github.com/masarray/DigSubAnalyzer/pull/51). Windows CI (241 tests), layout checks, and official release installer install/repair/uninstall passed. GOOSE Sources now use a quiet red unread dot; Messages and the Data Inspector share the captured-event acknowledgement state. This is stable engineering software, not certification of every field device or timing path.
+
 ## Download and run
 
 **[Download the latest stable installer (.exe) — v1.4.2](https://github.com/masarray/DigSubAnalyzer/releases/download/v1.4.2/ProcessBusInsight-v1.4.2-win-x64-setup.exe)** · [Landing page](https://masarray.github.io/DigSubAnalyzer/) · [Latest GitHub Release](https://github.com/masarray/DigSubAnalyzer/releases/latest)
