@@ -32,9 +32,21 @@ public sealed class GooseQualityPresentationTests
     }
 
     [Theory]
+    [InlineData("034000", "reserved")]
+    [InlineData("03C000", "questionable")]
+    [InlineData("038000", "reserved")]
+    public void QualityValidityVariantsRemainLiteral(string hex, string expected)
+    {
+        Assert.True(GooseQualityPresentation.TryDecode(hex, "BitString", out var parsed));
+        Assert.Equal(expected, parsed!.Validity);
+    }
+
+    [Theory]
     [InlineData("", "BitString")]
     [InlineData("0300", "BitString")]
     [InlineData("040000", "BitString")]
+    [InlineData("030001", "BitString")]
+    [InlineData("030007", "BitString")]
     [InlineData("03ZZ00", "BitString")]
     [InlineData("030000", "Boolean")]
     [InlineData(null, "BitString")]
