@@ -66,7 +66,7 @@ public sealed class GooseDecodedValueChangesTests
     }
 
     [Fact]
-    public void PublisherNoticeExpiresWithoutChangingSelectionOrIdentity()
+    public void PublisherNoticeLatchesUntilExplicitAckAndRearmsOnNextRealChange()
     {
         var packet = new ProcessBus.Core.Models.GooseMessageItem
         {
@@ -75,25 +75,63 @@ public sealed class GooseDecodedValueChangesTests
             GoCbRef = "IED/LLN0$GO$gcb",
             VlanId = "0"
         };
-        var row = new GoosePublisherRow(GoosePublisherKey.From(packet), packet);
-        var now = DateTime.UtcNow;
-        row.MarkDecodedValueChange(now, 1);
-        Assert.True(row.HasRecentValueChange);
-        row.MarkDecodedValueChange(now.AddMilliseconds(-100), 1);
-        Assert.Equal(now, row.LastValueChangeUtc);
-        row.ExpireValueChangeNotice(now.AddMilliseconds(2000));
-        Assert.True(row.HasRecentValueChange);
-        row.ExpireValueChangeNotice(now.AddMilliseconds(2600));
-        Assert.False(row.HasRecentValueChange);
-        Assert.Equal(1, row.ChangeRevision);
+        var other = new ProcessBus.Core.Models.GooseMessageItem
+        {
+            SourceMac = "00:11:22:33:44:56",
+            AppId = "0x0001",
+            GoCbRef = "IED/LLN0$GO$gcb",
+            VlanId = "0"
+        };
+        var catalog = new GoosePublisherCatalog();
+        catalog.Reconcile([packet, other], null);
+        var row = catalog.Find(GoosePublisherKey.From(packet))!;
+        var otherRow = catalog.Find(GoosePublisherKey.From(other))!;
+        var notifications = new List<string?>();
+        row.PropertyChanged += (_, e) => notifications.Add(e.PropertyName);
+        var t = DateTime.UtcNow;
 
-        // Reconnected analyzer may start at revision 1 again; a stable UI row
-        // must not suppress that first verified transition.
+        row.MarkDecodedValueChange(t, 1);
+        otherRow.MarkDecodedValueChange(t, 2);
+        Assert.True(row.HasUnacknowledgedValueChange);
+        Assert.True(otherRow.HasUnacknowledgedValueChange);
+        Assert.Equal(t, row.LastValueChangeUtc);
+
+        // Repeated rendering/snapshot reconciliation never ACKs the event.
+        for (int i = 0; i < 100; i++)
+            catalog.Reconcile([packet, other], GoosePublisherKey.From(packet));
+        Assert.True(row.HasUnacknowledgedValueChange);
+        Assert.Equal(1, notifications.Count(n => n == nameof(GoosePublisherRow.HasUnacknowledgedValueChange)));
+
+        // A subsequent change while unread updates evidence but doesn't spam
+        // the visual state nor trigger an unbounded notification loop.
+        row.MarkDecodedValueChange(t.AddSeconds(7), 3);
+        Assert.True(row.HasUnacknowledgedValueChange);
+        Assert.Equal(t.AddSeconds(7), row.LastValueChangeUtc);
+        Assert.Equal(1, notifications.Count(n => n == nameof(GoosePublisherRow.HasUnacknowledgedValueChange)));
+
+        row.AcknowledgeValueChange();
+        Assert.False(row.HasUnacknowledgedValueChange);
+        Assert.True(otherRow.HasUnacknowledgedValueChange); // ACK scoped to one key
+        Assert.Equal(2, notifications.Count(n => n == nameof(GoosePublisherRow.HasUnacknowledgedValueChange)));
+        row.AcknowledgeValueChange(); // idempotent ACK
+        Assert.Equal(2, notifications.Count(n => n == nameof(GoosePublisherRow.HasUnacknowledgedValueChange)));
+
+        row.MarkDecodedValueChange(t, 3); // same revision, no re-alert
+        Assert.False(row.HasUnacknowledgedValueChange);
+        row.MarkDecodedValueChange(t.AddSeconds(8), 4);
+        Assert.True(row.HasUnacknowledgedValueChange);
+        Assert.Equal(4, row.ChangeRevision);
+        Assert.Equal(3, notifications.Count(n => n == nameof(GoosePublisherRow.HasUnacknowledgedValueChange)));
+
+        // A fresh decoder session can safely restart revision numbering.
+        row.AcknowledgeValueChange();
         var firstSession = Guid.NewGuid();
         var secondSession = Guid.NewGuid();
-        row.MarkDecodedValueChange(now.AddSeconds(3), 42, firstSession);
-        row.MarkDecodedValueChange(now.AddSeconds(4), 1, secondSession);
+        row.MarkDecodedValueChange(t.AddSeconds(9), 42, firstSession);
+        row.AcknowledgeValueChange();
+        row.MarkDecodedValueChange(t.AddSeconds(10), 1, secondSession);
         Assert.Equal(1, row.ChangeRevision);
-        Assert.Equal(now.AddSeconds(4), row.LastValueChangeUtc);
+        Assert.True(row.HasUnacknowledgedValueChange);
+        Assert.Equal(t.AddSeconds(10), row.LastValueChangeUtc);
     }
 }
